@@ -119,7 +119,7 @@ export function normalize(raw: unknown): AppData {
   };
 }
 
-export const defaultUi = (): BoardUi => ({ view: "board", groupBy: "bucket", filter: emptyFilter() });
+export const defaultUi = (): BoardUi => ({ view: "board", groupBy: "bucket", filter: emptyFilter(), showCompleted: [] });
 
 interface State {
   data: AppData;

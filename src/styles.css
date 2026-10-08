@@ -475,3 +475,15 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
   .sidebar { width: 200px; }
   .view-tabs button { padding: 6px 8px; }
 }
+
+/* completed cards tucked under each column (Planner-style) */
+.completed-section { padding: 0 8px 8px; }
+.completed-toggle {
+  display: flex; align-items: center; gap: 6px; width: 100%; padding: 6px 8px; border-radius: 7px;
+  font-size: 13px; font-weight: 500; color: var(--text-2);
+}
+.completed-toggle:hover { background: var(--surface-3); color: var(--text); }
+.completed-toggle .count { margin-left: auto; }
+.completed-cards { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.completed-cards .card-tile { opacity: .75; }
+.completed-cards .card-tile:hover { opacity: 1; }
