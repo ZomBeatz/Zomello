@@ -1,0 +1,104 @@
+import type { Card, List } from "../../types";
+import { isLate, PRIORITIES, PROGRESS } from "../../utils";
+
+/** Stacked segments: not started / in progress / completed, with late split out. */
+const SEGMENTS = [
+  { key: "late", name: "Late", color: "#ef4444", test: (c: Card) => isLate(c) },
+  ...PROGRESS.map((p) => ({ key: p.id, name: p.name, color: p.color, test: (c: Card) => c.progress === p.id && !isLate(c) })),
+];
+
+function StackedRow({ label, cards, max }: { label: string; cards: Card[]; max: number }) {
+  return (
+    <div className="chart-row">
+      <span className="chart-label" title={label}>{label}</span>
+      <div className="chart-track">
+        <div className="chart-stack" style={{ width: max ? `${(cards.length / max) * 100}%` : 0 }}>
+          {SEGMENTS.map((s) => {
+            const n = cards.filter(s.test).length;
+            return n ? (
+              <span
+                key={s.key}
+                className="chart-seg"
+                style={{ flexGrow: n, background: s.color }}
+                title={`${label} · ${s.name}: ${n} of ${cards.length}`}
+              />
+            ) : null;
+          })}
+        </div>
+      </div>
+      <span className="chart-value">{cards.length}</span>
+    </div>
+  );
+}
+
+function Panel({ title, rows }: { title: string; rows: { label: string; cards: Card[] }[] }) {
+  const max = Math.max(1, ...rows.map((r) => r.cards.length));
+  return (
+    <section className="panel">
+      <h3>{title}</h3>
+      {rows.map((r) => (
+        <StackedRow key={r.label} label={r.label} cards={r.cards} max={max} />
+      ))}
+      {rows.length === 0 && <p className="muted small">Nothing yet.</p>}
+    </section>
+  );
+}
+
+export function ChartsView({ lists, cards, people }: { lists: List[]; cards: Card[]; people: string[] }) {
+  const count = (t: (c: Card) => boolean) => cards.filter(t).length;
+  const done = count((c) => c.progress === "completed");
+  const pct = cards.length ? Math.round((done / cards.length) * 100) : 0;
+  const assignees = Array.from(new Set([...people, ...cards.flatMap((c) => c.assignees)]));
+
+  const tiles = [
+    { label: "Total tasks", value: cards.length },
+    { label: "Not started", value: count((c) => c.progress === "notStarted"), color: PROGRESS[0].color },
+    { label: "In progress", value: count((c) => c.progress === "inProgress"), color: PROGRESS[1].color },
+    { label: "Completed", value: done, sub: `${pct}%`, color: PROGRESS[2].color },
+    { label: "Late", value: count(isLate), color: "#ef4444" },
+  ];
+
+  return (
+    <div className="charts">
+      <div className="stat-tiles">
+        {tiles.map((t) => (
+          <div key={t.label} className="stat-tile">
+            <span className="stat-label">
+              {t.color && <span className="dot" style={{ background: t.color }} />}
+              {t.label}
+            </span>
+            <span className="stat-value">
+              {t.value}
+              {t.sub && <small> {t.sub}</small>}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <section className="panel">
+        <h3>Overall progress</h3>
+        <StackedRow label="All tasks" cards={cards} max={cards.length} />
+        <div className="legend">
+          {SEGMENTS.map((s) => (
+            <span key={s.key}>
+              <span className="dot" style={{ background: s.color }} />
+              {s.name}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <div className="panel-grid">
+        <Panel title="By bucket" rows={lists.map((l) => ({ label: l.title, cards: cards.filter((c) => c.listId === l.id) }))} />
+        <Panel title="By priority" rows={PRIORITIES.map((p) => ({ label: p.name, cards: cards.filter((c) => c.priority === p.id) }))} />
+        <Panel
+          title="By assignee"
+          rows={[
+            { label: "Unassigned", cards: cards.filter((c) => c.assignees.length === 0) },
+            ...assignees.map((a) => ({ label: a, cards: cards.filter((c) => c.assignees.includes(a)) })),
+          ].filter((r) => r.cards.length > 0)}
+        />
+      </div>
+    </div>
+  );
+}
