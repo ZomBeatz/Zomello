@@ -26,6 +26,8 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   Archive,
+  ChevronDown,
+  ChevronRight,
   ChevronsLeftRight,
   Gauge,
   MoreHorizontal,
@@ -61,12 +63,29 @@ export function KanbanView({
   const groups = useMemo(() => buildGroups(groupBy, board, lists, cards, people), [groupBy, board, lists, cards, people]);
   const listNames = useMemo(() => Object.fromEntries(lists.map((l) => [l.id, l.title])), [lists]);
 
+  // Like Planner/Teams: completed cards are tucked into a collapsible section under each column
+  // (except when grouping by progress, where "Completed" is its own column).
+  const hideCompleted = groupBy !== "progress";
+  const isActive = (c: Card) => !hideCompleted || c.progress !== "completed";
+  const completedByGroup = useMemo(
+    () =>
+      Object.fromEntries(
+        groups.map((g) => [
+          g.id,
+          hideCompleted
+            ? g.cards.filter((c) => c.progress === "completed").sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
+            : [],
+        ]),
+      ),
+    [groups, hideCompleted],
+  );
+
   // While dragging, a local copy of column contents lets cards hop between columns live.
   const [dragCols, setDragCols] = useState<Record<string, ID[]> | null>(null);
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const columns = useMemo(
-    () => dragCols ?? Object.fromEntries(groups.map((g) => [g.id, g.cards.map((c) => c.id)])),
-    [dragCols, groups],
+    () => dragCols ?? Object.fromEntries(groups.map((g) => [g.id, g.cards.filter(isActive).map((c) => c.id)])),
+    [dragCols, groups, hideCompleted],
   );
   const canDrag = DRAGGABLE.includes(groupBy);
 
@@ -169,6 +188,7 @@ export function KanbanView({
               cardsById={allCards}
               groupBy={groupBy}
               listNames={listNames}
+              completed={completedByGroup[g.id] ?? []}
               canDrag={canDrag}
             />
           ))}
@@ -201,6 +221,7 @@ function Column({
   groupBy,
   listNames,
   canDrag,
+  completed,
 }: {
   group: Group;
   board: Board;
@@ -210,6 +231,7 @@ function Column({
   groupBy: GroupBy;
   listNames: Record<ID, string>;
   canDrag: boolean;
+  completed: Card[];
 }) {
   const updateList = useStore((s) => s.updateList);
   const deleteList = useStore((s) => s.deleteList);
@@ -315,6 +337,52 @@ function Column({
         </SortableContext>
       </div>
       {group.patch && lists.length > 0 && <AddCard group={group} lists={lists} />}
+      {completed.length > 0 && (
+        <CompletedSection
+          boardId={board.id}
+          groupId={group.id}
+          cards={completed}
+          board={board}
+          bucketName={(c) => (groupBy !== "bucket" ? listNames[c.listId] : undefined)}
+        />
+      )}
+    </div>
+  );
+}
+
+function CompletedSection({
+  boardId,
+  groupId,
+  cards,
+  board,
+  bucketName,
+}: {
+  boardId: ID;
+  groupId: string;
+  cards: Card[];
+  board: Board;
+  bucketName: (c: Card) => string | undefined;
+}) {
+  const expanded = useStore((s) => s.data.ui[boardId]?.showCompleted ?? []);
+  const setBoardUi = useStore((s) => s.setBoardUi);
+  const open = expanded.includes(groupId);
+  return (
+    <div className="completed-section">
+      <button
+        className="completed-toggle"
+        onClick={() => setBoardUi(boardId, { showCompleted: open ? expanded.filter((x) => x !== groupId) : [...expanded, groupId] })}
+      >
+        {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+        {open ? "Hide completed" : "Show completed"}
+        <span className="count">{cards.length}</span>
+      </button>
+      {open && (
+        <div className="completed-cards">
+          {cards.map((c) => (
+            <CardTile key={c.id} card={c} board={board} bucketName={bucketName(c)} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

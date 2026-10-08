@@ -100,6 +100,8 @@ export interface BoardUi {
   view: ViewMode;
   groupBy: GroupBy;
   filter: Filter;
+  /** Group ids whose "Completed" section is expanded on the board view. */
+  showCompleted: string[];
 }
 
 export interface Settings {
