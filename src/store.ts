@@ -40,6 +40,15 @@ export const defaultSettings = (): Settings => ({
   defaultView: "board",
   sidebarCollapsed: false,
   reminders: { enabled: true, digest: true, digestTime: "09:00" },
+  zoom: 1,
+  a11y: {
+    reduceMotion: false,
+    highContrast: false,
+    underlineLinks: false,
+    readableSpacing: false,
+    strongFocus: false,
+    largerTargets: false,
+  },
 });
 
 export const newBoard = (title: string, color: string, order: number): Board => ({
@@ -164,6 +173,7 @@ export function normalize(raw: unknown): AppData {
       ...defaultSettings(),
       ...d.settings,
       reminders: { ...defaultSettings().reminders, ...d.settings?.reminders },
+      a11y: { ...defaultSettings().a11y, ...d.settings?.a11y },
     },
   };
 }
@@ -175,11 +185,18 @@ export const defaultUi = (view: BoardUi["view"] = "board"): BoardUi => ({
   showCompleted: [],
 });
 
+export interface CardTrailStep {
+  cardId: ID;
+  /** How we left this card: through a checklist link, a linked task, or a "checklist item in" parent link. */
+  via: "checklist" | "link" | "parent";
+}
+
 export interface Toast {
   id: ID;
   text: string;
   /** Show an Undo button that reverts the change. */
   undo?: boolean;
+  key?: string;
 }
 
 interface State {
@@ -189,6 +206,9 @@ interface State {
   saveError: string | null;
   route: Route;
   openCardId: ID | null;
+  cardTrail: CardTrailStep[];
+  /** Direction of the last card navigation, for the slide animation. */
+  cardNavDir: "forward" | "back" | null;
   searchOpen: boolean;
   quickAddOpen: boolean;
   helpOpen: boolean;
@@ -198,12 +218,19 @@ interface State {
   load(): Promise<void>;
   undo(): boolean;
   redo(): boolean;
-  toast(text: string, opts?: { undo?: boolean }): void;
+  /** `key`: a new toast with the same key replaces the old one (e.g. zoom level). */
+  toast(text: string, opts?: { undo?: boolean; key?: string }): void;
   dismissToast(id: ID): void;
   setOverlay(patch: Partial<Pick<State, "quickAddOpen" | "helpOpen" | "customizeBoardId" | "searchOpen">>): void;
   replaceData(data: AppData): void;
   navigate(route: Route): void;
-  openCard(id: ID | null): void;
+  /**
+   * Open a card. With `via` set, the current card is kept on a trail so the user can step back
+   * (used when following a linked task / checklist link from inside a card).
+   */
+  openCard(id: ID | null, opts?: { via?: CardTrailStep["via"] }): void;
+  /** Return to the card we came from (or to an earlier step of the trail). */
+  cardBack(toIndex?: number): void;
   setSearchOpen(open: boolean): void;
 
   createBoard(title: string, color?: string): ID;
@@ -355,9 +382,16 @@ const COALESCE_MS = 700;
 let past: AppData[] = [];
 let future: AppData[] = [];
 let lastChange = 0;
+/** View preferences (zoom, sidebar) change too often to be worth an undo step. */
+const VIEW_PREFS = ["zoom", "sidebarCollapsed"] as const;
+const settingsChanged = (a: Settings, b: Settings) =>
+  a !== b &&
+  (Object.keys(a) as (keyof Settings)[]).some(
+    (k) => !(VIEW_PREFS as readonly string[]).includes(k) && JSON.stringify(a[k]) !== JSON.stringify(b[k]),
+  );
 const undoable = (a: AppData, b: AppData) =>
   a.boards !== b.boards || a.lists !== b.lists || a.cards !== b.cards ||
-  a.savedFilters !== b.savedFilters || a.templates !== b.templates || a.settings !== b.settings;
+  a.savedFilters !== b.savedFilters || a.templates !== b.templates || settingsChanged(a.settings, b.settings);
 
 export const useStore = create<State>((set, get) => {
   /** Apply an immutable update to `data`, recording undo history. */
@@ -383,6 +417,8 @@ export const useStore = create<State>((set, get) => {
     saveError: null,
     route: { page: "home" },
     openCardId: null,
+    cardTrail: [],
+    cardNavDir: null,
     searchOpen: false,
     quickAddOpen: false,
     helpOpen: false,
@@ -406,8 +442,8 @@ export const useStore = create<State>((set, get) => {
       return true;
     },
     toast(text, opts) {
-      const t: Toast = { id: uid(), text, undo: opts?.undo };
-      set((s) => ({ toasts: [...s.toasts.slice(-3), t] }));
+      const t: Toast = { id: uid(), text, undo: opts?.undo, key: opts?.key };
+      set((s) => ({ toasts: [...s.toasts.filter((x) => !t.key || x.key !== t.key).slice(-3), t] }));
       setTimeout(() => get().dismissToast(t.id), 6000);
     },
     dismissToast(id) {
@@ -436,10 +472,22 @@ export const useStore = create<State>((set, get) => {
     },
 
     navigate(route) {
-      set({ route, openCardId: null });
+      set({ route, openCardId: null, cardTrail: [], cardNavDir: null });
     },
-    openCard(id) {
-      set({ openCardId: id });
+    openCard(id, opts) {
+      const { openCardId, cardTrail } = get();
+      if (id && opts?.via && openCardId && openCardId !== id)
+        set({ openCardId: id, cardTrail: [...cardTrail, { cardId: openCardId, via: opts.via }], cardNavDir: "forward" });
+      else set({ openCardId: id, cardTrail: [], cardNavDir: null });
+    },
+    cardBack(toIndex) {
+      const { cardTrail, data } = get();
+      if (!cardTrail.length) return;
+      const i = toIndex ?? cardTrail.length - 1;
+      const step = cardTrail[i];
+      // Skip back past cards that were deleted meanwhile.
+      if (!data.cards[step.cardId]) return set({ cardTrail: cardTrail.slice(0, i) });
+      set({ openCardId: step.cardId, cardTrail: cardTrail.slice(0, i), cardNavDir: "back" });
     },
     setSearchOpen(open) {
       set({ searchOpen: open });

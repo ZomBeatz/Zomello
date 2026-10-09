@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
-import { Bell, Download, Eraser, LayoutTemplate, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
+import { Accessibility, Bell, Download, Minus, Plus, Eraser, LayoutTemplate, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
 import type { Settings, ViewMode } from "../types";
 import { normalize, useStore } from "../store";
 import {
@@ -8,7 +8,18 @@ import {
 } from "../storage";
 import { PALETTE } from "../utils";
 import { SHORTCUTS } from "../shortcuts";
+import { setZoom, ZOOM_MAX, ZOOM_MIN } from "../zoom";
+import type { A11ySettings } from "../types";
 import { ask, Avatar, InlineEdit } from "./ui";
+
+const A11Y_OPTIONS: { key: keyof A11ySettings; name: string; hint: string }[] = [
+  { key: "highContrast", name: "High contrast", hint: "Stronger borders and text; turns off card fading" },
+  { key: "reduceMotion", name: "Reduce motion", hint: "No animations (also follows your system setting)" },
+  { key: "strongFocus", name: "Strong focus outline", hint: "Thick ring around whatever the keyboard is on" },
+  { key: "largerTargets", name: "Larger click targets", hint: "Bigger buttons, checkboxes and menu items" },
+  { key: "readableSpacing", name: "Readable spacing", hint: "Extra letter, word and line spacing" },
+  { key: "underlineLinks", name: "Underline links", hint: "Make every link stand out without color" },
+];
 
 const ACCENTS = ["#2580c3", "#ec6a3f", ...PALETTE.filter((c) => c !== "#0ea5e9")];
 
@@ -140,6 +151,54 @@ export function SettingsPage() {
           </select>
         </div>
         <p className="muted small">Each board also has its own look — open a board and press Customize (or B).</p>
+      </section>
+
+      <section className="panel">
+        <h3>
+          <Accessibility size={15} /> Accessibility
+        </h3>
+        <div className="field-row">
+          <label>Zoom</label>
+          <div className="zoom-control">
+            <button className="icon-btn" title="Zoom out (Ctrl −)" onClick={() => setZoom(settings.zoom - 0.1)}>
+              <Minus size={15} />
+            </button>
+            <input
+              type="range"
+              min={ZOOM_MIN * 100}
+              max={ZOOM_MAX * 100}
+              step={10}
+              value={Math.round(settings.zoom * 100)}
+              aria-label="Zoom level"
+              onChange={(e) => setZoom(+e.target.value / 100)}
+            />
+            <button className="icon-btn" title="Zoom in (Ctrl +)" onClick={() => setZoom(settings.zoom + 0.1)}>
+              <Plus size={15} />
+            </button>
+            <span className="zoom-value">{Math.round(settings.zoom * 100)}%</span>
+            {settings.zoom !== 1 && (
+              <button className="btn sm ghost" onClick={() => setZoom(1)}>
+                Reset
+              </button>
+            )}
+          </div>
+        </div>
+        <p className="muted small">Hold Ctrl and scroll, or use Ctrl + / Ctrl − / Ctrl 0, anywhere in the app.</p>
+        <div className="a11y-grid">
+          {A11Y_OPTIONS.map((o) => (
+            <label key={o.key} className="check-row">
+              <input
+                type="checkbox"
+                checked={settings.a11y[o.key]}
+                onChange={(e) => updateSettings({ a11y: { ...settings.a11y, [o.key]: e.target.checked } })}
+              />
+              <span>
+                {o.name}
+                <small className="muted">{o.hint}</small>
+              </span>
+            </label>
+          ))}
+        </div>
       </section>
 
       <section className="panel">

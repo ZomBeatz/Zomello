@@ -15,6 +15,9 @@ export const SHORTCUTS: { group: string; items: [string, string][] }[] = [
       ["H", "Home"],
       ["M", "My Tasks"],
       ["[", "Collapse / expand the sidebar"],
+      ["Ctrl Scroll", "Zoom in / out"],
+      ["Ctrl +  or  Ctrl −", "Zoom in / out"],
+      ["Ctrl 0", "Reset zoom"],
       ["?", "Show these shortcuts"],
       ["Esc", "Close dialogs and menus"],
     ],
@@ -42,6 +45,7 @@ export const SHORTCUTS: { group: string; items: [string, string][] }[] = [
   {
     group: "In a card",
     items: [
+      ["Alt ←", "Back to the card you came from"],
       ["Ctrl Enter", "Save note"],
       ["Esc", "Close"],
     ],
@@ -70,6 +74,12 @@ export function handleShortcut(e: KeyboardEvent) {
   }
   // Inside text fields, leave Ctrl+Z etc. to the browser's own text undo.
   if (isTyping(e.target)) return;
+
+  // Back out of a card we reached through a link.
+  if (e.altKey && e.key === "ArrowLeft" && st.openCardId && st.cardTrail.length) {
+    e.preventDefault();
+    return st.cardBack();
+  }
 
   if (ctrl && (key === "z" || key === "y")) {
     e.preventDefault();

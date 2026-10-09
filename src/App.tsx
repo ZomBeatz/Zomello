@@ -15,7 +15,9 @@ import { ConfirmHost, Modal } from "./components/ui";
 import { ContextMenuHost } from "./components/ContextMenu";
 import { LogoMark } from "./components/Logo";
 import { handleShortcut } from "./shortcuts";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { startReminders } from "./reminders";
+import { applyZoom, installZoomControls } from "./zoom";
 
 const DENSITY = { compact: "13px", normal: "14px", comfortable: "15.5px" };
 
@@ -48,7 +50,15 @@ export default function App() {
     if (settings.accent) root.style.setProperty("--accent", settings.accent);
     else root.style.removeProperty("--accent");
     root.style.fontSize = DENSITY[settings.density];
-  }, [settings.theme, settings.accent, settings.density]);
+    // Accessibility switches become data-* attributes the stylesheet keys off.
+    for (const [k, v] of Object.entries(settings.a11y)) root.toggleAttribute(`data-${k.toLowerCase()}`, v);
+  }, [settings.theme, settings.accent, settings.density, settings.a11y]);
+
+  useEffect(() => {
+    void applyZoom(settings.zoom);
+  }, [settings.zoom]);
+
+  useEffect(() => installZoomControls(), []);
 
   useEffect(() => {
     // Hide the webview's own menu (Reload / Inspect…) except where text can be edited.
@@ -84,14 +94,20 @@ export default function App() {
       <Sidebar />
       <main className="main">
         {saveError && <div className="save-error">Saving failed: {saveError}</div>}
-        {route.page === "home" && <HomePage />}
-        {route.page === "mytasks" && <MyTasksPage />}
-        {route.page === "board" && boardExists && <BoardPage key={route.boardId} boardId={route.boardId} />}
-        {route.page === "board" && !boardExists && <HomePage />}
-        {route.page === "archive" && <ArchivePage />}
-        {route.page === "settings" && <SettingsPage />}
+        <ErrorBoundary resetKey={route} onHome={() => useStore.getState().navigate({ page: "home" })}>
+          {route.page === "home" && <HomePage />}
+          {route.page === "mytasks" && <MyTasksPage />}
+          {route.page === "board" && boardExists && <BoardPage key={route.boardId} boardId={route.boardId} />}
+          {route.page === "board" && !boardExists && <HomePage />}
+          {route.page === "archive" && <ArchivePage />}
+          {route.page === "settings" && <SettingsPage />}
+        </ErrorBoundary>
       </main>
-      {openCardId && <CardModal cardId={openCardId} />}
+      {openCardId && (
+        <ErrorBoundary resetKey={openCardId} onHome={() => useStore.getState().openCard(null)}>
+          <CardModal cardId={openCardId} />
+        </ErrorBoundary>
+      )}
       {searchOpen && <SearchPalette />}
       {quickAddOpen && <QuickAdd />}
       {customizeBoard && <BoardCustomize board={customizeBoard} />}

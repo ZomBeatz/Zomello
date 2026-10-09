@@ -351,6 +351,9 @@ function Column({
   );
 }
 
+/** Stable empty value: a fresh [] in a selector re-renders forever. */
+const NONE_EXPANDED: string[] = [];
+
 function CompletedSection({
   boardId,
   groupId,
@@ -364,7 +367,7 @@ function CompletedSection({
   board: Board;
   bucketName: (c: Card) => string | undefined;
 }) {
-  const expanded = useStore((s) => s.data.ui[boardId]?.showCompleted ?? []);
+  const expanded = useStore((s) => s.data.ui[boardId]?.showCompleted ?? NONE_EXPANDED);
   const setBoardUi = useStore((s) => s.setBoardUi);
   const open = expanded.includes(groupId);
   return (
