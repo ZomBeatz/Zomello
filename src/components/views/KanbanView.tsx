@@ -33,6 +33,7 @@ import {
   ChevronsLeftRight,
   SlidersHorizontal,
   Sparkles,
+  ClipboardCopy,
   Bot,
   Gauge,
   LayoutTemplate,
@@ -47,6 +48,8 @@ import { buildGroups, SORT_MODES, sortCards, type Group } from "../../utils";
 import { CardTile } from "../CardTile";
 import { ask, InlineEdit, MenuItem, Modal, Popover } from "../ui";
 import { BADGES } from "../BoardCustomize";
+import { copyText } from "../Markdown";
+import { workOrder } from "../../ai";
 
 const COL_PREFIX = "col:";
 
@@ -380,6 +383,16 @@ function Column({
                   }}
                 >
                   Export bucket for AI…
+                </MenuItem>
+                <MenuItem
+                  icon={<ClipboardCopy size={14} />}
+                  onClick={() => {
+                    close();
+                    const cs = Object.values(useStore.getState().data.cards).filter((c) => c.listId === list.id);
+                    copyText(workOrder(board.id, cs, `Bucket: ${list.title}`));
+                  }}
+                >
+                  Copy work order
                 </MenuItem>
                 <MenuItem icon={<SlidersHorizontal size={14} />} onClick={() => (setDisplayOpen(true), close())}>
                   Card display{list.badges && Object.keys(list.badges).length ? " (custom)" : ""}…

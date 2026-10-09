@@ -63,6 +63,7 @@ export const CardTile = memo(function CardTile({
   // Cards that have this one as a sub-task (newline-joined titles, so the selector stays cheap to compare).
   const parentTitles = useStore((s) => (parentIndex(s.data.cards).get(card.id) ?? []).map((p) => p.title).join("\n"));
   const linkRole = useLinkHover((s) => s.roles[card.id]);
+  const selected = useStore((s) => s.selected.includes(card.id));
   const isLinkSource = useLinkHover((s) => s.source === card.id);
   const subIds = subtaskIds(card);
   const subDone = card.checklist.filter((i) => i.cardId && i.done).length;
@@ -94,13 +95,18 @@ export const CardTile = memo(function CardTile({
         age && `aged-${age}`,
         linkRole && `link-role link-${linkRole}`,
         isLinkSource && "link-source",
+        selected && "selected",
       ]
         .filter(Boolean)
         .join(" ")}
       style={full && !coverImg ? { background: card.cover! } : undefined}
       data-card-id={card.id}
       data-rel-label={linkRole ? REL_LABEL[linkRole] : undefined}
-      onClick={() => openCard(card.id)}
+      onClick={(e) => {
+        // Ctrl / Shift + click picks cards for bulk actions (e.g. handing a list of them to an AI).
+        if (e.ctrlKey || e.metaKey || e.shiftKey) useStore.getState().toggleSelected(card.id);
+        else openCard(card.id);
+      }}
       onContextMenu={(e) => openCardMenu(e, card.id)}
       onMouseEnter={() => {
         hoveredCardId = card.id;

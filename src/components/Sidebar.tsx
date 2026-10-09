@@ -1,8 +1,16 @@
 import { useMemo, useState } from "react";
 import {
-  Archive, ChevronsLeft, ChevronsRight, Home, Hourglass, Keyboard, Pause, Play, Plus, Search, Settings, Star, UserCheck, X, Zap,
+  Archive, Bot, ChevronsLeft, ChevronsRight, ClipboardCopy, Copy, ExternalLink, Home, Hourglass, Keyboard, LayoutTemplate, Palette,
+  Pause, Pencil, Play, Plus, Search, Settings, Star, Trash2, UserCheck, X, Zap,
 } from "lucide-react";
 import { runningTimer, useStore } from "../store";
+import type { Board, ID } from "../types";
+import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { CSS } from "@dnd-kit/utilities";
+import { openContextMenu, type MenuEntry } from "./ContextMenu";
+import { ask } from "./ui";
 import { byOrder, formatDuration, parseDuration } from "../utils";
 import { Popover } from "./ui";
 import { LogoMark, Wordmark } from "./Logo";
@@ -18,18 +26,9 @@ export function Sidebar() {
 
   const live = useMemo(() => Object.values(boards).filter((b) => !b.archived).sort(byOrder), [boards]);
   const starred = live.filter((b) => b.starred);
-  const active = (id: string) => route.page === "board" && route.boardId === id;
+  const activeId = route.page === "board" ? route.boardId : null;
 
-  const BoardLink = ({ id, title, color, icon }: { id: string; title: string; color: string; icon: string | null }) => (
-    <button
-      className={`nav-item ${active(id) ? "active" : ""}`}
-      onClick={() => navigate({ page: "board", boardId: id })}
-      title={collapsed ? title : undefined}
-    >
-      {icon ? <span className="nav-emoji">{icon}</span> : <span className="board-dot" style={{ background: color }} />}
-      <span className="ellipsis label">{title}</span>
-    </button>
-  );
+  const [renaming, setRenaming] = useState<ID | null>(null);
 
   const NavItem = ({ icon, label, onClick, on, kbd }: { icon: React.ReactNode; label: string; onClick: () => void; on?: boolean; kbd?: string }) => (
     <button className={`nav-item ${on ? "active" : ""}`} onClick={onClick} title={collapsed ? label : undefined}>
@@ -66,9 +65,7 @@ export function Sidebar() {
           <div className="nav-heading">
             <Star size={12} /> <span className="label">Starred</span>
           </div>
-          {starred.map((b) => (
-            <BoardLink key={b.id} id={b.id} title={b.title} color={b.color} icon={b.icon} />
-          ))}
+          <BoardList list={starred} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
         </>
       )}
 
@@ -79,9 +76,7 @@ export function Sidebar() {
         </button>
       </div>
       <div className="nav-boards">
-        {live.map((b) => (
-          <BoardLink key={b.id} id={b.id} title={b.title} color={b.color} icon={b.icon} />
-        ))}
+        <BoardList list={live} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
         {adding && (
           <input
             autoFocus
@@ -239,5 +234,180 @@ function FocusWidget({ collapsed }: { collapsed: boolean }) {
         </div>
       )}
     </div>
+  );
+}
+
+/** A board in the sidebar: drag to reorder, right-click for board actions, inline rename. */
+function BoardLink({
+  board,
+  active,
+  collapsed,
+  renaming,
+  onRename,
+  onRenamed,
+}: {
+  board: Board;
+  active: boolean;
+  collapsed: boolean;
+  renaming: boolean;
+  onRename: () => void;
+  onRenamed: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: board.id, disabled: renaming });
+  const st = useStore.getState();
+  const style = { transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  const icon = board.icon ? <span className="nav-emoji">{board.icon}</span> : <span className="board-dot" style={{ background: board.color }} />;
+
+  if (renaming)
+    return (
+      <div ref={setNodeRef} style={style} className="nav-item renaming">
+        {icon}
+        <input
+          autoFocus
+          className="nav-input"
+          defaultValue={board.title}
+          onFocus={(e) => e.target.select()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+            if (e.key === "Escape") {
+              e.currentTarget.value = board.title;
+              e.currentTarget.blur();
+            }
+          }}
+          onBlur={(e) => {
+            const t = e.target.value.trim();
+            if (t && t !== board.title) st.updateBoard(board.id, { title: t });
+            onRenamed();
+          }}
+        />
+      </div>
+    );
+
+  const menu = (): MenuEntry[] => [
+    { label: "Open", icon: <ExternalLink size={14} />, onClick: () => st.navigate({ page: "board", boardId: board.id }) },
+    { label: "Rename", icon: <Pencil size={14} />, onClick: onRename },
+    {
+      label: board.starred ? "Unstar" : "Star",
+      icon: <Star size={14} />,
+      onClick: () => st.updateBoard(board.id, { starred: !board.starred }),
+    },
+    {
+      label: "Customize…",
+      icon: <Palette size={14} />,
+      onClick: () => {
+        st.navigate({ page: "board", boardId: board.id });
+        st.setOverlay({ customizeBoardId: board.id });
+      },
+    },
+    { separator: true },
+    {
+      label: "AI tools…",
+      icon: <Bot size={14} />,
+      onClick: () => st.setOverlay({ aiDialog: { tab: "ask", mode: "cards", boardId: board.id } }),
+    },
+    {
+      label: "Copy work order (all open cards)",
+      icon: <ClipboardCopy size={14} />,
+      onClick: async () => {
+        const [{ workOrder }, { copyText }] = await Promise.all([import("../ai"), import("./Markdown")]);
+        const all = Object.values(useStore.getState().data.cards).filter((c) => c.boardId === board.id);
+        copyText(workOrder(board.id, all, `${board.title}: open items`));
+      },
+    },
+    { separator: true },
+    {
+      label: "Duplicate",
+      icon: <Copy size={14} />,
+      onClick: () => st.navigate({ page: "board", boardId: st.duplicateBoard(board.id) }),
+    },
+    {
+      label: "New board with this layout",
+      icon: <LayoutTemplate size={14} />,
+      onClick: () =>
+        st.navigate({ page: "board", boardId: st.duplicateBoard(board.id, { title: `New ${board.title}`, withCards: false }) }),
+    },
+    {
+      label: "Archive",
+      icon: <Archive size={14} />,
+      onClick: () => {
+        st.updateBoard(board.id, { archived: true });
+        if (active) st.navigate({ page: "home" });
+        st.toast(`Archived “${board.title}”`, { undo: true });
+      },
+    },
+    {
+      label: "Delete",
+      icon: <Trash2 size={14} />,
+      danger: true,
+      onClick: async () => {
+        if (await ask(`Delete board "${board.title}" and everything in it?`, { okText: "Delete board", danger: true })) {
+          st.deleteBoard(board.id);
+          st.toast(`Deleted “${board.title}”`, { undo: true });
+        }
+      },
+    },
+  ];
+
+  return (
+    <button
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`nav-item ${active ? "active" : ""}`}
+      onClick={() => st.navigate({ page: "board", boardId: board.id })}
+      onDoubleClick={onRename}
+      onContextMenu={(e) => openContextMenu(e, menu)}
+      title={collapsed ? board.title : "Drag to reorder · double-click to rename · right-click for more"}
+    >
+      {icon}
+      <span className="ellipsis label">{board.title}</span>
+    </button>
+  );
+}
+
+/** A draggable list of boards. `list` may be a subset (Starred) of `all`; the full order is updated either way. */
+function BoardList({
+  list,
+  all,
+  activeId,
+  collapsed,
+  renaming,
+  setRenaming,
+}: {
+  list: Board[];
+  all: Board[];
+  activeId: ID | null;
+  collapsed: boolean;
+  renaming: ID | null;
+  setRenaming: (id: ID | null) => void;
+}) {
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const onDragEnd = ({ active: a, over }: DragEndEvent) => {
+    if (!over || a.id === over.id) return;
+    const ids = list.map((b) => b.id);
+    const moved = arrayMove(ids, ids.indexOf(String(a.id)), ids.indexOf(String(over.id)));
+    // Put the reordered subset back into the slots it occupies in the full order.
+    const order = all.map((b) => b.id);
+    const slots = order.map((id, i) => (ids.includes(id) ? i : -1)).filter((i) => i >= 0);
+    slots.forEach((slot, k) => (order[slot] = moved[k]));
+    useStore.getState().reorderBoards(order);
+  };
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} modifiers={[restrictToVerticalAxis]}>
+      <SortableContext items={list.map((b) => b.id)} strategy={verticalListSortingStrategy}>
+        {list.map((b) => (
+          <BoardLink
+            key={b.id}
+            board={b}
+            active={activeId === b.id}
+            collapsed={collapsed}
+            renaming={renaming === b.id}
+            onRename={() => setRenaming(b.id)}
+            onRenamed={() => setRenaming(null)}
+          />
+        ))}
+      </SortableContext>
+    </DndContext>
   );
 }

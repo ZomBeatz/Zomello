@@ -121,6 +121,21 @@ export function BoardCustomize({ board }: { board: Board }) {
         </section>
 
         <section>
+          <h4>About this board</h4>
+          <p className="muted small">
+            A few lines of context — what the board is for, the project, where things live. Included in every AI prompt and
+            export from this board, so you don't have to re-explain it.
+          </p>
+          <textarea
+            rows={3}
+            className="about-board"
+            placeholder="e.g. Zomello is my Tauri + React task app, code in ~/claude/test. Bugs go in Bugs, ideas in Brainstorm."
+            defaultValue={board.description}
+            onBlur={(e) => e.target.value !== board.description && set({ description: e.target.value })}
+          />
+        </section>
+
+        <section>
           <h4>Board color</h4>
           <p className="muted small">Used for the column tops, sidebar dot and charts.</p>
           <ColorPicker value={board.color} onChange={(color) => set({ color: color ?? PALETTE[6] })} />

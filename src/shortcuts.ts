@@ -41,6 +41,7 @@ export const SHORTCUTS: { group: string; items: [string, string][] }[] = [
       ["A", "Archive"],
       ["Shift D", "Duplicate"],
       ["Right-click", "All card actions"],
+      ["Ctrl click", "Select cards (then copy a work order / hand to AI)"],
       ["Shift Space", "Pick up a focused card / bucket — then arrows to move, Space to drop, Esc to cancel"],
     ],
   },
@@ -94,6 +95,8 @@ export function handleShortcut(e: KeyboardEvent) {
 
   const modalOpen = !!document.querySelector(".modal-backdrop, .ctx-menu, .popover");
   if (modalOpen) return;
+
+  if (e.key === "Escape" && st.selected.length) return st.clearSelected();
 
   // Hover actions on a card.
   const card = hoveredCardId ? st.data.cards[hoveredCardId] : undefined;
