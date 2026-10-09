@@ -4,6 +4,7 @@ import type { Board, Card, List, Priority } from "../../types";
 import { useStore } from "../../store";
 import { checklistStats, dueStatus, prettyDate, PRIORITIES, PROGRESS } from "../../utils";
 import { Avatar, ProgressIcon } from "../ui";
+import { openCardMenu } from "../ContextMenu";
 
 type SortKey = "title" | "bucket" | "progress" | "priority" | "start" | "due" | "updated";
 const PRI_RANK: Record<Priority, number> = { urgent: 0, important: 1, medium: 2, low: 3 };
@@ -80,7 +81,7 @@ export function ListView({ board, lists, cards }: { board: Board; lists: List[];
           {rows.map((c) => {
             const cl = checklistStats(c);
             return (
-              <tr key={c.id} onClick={() => openCard(c.id)} className={c.progress === "completed" ? "done" : ""}>
+              <tr key={c.id} onClick={() => openCard(c.id)} onContextMenu={(e) => openCardMenu(e, c.id)} className={c.progress === "completed" ? "done" : ""}>
                 <td>
                   <button
                     className="progress-toggle"

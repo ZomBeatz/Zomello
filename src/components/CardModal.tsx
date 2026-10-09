@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   AlignLeft,
   Archive,
+  Ban,
   ArchiveRestore,
   CheckSquare,
   Copy,
@@ -12,13 +13,15 @@ import {
   Plus,
   Tag,
   Trash2,
+  Unlink,
   X,
 } from "lucide-react";
-import type { Card, ID, Priority, Progress } from "../types";
+import type { Card, ID, LinkType, Priority, Progress, Recurrence, RecurrenceFreq } from "../types";
 import { useStore } from "../store";
-import { byOrder, checklistStats, PRIORITIES, PROGRESS, timeAgo, uid } from "../utils";
+import { byOrder, checklistStats, describeRecurrence, LINK_TYPES, PRIORITIES, PROGRESS, timeAgo, todayISO, uid, WEEKDAYS } from "../utils";
 import { openExternal } from "../storage";
-import { ask, AutoTextarea, Avatar, ColorPicker, InlineEdit, Modal, Popover } from "./ui";
+import { ask, AutoTextarea, Avatar, ColorPicker, InlineEdit, Modal, Popover, ProgressIcon } from "./ui";
+import { BucketPicker, CardPicker, LabelPicker } from "./pickers";
 
 export function CardModal({ cardId }: { cardId: ID }) {
   const card = useStore((s) => s.data.cards[cardId]);
@@ -36,7 +39,17 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
   const allLists = useStore((s) => s.data.lists);
   const allBoards = useStore((s) => s.data.boards);
   const people = useStore((s) => s.data.settings.people);
-  const { updateCard, deleteCard, duplicateCard, moveCardToBoard, openCard, updateBoard } = useStore.getState();
+  const allCards = useStore((s) => s.data.cards);
+  const {
+    updateCard, deleteCard, duplicateCard, moveCardToBoard, openCard,
+    linkCards, unlinkCards, linkChecklistItem, spinOffChecklistItem, toggleChecklistItem,
+  } = useStore.getState();
+  const [newLinkType, setNewLinkType] = useState<LinkType>("relates");
+  /** Cards that have this card as a linked checklist item. */
+  const parents = useMemo(
+    () => Object.values(allCards).filter((c) => c.checklist.some((i) => i.cardId === card.id)),
+    [allCards, card.id],
+  );
   const lists = useMemo(
     () => Object.values(allLists).filter((l) => l.boardId === card.boardId && !l.archived).sort(byOrder),
     [allLists, card.boardId],
@@ -73,35 +86,46 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
 
       <div className="detail-grid">
         <div className="detail-main">
+          {card.links.some((l) => l.type === "blockedBy" && allCards[l.cardId]?.progress !== "completed") && (
+            <div className="blocked-banner">
+              <Ban size={14} /> Blocked — waiting on linked tasks to be completed.
+            </div>
+          )}
+
           {/* Labels */}
           <section>
             <h4>
               <Tag size={15} /> Labels
             </h4>
             <div className="row wrap gap-sm">
-              {board.labels.map((l) => {
-                const on = card.labelIds.includes(l.id);
-                return (
-                  <button
-                    key={l.id}
-                    className={`label-toggle ${on ? "on" : ""}`}
-                    style={{ "--c": l.color } as React.CSSProperties}
-                    onClick={() => set({ labelIds: toggleIn(card.labelIds, l.id) })}
-                  >
+              {board.labels
+                .filter((l) => card.labelIds.includes(l.id))
+                .map((l) => (
+                  <span key={l.id} className="label-pill lg" style={{ background: l.color }}>
                     {l.name || "Unnamed"}
+                    <button title="Remove label" onClick={() => set({ labelIds: card.labelIds.filter((x) => x !== l.id) })}>
+                      <X size={11} />
+                    </button>
+                  </span>
+                ))}
+              <Popover
+                trigger={(_, toggle) => (
+                  <button className="label-toggle add" onClick={toggle}>
+                    <Plus size={13} /> {card.labelIds.length ? "" : "Add label"}
                   </button>
-                );
-              })}
-              <button
-                className="label-toggle add"
-                onClick={() => {
-                  const id = uid();
-                  updateBoard(board.id, { labels: [...board.labels, { id, name: "New label", color: "#64748b" }] });
-                  set({ labelIds: [...card.labelIds, id] });
-                }}
+                )}
               >
-                <Plus size={13} /> Label
-              </button>
+                {() => (
+                  <LabelPicker
+                    board={board}
+                    selected={card.labelIds}
+                    onToggle={(id, on) => {
+                      const cur = useStore.getState().data.cards[card.id].labelIds;
+                      set({ labelIds: on ? [...new Set([...cur, id])] : cur.filter((x) => x !== id) });
+                    }}
+                  />
+                )}
+              </Popover>
             </div>
           </section>
 
@@ -135,38 +159,88 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
               </div>
             )}
             <ul className="checklist">
-              {card.checklist.map((item) => (
-                <li key={item.id} className={item.done ? "done" : ""}>
-                  <input
-                    type="checkbox"
-                    checked={item.done}
-                    onChange={() =>
-                      set({ checklist: card.checklist.map((i) => (i.id === item.id ? { ...i, done: !i.done } : i)) })
-                    }
-                  />
-                  <InlineEdit
-                    value={item.text}
-                    onSave={(text) => set({ checklist: card.checklist.map((i) => (i.id === item.id ? { ...i, text } : i)) })}
-                  />
-                  <button
-                    className="icon-btn tiny"
-                    title="Convert to card"
-                    onClick={() => {
-                      useStore.getState().createCard(card.listId, item.text);
-                      set({ checklist: card.checklist.filter((i) => i.id !== item.id) });
-                    }}
-                  >
-                    <MoveRight size={13} />
-                  </button>
-                  <button
-                    className="icon-btn tiny"
-                    title="Delete item"
-                    onClick={() => set({ checklist: card.checklist.filter((i) => i.id !== item.id) })}
-                  >
-                    <X size={13} />
-                  </button>
-                </li>
-              ))}
+              {card.checklist.map((item) => {
+                const linked = item.cardId ? allCards[item.cardId] : null;
+                const checked = linked ? linked.progress === "completed" : item.done;
+                return (
+                  <li key={item.id} className={checked ? "done" : ""}>
+                    <input type="checkbox" checked={checked} onChange={() => toggleChecklistItem(card.id, item.id)} />
+                    {linked ? (
+                      <button className="linked-item grow" onClick={() => openCard(linked.id)} title="Open linked task">
+                        <Link2 size={13} />
+                        <span className="ellipsis">{linked.title}</span>
+                        <span className="muted small ellipsis">
+                          {allBoards[linked.boardId]?.title} › {allLists[linked.listId]?.title}
+                        </span>
+                      </button>
+                    ) : (
+                      <InlineEdit
+                        value={item.text}
+                        onSave={(text) => set({ checklist: card.checklist.map((i) => (i.id === item.id ? { ...i, text } : i)) })}
+                      />
+                    )}
+                    {linked ? (
+                      <button
+                        className="icon-btn tiny"
+                        title="Unlink (keeps the task)"
+                        onClick={() => linkChecklistItem(card.id, item.id, null)}
+                      >
+                        <Unlink size={13} />
+                      </button>
+                    ) : (
+                      <>
+                        <Popover
+                          align="right"
+                          trigger={(_, t) => (
+                            <button className="icon-btn tiny" title="Spin off into its own task" onClick={t}>
+                              <MoveRight size={13} />
+                            </button>
+                          )}
+                        >
+                          {(close) => (
+                            <div className="menu">
+                              <span className="menu-heading">Spin off “{item.text}” to…</span>
+                              <BucketPicker
+                                defaultBoardId={card.boardId}
+                                action="Create task"
+                                onPick={(listId) => {
+                                  spinOffChecklistItem(card.id, item.id, listId);
+                                  close();
+                                }}
+                              />
+                            </div>
+                          )}
+                        </Popover>
+                        <Popover
+                          align="right"
+                          trigger={(_, t) => (
+                            <button className="icon-btn tiny" title="Link to an existing task" onClick={t}>
+                              <Link2 size={13} />
+                            </button>
+                          )}
+                        >
+                          {(close) => (
+                            <CardPicker
+                              exclude={[card.id]}
+                              onPick={(id) => {
+                                linkChecklistItem(card.id, item.id, id);
+                                close();
+                              }}
+                            />
+                          )}
+                        </Popover>
+                      </>
+                    )}
+                    <button
+                      className="icon-btn tiny"
+                      title="Delete item"
+                      onClick={() => set({ checklist: card.checklist.filter((i) => i.id !== item.id) })}
+                    >
+                      <X size={13} />
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
             <input
               className="add-input"
@@ -180,6 +254,83 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
                 }
               }}
             />
+          </section>
+
+          {/* Linked tasks */}
+          <section>
+            <h4>
+              <Link2 size={15} /> Linked tasks
+            </h4>
+            <ul className="linked-list">
+              {card.links.map((l) => {
+                const c = allCards[l.cardId];
+                if (!c) return null;
+                return (
+                  <li key={l.cardId}>
+                    <select
+                      className="link-type"
+                      value={l.type}
+                      onChange={(e) => linkCards(card.id, c.id, e.target.value as LinkType)}
+                    >
+                      {LINK_TYPES.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ProgressIcon progress={c.progress} size={14} />
+                    <button className="linked-item grow" onClick={() => openCard(c.id)}>
+                      <span className="ellipsis">{c.title}</span>
+                      <span className="muted small ellipsis">
+                        <span className="board-dot inline" style={{ background: allBoards[c.boardId]?.color }} />
+                        {allBoards[c.boardId]?.title} › {allLists[c.listId]?.title}
+                      </span>
+                    </button>
+                    <button className="icon-btn tiny" title="Remove link" onClick={() => unlinkCards(card.id, c.id)}>
+                      <X size={13} />
+                    </button>
+                  </li>
+                );
+              })}
+              {parents.map((p) => (
+                <li key={`parent-${p.id}`}>
+                  <span className="link-type static">Checklist item in</span>
+                  <ProgressIcon progress={p.progress} size={14} />
+                  <button className="linked-item grow" onClick={() => openCard(p.id)}>
+                    <span className="ellipsis">{p.title}</span>
+                    <span className="muted small ellipsis">
+                      {allBoards[p.boardId]?.title} › {allLists[p.listId]?.title}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <Popover
+              trigger={(_, t) => (
+                <button className="btn sm ghost" onClick={t}>
+                  <Plus size={14} /> Link a task
+                </button>
+              )}
+            >
+              {(close) => (
+                <div>
+                  <div className="seg link-type-seg">
+                    {LINK_TYPES.map((t) => (
+                      <button key={t.id} className={newLinkType === t.id ? "active" : ""} onClick={() => setNewLinkType(t.id)}>
+                        {t.name}
+                      </button>
+                    ))}
+                  </div>
+                  <CardPicker
+                    exclude={[card.id, ...card.links.map((l) => l.cardId)]}
+                    onPick={(id) => {
+                      linkCards(card.id, id, newLinkType);
+                      close();
+                    }}
+                  />
+                </div>
+              )}
+            </Popover>
           </section>
 
           {/* Links / attachments */}
@@ -314,6 +465,9 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
           <Field label="Due date">
             <DateInput value={card.dueDate} onChange={(dueDate) => set({ dueDate })} />
           </Field>
+          <Field label="Repeat">
+            <RecurrenceEditor card={card} onChange={(recurrence) => set({ recurrence, ...(recurrence && !card.dueDate ? { dueDate: todayISO() } : {}) })} />
+          </Field>
           <Field label="Assigned to">
             <div className="row wrap gap-sm">
               {card.assignees.map((a) => (
@@ -429,6 +583,70 @@ function DateInput({ value, onChange }: { value: string | null; onChange: (v: st
         <button className="icon-btn tiny" title="Clear" onClick={() => onChange(null)}>
           <X size={13} />
         </button>
+      )}
+    </div>
+  );
+}
+
+const FREQS: { id: RecurrenceFreq; unit: string }[] = [
+  { id: "daily", unit: "day" },
+  { id: "weekly", unit: "week" },
+  { id: "monthly", unit: "month" },
+  { id: "yearly", unit: "year" },
+];
+
+function RecurrenceEditor({ card, onChange }: { card: Card; onChange: (r: Recurrence | null) => void }) {
+  const r = card.recurrence;
+  const update = (patch: Partial<Recurrence>) => r && onChange({ ...r, ...patch });
+  return (
+    <div className="recurrence">
+      <select
+        value={r?.freq ?? ""}
+        onChange={(e) =>
+          onChange(e.target.value ? { freq: e.target.value as RecurrenceFreq, interval: r?.interval ?? 1, weekdays: [], until: r?.until ?? null } : null)
+        }
+      >
+        <option value="">Does not repeat</option>
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+        <option value="yearly">Yearly</option>
+      </select>
+      {r && (
+        <>
+          <div className="row gap-sm">
+            <span className="small muted">Every</span>
+            <input
+              type="number"
+              min={1}
+              className="interval"
+              value={r.interval}
+              onChange={(e) => update({ interval: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+            />
+            <span className="small muted">
+              {FREQS.find((f) => f.id === r.freq)!.unit}
+              {r.interval > 1 ? "s" : ""}
+            </span>
+          </div>
+          {r.freq === "weekly" && (
+            <div className="weekdays">
+              {WEEKDAYS.map((d, i) => (
+                <button
+                  key={d}
+                  className={r.weekdays.includes(i) ? "on" : ""}
+                  onClick={() => update({ weekdays: r.weekdays.includes(i) ? r.weekdays.filter((x) => x !== i) : [...r.weekdays, i] })}
+                >
+                  {d[0]}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="row gap-sm">
+            <span className="small muted">Until</span>
+            <input type="date" value={r.until ?? ""} onChange={(e) => update({ until: e.target.value || null })} />
+          </div>
+          <span className="small muted">{describeRecurrence(r)}. Completing it creates the next one.</span>
+        </>
       )}
     </div>
   );

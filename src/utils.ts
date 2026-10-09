@@ -1,5 +1,5 @@
-import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
-import type { Board, Card, DueFilter, Filter, GroupBy, List, Priority, Progress } from "./types";
+import { addDays, addMonths, addYears, differenceInCalendarDays, format, parseISO, startOfWeek } from "date-fns";
+import type { Board, Card, DueFilter, Filter, GroupBy, LinkType, List, Priority, Progress, Recurrence } from "./types";
 
 export const uid = (): string => crypto.randomUUID();
 
@@ -228,3 +228,63 @@ export const timeAgo = (ts: number) => {
   if (s < 86400 * 7) return `${Math.floor(s / 86400)}d ago`;
   return format(ts, "MMM d, yyyy");
 };
+
+// ---- Recurrence ----
+export const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** The next date after `fromDate` (yyyy-MM-dd) that the rule produces, or null past `until`. */
+export function nextRecurrenceDate(r: Recurrence, fromDate: string): string | null {
+  const base = parseISO(fromDate);
+  const n = Math.max(1, r.interval);
+  let next: Date | null = null;
+  if (r.freq === "daily") next = addDays(base, n);
+  else if (r.freq === "monthly") next = addMonths(base, n);
+  else if (r.freq === "yearly") next = addYears(base, n);
+  else if (r.weekdays.length === 0) next = addDays(base, 7 * n);
+  else {
+    const week0 = startOfWeek(base);
+    for (let i = 1; i <= 7 * n + 7 && !next; i++) {
+      const d = addDays(base, i);
+      const weeks = Math.round(differenceInCalendarDays(startOfWeek(d), week0) / 7);
+      if (weeks % n === 0 && r.weekdays.includes(d.getDay())) next = d;
+    }
+  }
+  if (!next) return null;
+  const iso = toISO(next);
+  return r.until && iso > r.until ? null : iso;
+}
+
+export function describeRecurrence(r: Recurrence): string {
+  const n = Math.max(1, r.interval);
+  const unit = { daily: "day", weekly: "week", monthly: "month", yearly: "year" }[r.freq];
+  let s = n === 1 ? { daily: "Daily", weekly: "Weekly", monthly: "Monthly", yearly: "Yearly" }[r.freq] : `Every ${n} ${unit}s`;
+  if (r.freq === "weekly" && r.weekdays.length) {
+    const days = [...r.weekdays].sort();
+    s += days.join() === "1,2,3,4,5" ? " on weekdays" : ` on ${days.map((d) => WEEKDAYS[d]).join(", ")}`;
+  }
+  if (r.until) s += ` until ${prettyDate(r.until)}`;
+  return s;
+}
+
+export const RECURRENCE_PRESETS: { name: string; rule: Recurrence | null }[] = [
+  { name: "Does not repeat", rule: null },
+  { name: "Daily", rule: { freq: "daily", interval: 1, weekdays: [], until: null } },
+  { name: "Weekdays", rule: { freq: "weekly", interval: 1, weekdays: [1, 2, 3, 4, 5], until: null } },
+  { name: "Weekly", rule: { freq: "weekly", interval: 1, weekdays: [], until: null } },
+  { name: "Every 2 weeks", rule: { freq: "weekly", interval: 2, weekdays: [], until: null } },
+  { name: "Monthly", rule: { freq: "monthly", interval: 1, weekdays: [], until: null } },
+  { name: "Yearly", rule: { freq: "yearly", interval: 1, weekdays: [], until: null } },
+];
+
+// ---- Links ----
+export const LINK_TYPES: { id: LinkType; name: string; inverse: LinkType }[] = [
+  { id: "relates", name: "Related to", inverse: "relates" },
+  { id: "blocks", name: "Blocks", inverse: "blockedBy" },
+  { id: "blockedBy", name: "Blocked by", inverse: "blocks" },
+];
+export const inverseLink = (t: LinkType) => LINK_TYPES.find((l) => l.id === t)!.inverse;
+export const linkName = (t: LinkType) => LINK_TYPES.find((l) => l.id === t)!.name;
+
+/** True when the card is blocked by at least one card that isn't completed yet. */
+export const isBlocked = (c: Card, cards: Record<string, Card>) =>
+  c.links.some((l) => l.type === "blockedBy" && cards[l.cardId] && cards[l.cardId].progress !== "completed");

@@ -16,6 +16,7 @@ import type { Board, Card, List } from "../../types";
 import { useStore } from "../../store";
 import { fromISO, progressMeta, toISO } from "../../utils";
 import { ProgressIcon } from "../ui";
+import { openCardMenu } from "../ContextMenu";
 
 const DRAG_MIME = "text/planwise-card";
 
@@ -62,6 +63,7 @@ export function CalendarView({ board, lists, cards }: { board: Board; lists: Lis
       draggable
       onDragStart={(e) => e.dataTransfer.setData(DRAG_MIME, c.id)}
       onClick={() => openCard(c.id)}
+      onContextMenu={(e) => openCardMenu(e, c.id)}
       title={c.title}
     >
       <ProgressIcon progress={c.progress} size={12} />
