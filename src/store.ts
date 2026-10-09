@@ -5,6 +5,7 @@ import type {
   Activity, AppData, BadgeMode, Board, BoardDisplay, BoardUi, Card, CardTemplate, Filter, FocusTimer, ID, LinkType, List, Route, Settings,
 } from "./types";
 import type { ImportedBoard } from "./importers";
+import { broadcastData, isBoardWindow, windowBoardId } from "./windows";
 import {
   blockLoopReason, byOrder, emptyFilter, fromISO, inverseLink, nextRecurrenceDate, PALETTE, subtaskLoopReason, toISO, todayISO, uid,
 } from "./utils";
@@ -272,6 +273,8 @@ interface State {
   /** Ends the countdown; `completed` = it ran out (vs. cancelled). */
   endFocus(completed: boolean): void;
   replaceData(data: AppData): void;
+  /** Adopt data another window just saved. */
+  applyRemoteData(json: string): void;
   navigate(route: Route): void;
   /**
    * Open a card. With `via` set, the current card is kept on a trail so the user can step back
@@ -455,6 +458,8 @@ const HISTORY_LIMIT = 150;
 /** Changes closer together than this are merged into one undo step (e.g. typing). */
 const COALESCE_MS = 700;
 let past: AppData[] = [];
+/** True while adopting another window's data (so it isn't saved straight back). */
+let applyingRemote = false;
 let future: AppData[] = [];
 let lastChange = 0;
 /** View preferences (zoom, sidebar) change too often to be worth an undo step. */
@@ -543,10 +548,37 @@ export const useStore = create<State>((set, get) => {
         const raw = await loadRaw();
         const data = raw ? normalize(JSON.parse(raw)) : sampleData();
         const first = Object.values(data.boards).filter((b) => !b.archived).sort(byOrder)[0];
-        set({ data, loaded: true, route: raw ? { page: "home" } : first ? { page: "board", boardId: first.id } : { page: "home" } });
+        const route: Route =
+          windowBoardId && data.boards[windowBoardId]
+            ? { page: "board", boardId: windowBoardId }
+            : raw
+              ? { page: "home" }
+              : first
+                ? { page: "board", boardId: first.id }
+                : { page: "home" };
+        set({ data, loaded: true, route });
       } catch (e) {
         // Never overwrite a file we failed to parse: stay unloaded so autosave is disabled.
         set({ loadError: String(e) });
+      }
+    },
+
+    applyRemoteData(json) {
+      let data: AppData;
+      try {
+        data = normalize(JSON.parse(json));
+      } catch {
+        return;
+      }
+      // Another window saved: adopt its data (keeping this window's own view state) without saving it
+      // back, and drop undo history — it no longer matches what's on screen.
+      past = [];
+      future = [];
+      applyingRemote = true;
+      try {
+        set((s) => ({ data: { ...data, ui: s.data.ui } }));
+      } finally {
+        applyingRemote = false;
       }
     },
 
@@ -1041,7 +1073,9 @@ async function flush() {
   const snapshot = pending;
   pending = null;
   try {
-    await saveRaw(JSON.stringify(snapshot));
+    const json = JSON.stringify(snapshot);
+    await saveRaw(json);
+    void broadcastData(json);
     if (useStore.getState().saveError) useStore.setState({ saveError: null });
   } catch (e) {
     useStore.setState({ saveError: String(e) });
@@ -1049,9 +1083,10 @@ async function flush() {
 }
 
 useStore.subscribe((s, prev) => {
+  if (applyingRemote) return;
   if (!s.loaded || s.data === prev.data || !prev.loaded) {
     // The very first load also counts as a change worth saving (writes the sample board).
-    if (s.loaded && !prev.loaded) {
+    if (s.loaded && !prev.loaded && !isBoardWindow) {
       pending = s.data;
       void flush();
     }

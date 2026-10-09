@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import {
-  Archive, Bot, ChevronsLeft, ChevronsRight, ClipboardCopy, Copy, ExternalLink, Home, Hourglass, Keyboard, LayoutTemplate, Palette,
+  AppWindow, Archive, Bot, ChevronsLeft, ChevronsRight, ClipboardCopy, Copy, ExternalLink, Home, Hourglass, Keyboard, LayoutTemplate, Palette,
   Pause, Pencil, Play, Plus, Search, Settings, Star, Trash2, UserCheck, X, Zap,
 } from "lucide-react";
 import { runningTimer, useStore } from "../store";
@@ -11,6 +11,7 @@ import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { CSS } from "@dnd-kit/utilities";
 import { openContextMenu, type MenuEntry } from "./ContextMenu";
 import { ask } from "./ui";
+import { isBoardWindow, openBoardWindow } from "../windows";
 import { byOrder, formatDuration, parseDuration } from "../utils";
 import { Popover } from "./ui";
 import { LogoMark, Wordmark } from "./Logo";
@@ -19,7 +20,10 @@ import { useNow } from "./useNow";
 export function Sidebar() {
   const boards = useStore((s) => s.data.boards);
   const route = useStore((s) => s.route);
-  const collapsed = useStore((s) => s.data.settings.sidebarCollapsed);
+  const savedCollapsed = useStore((s) => s.data.settings.sidebarCollapsed);
+  // Board windows start with a slim sidebar (their own toggle, not the saved setting).
+  const [winCollapsed, setWinCollapsed] = useState(true);
+  const collapsed = isBoardWindow ? winCollapsed : savedCollapsed;
   const { navigate, createBoard, setOverlay, updateSettings } = useStore.getState();
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
@@ -46,7 +50,7 @@ export function Sidebar() {
         <button
           className="icon-btn tiny collapse-btn"
           title={collapsed ? "Expand sidebar ([)" : "Collapse sidebar ([)"}
-          onClick={() => updateSettings({ sidebarCollapsed: !collapsed })}
+          onClick={() => (isBoardWindow ? setWinCollapsed(!collapsed) : updateSettings({ sidebarCollapsed: !collapsed }))}
         >
           {collapsed ? <ChevronsRight size={15} /> : <ChevronsLeft size={15} />}
         </button>
@@ -285,6 +289,11 @@ function BoardLink({
 
   const menu = (): MenuEntry[] => [
     { label: "Open", icon: <ExternalLink size={14} />, onClick: () => st.navigate({ page: "board", boardId: board.id }) },
+    {
+      label: "Open in new window",
+      icon: <AppWindow size={14} />,
+      onClick: () => void openBoardWindow(board.id, board.title),
+    },
     { label: "Rename", icon: <Pencil size={14} />, onClick: onRename },
     {
       label: board.starred ? "Unstar" : "Star",
@@ -357,8 +366,15 @@ function BoardLink({
       className={`nav-item ${active ? "active" : ""}`}
       onClick={() => st.navigate({ page: "board", boardId: board.id })}
       onDoubleClick={onRename}
+      // Middle-click: open in its own window (and stop the browser's autoscroll).
+      onMouseDown={(e) => e.button === 1 && e.preventDefault()}
+      onAuxClick={(e) => {
+        if (e.button !== 1) return;
+        e.preventDefault();
+        void openBoardWindow(board.id, board.title);
+      }}
       onContextMenu={(e) => openContextMenu(e, menu)}
-      title={collapsed ? board.title : "Drag to reorder · double-click to rename · right-click for more"}
+      title={collapsed ? board.title : "Drag to reorder · double-click to rename · middle-click for a new window · right-click for more"}
     >
       {icon}
       <span className="ellipsis label">{board.title}</span>
