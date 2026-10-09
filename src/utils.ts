@@ -400,3 +400,57 @@ export function formatFieldValue(f: import("./types").FieldDef, v: import("./typ
     default: return String(v);
   }
 }
+
+// ---- Task graph: sub-tasks (checklist links) and blocking links ----
+/** Cards linked from this card's checklist (its sub-tasks). */
+export const subtaskIds = (c: Card): string[] =>
+  [...new Set(c.checklist.map((i) => i.cardId).filter((x): x is string => !!x))];
+
+/** Is `to` reachable from `from` following `next`? */
+function reaches(from: string, to: string, next: (id: string) => string[]): boolean {
+  const seen = new Set<string>();
+  const stack = [from];
+  while (stack.length) {
+    const id = stack.pop()!;
+    if (id === to) return true;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    stack.push(...next(id));
+  }
+  return false;
+}
+
+/**
+ * Why `targetId` can't become a sub-task of `parentId` (null = fine). A task can be a sub-task of several
+ * parents, but a chain can never lead back to itself.
+ */
+export function subtaskLoopReason(parentId: string, targetId: string, cards: Record<string, Card>): string | null {
+  if (parentId === targetId) return "This is the same task";
+  if (cards[parentId] && subtaskIds(cards[parentId]).includes(targetId)) return "Already in this checklist";
+  if (reaches(targetId, parentId, (id) => (cards[id] ? subtaskIds(cards[id]) : [])))
+    return "Would create a loop — this task is above it in the chain";
+  return null;
+}
+
+const blocksOf = (cards: Record<string, Card>) => (id: string) =>
+  cards[id]?.links.filter((l) => l.type === "blocks").map((l) => l.cardId) ?? [];
+
+/** Why "a <type> b" would make a blocking loop (null = fine). Related links are never loops. */
+export function blockLoopReason(a: string, b: string, type: LinkType, cards: Record<string, Card>): string | null {
+  if (a === b) return "This is the same task";
+  if (type === "relates") return null;
+  const [blocker, blocked] = type === "blocks" ? [a, b] : [b, a];
+  if (reaches(blocked, blocker, blocksOf(cards))) return "Would create a loop — they'd end up blocking each other";
+  return null;
+}
+
+/** card id → cards that have it as a sub-task. Cached per cards object, so tiles can share it. */
+let parentCache: { cards: Record<string, Card> | null; map: Map<string, Card[]> } = { cards: null, map: new Map() };
+export function parentIndex(cards: Record<string, Card>): Map<string, Card[]> {
+  if (parentCache.cards === cards) return parentCache.map;
+  const map = new Map<string, Card[]>();
+  for (const c of Object.values(cards))
+    for (const id of subtaskIds(c)) map.set(id, [...(map.get(id) ?? []), c]);
+  parentCache = { cards, map };
+  return map;
+}

@@ -360,6 +360,27 @@ pub fn run() {
             list_attachments,
             delete_attachment
         ])
+        .setup(|app| {
+            #[cfg(target_os = "linux")]
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.with_webview(|webview| {
+                    use webkit2gtk::{WebContextExt, WebViewExt};
+                    if let Some(ctx) = webview.inner().context() {
+                        // Use the system language (e.g. en_US from LANG); falls back to US English.
+                        let lang = std::env::var("LANG")
+                            .ok()
+                            .and_then(|l| l.split('.').next().map(str::to_string))
+                            .filter(|l| l.len() >= 2 && l != "C" && l != "POSIX")
+                            .unwrap_or_else(|| "en_US".into());
+                        ctx.set_spell_checking_enabled(true);
+                        ctx.set_spell_checking_languages(&[lang.as_str()]);
+                    }
+                });
+            }
+            #[cfg(not(target_os = "linux"))]
+            let _ = app;
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running Zomello");
 }

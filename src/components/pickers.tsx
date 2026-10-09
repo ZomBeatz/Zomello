@@ -6,7 +6,16 @@ import { byOrder, cardText, PALETTE, uid } from "../utils";
 import { ColorPicker, ProgressIcon } from "./ui";
 
 /** Search any (non-archived) card across all boards. */
-export function CardPicker({ exclude, onPick }: { exclude: ID[]; onPick: (id: ID) => void }) {
+export function CardPicker({
+  exclude,
+  onPick,
+  disabledReason,
+}: {
+  exclude: ID[];
+  onPick: (id: ID) => void;
+  /** Shown greyed out (with this reason) instead of pickable, e.g. would create a loop. */
+  disabledReason?: (id: ID) => string | null;
+}) {
   const data = useStore((s) => s.data);
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(0);
@@ -31,7 +40,7 @@ export function CardPicker({ exclude, onPick }: { exclude: ID[]; onPick: (id: ID
         <Search size={14} />
         <input
           autoFocus
-          placeholder="Search tasks on any board…"
+          placeholder="Search tasks on any board…" spellCheck={false}
           value={q}
           onChange={(e) => {
             setQ(e.target.value);
@@ -40,23 +49,39 @@ export function CardPicker({ exclude, onPick }: { exclude: ID[]; onPick: (id: ID
           onKeyDown={(e) => {
             if (e.key === "ArrowDown") setSel((s) => Math.min(results.length - 1, s + 1));
             if (e.key === "ArrowUp") setSel((s) => Math.max(0, s - 1));
-            if (e.key === "Enter" && results[sel]) onPick(results[sel].id);
+            if (e.key === "Enter" && results[sel] && !disabledReason?.(results[sel].id)) onPick(results[sel].id);
           }}
         />
       </div>
       <ul className="picker-list">
-        {results.map((c, i) => (
-          <li key={c.id} className={i === sel ? "sel" : ""} onMouseEnter={() => setSel(i)} onClick={() => onPick(c.id)}>
-            <ProgressIcon progress={c.progress} size={14} />
-            <div className="grow ellipsis">
-              <div className="ellipsis">{c.title}</div>
-              <div className="muted small ellipsis">
-                <span className="board-dot inline" style={{ background: data.boards[c.boardId].color }} />
-                {data.boards[c.boardId].title} › {data.lists[c.listId]?.title}
+        {results.map((c, i) => {
+          const why = disabledReason?.(c.id) ?? null;
+          return (
+            <li
+              key={c.id}
+              className={`${i === sel ? "sel" : ""} ${why ? "disabled" : ""}`}
+              onMouseEnter={() => setSel(i)}
+              onClick={() => !why && onPick(c.id)}
+              title={why ?? undefined}
+              aria-disabled={!!why}
+            >
+              <ProgressIcon progress={c.progress} size={14} />
+              <div className="grow ellipsis">
+                <div className="ellipsis">{c.title}</div>
+                <div className="muted small ellipsis">
+                  {why ? (
+                    <span className="picker-why">{why}</span>
+                  ) : (
+                    <>
+                      <span className="board-dot inline" style={{ background: data.boards[c.boardId].color }} />
+                      {data.boards[c.boardId].title} › {data.lists[c.listId]?.title}
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
         {results.length === 0 && <li className="muted small">No tasks found.</li>}
       </ul>
     </div>

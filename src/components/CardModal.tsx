@@ -21,31 +21,29 @@ import {
   Users,
   Upload,
   ArchiveRestore,
-  CheckSquare,
   Copy,
   ExternalLink,
   Link2,
   MessageSquare,
-  MoveRight,
   Plus,
   Tag,
   Trash2,
-  Unlink,
   X,
 } from "lucide-react";
 import type { Activity, Attachment, Card, CardSection, FieldDef, ID, LinkType, Priority, Progress, Recurrence, RecurrenceFreq } from "../types";
 import { attachToCard, isLocalPath, storeLinkedFile } from "../attachments";
 import { useStore } from "../store";
 import {
-  byOrder, checklistStats, describeRecurrence, fileSize, formatDuration, isImage, LINK_TYPES, parseDuration,
+  blockLoopReason, byOrder, describeRecurrence, fileSize, formatDuration, isImage, LINK_TYPES, parseDuration,
   prettyDate, priorityMeta, PRIORITIES, PROGRESS, progressMeta, timeAgo, todayISO, trackedMs, uid, WEEKDAYS,
 } from "../utils";
 import { format } from "date-fns";
 import { fileUrlToPath, inTauri, openExternal, openStored, storedSrc } from "../storage";
 import { createPortal } from "react-dom";
 import { ask, Avatar, ColorPicker, InlineEdit, Modal, Popover, ProgressIcon } from "./ui";
-import { BucketPicker, CardPicker, LabelPicker } from "./pickers";
+import { CardPicker, LabelPicker } from "./pickers";
 import { Markdown, MarkdownEditor, MarkdownField } from "./Markdown";
+import { ChecklistSection } from "./Checklist";
 import { useNow } from "./useNow";
 
 export function CardModal({ cardId }: { cardId: ID }) {
@@ -72,7 +70,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
   const allCards = useStore((s) => s.data.cards);
   const {
     updateCard, deleteCard, duplicateCard, moveCardToBoard, openCard,
-    linkCards, unlinkCards, linkChecklistItem, spinOffChecklistItem, toggleChecklistItem,
+    linkCards, unlinkCards,
   } = useStore.getState();
   const [newLinkType, setNewLinkType] = useState<LinkType>("relates");
   /** Cards that have this card as a linked checklist item. */
@@ -85,9 +83,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
     [allLists, card.boardId],
   );
   const set = (patch: Partial<Card>) => updateCard(card.id, patch);
-  const [newItem, setNewItem] = useState("");
   const [comment, setComment] = useState("");
-  const cl = checklistStats(card);
   const coverImg = card.coverImage ? card.attachments.find((a) => a.id === card.coverImage) : undefined;
 
   const attachFiles = (files: FileList | File[]) => attachToCard(card.id, { files: Array.from(files), paths: [], links: [] });
@@ -236,119 +232,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
           )}
 
           {/* Checklist */}
-          {show("checklist") && (
-          <section>
-            <h4>
-              <CheckSquare size={15} /> Checklist
-              {cl.total > 0 && (
-                <span className="muted small">
-                  {cl.done}/{cl.total}
-                </span>
-              )}
-            </h4>
-            {cl.total > 0 && (
-              <div className="progress-bar">
-                <span style={{ width: `${(cl.done / cl.total) * 100}%` }} />
-              </div>
-            )}
-            <ul className="checklist">
-              {card.checklist.map((item) => {
-                const linked = item.cardId ? allCards[item.cardId] : null;
-                const checked = linked ? linked.progress === "completed" : item.done;
-                return (
-                  <li key={item.id} className={checked ? "done" : ""}>
-                    <input type="checkbox" checked={checked} onChange={() => toggleChecklistItem(card.id, item.id)} />
-                    {linked ? (
-                      <button className="linked-item grow" onClick={() => openCard(linked.id, { via: "checklist" })} title="Open linked task">
-                        <Link2 size={13} />
-                        <span className="ellipsis">{linked.title}</span>
-                        <span className="muted small ellipsis">
-                          {allBoards[linked.boardId]?.title} › {allLists[linked.listId]?.title}
-                        </span>
-                      </button>
-                    ) : (
-                      <InlineEdit
-                        value={item.text}
-                        onSave={(text) => set({ checklist: card.checklist.map((i) => (i.id === item.id ? { ...i, text } : i)) })}
-                      />
-                    )}
-                    {linked ? (
-                      <button
-                        className="icon-btn tiny"
-                        title="Unlink (keeps the task)"
-                        onClick={() => linkChecklistItem(card.id, item.id, null)}
-                      >
-                        <Unlink size={13} />
-                      </button>
-                    ) : (
-                      <>
-                        <Popover
-                          align="right"
-                          trigger={(_, t) => (
-                            <button className="icon-btn tiny" title="Spin off into its own task" onClick={t}>
-                              <MoveRight size={13} />
-                            </button>
-                          )}
-                        >
-                          {(close) => (
-                            <div className="menu">
-                              <span className="menu-heading">Spin off “{item.text}” to…</span>
-                              <BucketPicker
-                                defaultBoardId={card.boardId}
-                                action="Create task"
-                                onPick={(listId) => {
-                                  spinOffChecklistItem(card.id, item.id, listId);
-                                  close();
-                                }}
-                              />
-                            </div>
-                          )}
-                        </Popover>
-                        <Popover
-                          align="right"
-                          trigger={(_, t) => (
-                            <button className="icon-btn tiny" title="Link to an existing task" onClick={t}>
-                              <Link2 size={13} />
-                            </button>
-                          )}
-                        >
-                          {(close) => (
-                            <CardPicker
-                              exclude={[card.id]}
-                              onPick={(id) => {
-                                linkChecklistItem(card.id, item.id, id);
-                                close();
-                              }}
-                            />
-                          )}
-                        </Popover>
-                      </>
-                    )}
-                    <button
-                      className="icon-btn tiny"
-                      title="Delete item"
-                      onClick={() => set({ checklist: card.checklist.filter((i) => i.id !== item.id) })}
-                    >
-                      <X size={13} />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-            <input
-              className="add-input"
-              placeholder="Add an item… (Enter)"
-              value={newItem}
-              onChange={(e) => setNewItem(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && newItem.trim()) {
-                  set({ checklist: [...card.checklist, { id: uid(), text: newItem.trim(), done: false }] });
-                  setNewItem("");
-                }
-              }}
-            />
-          </section>
-          )}
+          {show("checklist") && <ChecklistSection card={card} />}
 
           {/* Linked tasks */}
           {show("links") && (
@@ -418,6 +302,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
                   </div>
                   <CardPicker
                     exclude={[card.id, ...card.links.map((l) => l.cardId)]}
+                    disabledReason={(id) => blockLoopReason(card.id, id, newLinkType, useStore.getState().data.cards)}
                     onPick={(id) => {
                       linkCards(card.id, id, newLinkType);
                       close();
@@ -809,7 +694,7 @@ function AttachmentsSection({ card, onFiles }: { card: Card; onFiles: (f: FileLi
       >
         <input
           className="add-input grow"
-          placeholder="Paste a link (https://…) or a file path"
+          placeholder="Paste a link (https://…) or a file path" spellCheck={false}
           value={link.url}
           onChange={(e) => setLink({ ...link, url: e.target.value })}
         />
@@ -1190,7 +1075,7 @@ function CustomFields({ card }: { card: Card }) {
                   className="grow"
                   type={f.type === "number" ? "number" : f.type === "url" ? "url" : "text"}
                   defaultValue={v == null ? "" : String(v)}
-                  placeholder={f.type === "url" ? "https://…" : "—"}
+                  placeholder={f.type === "url" ? "https://…" : "—"} spellCheck={false}
                   onBlur={(e) => {
                     const raw = e.target.value.trim();
                     const next = raw === "" ? null : f.type === "number" ? Number(raw) : raw;

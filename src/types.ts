@@ -13,8 +13,10 @@ export interface ChecklistItem {
   id: ID;
   text: string;
   done: boolean;
-  /** When set, this item mirrors another card (its title and completion). */
+  /** When set, this item mirrors another card (its title, completion and labels). */
   cardId?: ID | null;
+  /** Labels on an unlinked item (linked items show the linked card's labels). */
+  labelIds?: ID[];
 }
 
 export type LinkType = "relates" | "blocks" | "blockedBy";
