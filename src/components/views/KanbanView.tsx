@@ -45,6 +45,32 @@ import { CardTile } from "../CardTile";
 import { ask, InlineEdit, MenuItem, Popover } from "../ui";
 
 const COL_PREFIX = "col:";
+
+/**
+ * Keyboard dragging (for people not using a mouse): focus a card or bucket header, press Shift+Space to
+ * pick it up, arrow keys to move, Space to drop, Esc to cancel. Unlike the library default (plain Space,
+ * from anywhere inside), this only starts on the focused card/header itself — so typing a space in a
+ * title box, or pressing Space on a focused card, does nothing unexpected.
+ */
+class DeliberateKeyboardSensor extends KeyboardSensor {
+  static activators: typeof KeyboardSensor.activators = [
+    {
+      eventName: "onKeyDown",
+      handler: (event, { onActivation }) => {
+        const e = (event as React.KeyboardEvent).nativeEvent;
+        if (e.code !== "Space" || !e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return false;
+        const { target, currentTarget } = event as React.KeyboardEvent;
+        const t = target as HTMLElement;
+        // Never from text boxes / buttons; only from the draggable itself or the card directly inside it.
+        if (t.closest("input, textarea, select, button, [contenteditable]")) return false;
+        if (t !== currentTarget && t.parentElement !== currentTarget) return false;
+        event.preventDefault();
+        onActivation?.({ event: e });
+        return true;
+      },
+    },
+  ];
+}
 const DRAGGABLE: GroupBy[] = ["bucket", "progress", "priority", "assignee", "due"];
 
 export function KanbanView({
@@ -100,7 +126,7 @@ export function KanbanView({
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(DeliberateKeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   const findContainer = (id: UniqueIdentifier, cols = columns): string | undefined => {

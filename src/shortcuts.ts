@@ -41,6 +41,7 @@ export const SHORTCUTS: { group: string; items: [string, string][] }[] = [
       ["A", "Archive"],
       ["Shift D", "Duplicate"],
       ["Right-click", "All card actions"],
+      ["Shift Space", "Pick up a focused card / bucket — then arrows to move, Space to drop, Esc to cancel"],
     ],
   },
   {
