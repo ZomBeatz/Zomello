@@ -5,8 +5,11 @@ Everything stays on your machine.
 
 ## Features
 - **Boards → buckets → cards**, drag-and-drop for cards and buckets, WIP limits, collapsible buckets
-- **Rich cards**: description, checklist (convert items to cards), labels, priority, progress, start/due dates,
+- **Rich cards**: description, checklist (items can link to / spin off into tasks on any board), labels, priority, progress, start/due dates,
   assignees, links & local file paths, notes, cover colour, duplicate, move to another board
+- **Linked tasks** across boards (related / blocks / blocked by) with a Blocked badge
+- **Recurring tasks** (daily / weekly on chosen days / monthly / yearly, every N, until a date) — completing one creates the next
+- **Right-click menu** on cards everywhere: progress, priority, labels, assign, due date, repeat, move, link, duplicate, archive, delete
 - **Views**: Board · List (sortable table, inline edit) · Calendar (drag to reschedule) · Timeline (Gantt) · Charts
 - **Planner-style grouping** on the board: bucket, progress, priority, assignee, label, due date (drag between groups updates the field)
 - **Home dashboard**: late, due today, next 7 days, in progress, recently completed, board progress
@@ -15,6 +18,11 @@ Everything stays on your machine.
 - **Archive** for cards, buckets and boards with restore / permanent delete
 - **Data safety**: atomic writes, automatic rolling backups (every 30 min, last 30 kept), JSON export/import
 - Light / dark / system theme
+
+## Install (app menu + icon)
+```bash
+./scripts/install-desktop.sh   # builds release, installs to ~/.local/bin + .desktop entry + icons
+```
 
 ## Run
 ```bash
