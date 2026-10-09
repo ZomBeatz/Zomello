@@ -193,6 +193,8 @@ export interface Board {
   /** Emoji shown next to the board name. */
   icon: string | null;
   background: BoardBackground;
+  /** Background effects: blur in px (images), dim 0–80 (% darkening). */
+  backgroundFx: { blur: number; dim: number };
   display: BoardDisplay;
   fields: FieldDef[];
   hiddenSections: CardSection[];

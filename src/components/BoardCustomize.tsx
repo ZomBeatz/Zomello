@@ -178,6 +178,49 @@ export function BoardCustomize({ board }: { board: Board }) {
           </div>
         </section>
 
+        {bg.type !== "none" && (
+          <section>
+            <h4>Background effects</h4>
+            {bg.type === "image" && (
+              <div className="field-row">
+                <label>Blur</label>
+                <div className="slider-row">
+                  <input
+                    type="range"
+                    min={0}
+                    max={30}
+                    step={1}
+                    value={board.backgroundFx.blur}
+                    aria-label="Background blur"
+                    onChange={(e) => set({ backgroundFx: { ...board.backgroundFx, blur: +e.target.value } })}
+                  />
+                  <span className="slider-value">{board.backgroundFx.blur ? `${board.backgroundFx.blur}px` : "Off"}</span>
+                </div>
+              </div>
+            )}
+            <div className="field-row">
+              <label>Dim</label>
+              <div className="slider-row">
+                <input
+                  type="range"
+                  min={0}
+                  max={80}
+                  step={5}
+                  value={board.backgroundFx.dim}
+                  aria-label="Background dimming"
+                  onChange={(e) => set({ backgroundFx: { ...board.backgroundFx, dim: +e.target.value } })}
+                />
+                <span className="slider-value">{board.backgroundFx.dim ? `${board.backgroundFx.dim}%` : "Off"}</span>
+              </div>
+            </div>
+            {(board.backgroundFx.blur > 0 || board.backgroundFx.dim > 0) && (
+              <button className="btn sm ghost" onClick={() => set({ backgroundFx: { blur: 0, dim: 0 } })}>
+                Reset effects
+              </button>
+            )}
+          </section>
+        )}
+
         <section>
           <h4>Layout</h4>
           <div className="field-row">

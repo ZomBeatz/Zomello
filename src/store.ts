@@ -64,6 +64,7 @@ export const newBoard = (title: string, color: string, order: number): Board => 
   color,
   icon: null,
   background: { type: "none" },
+  backgroundFx: { blur: 0, dim: 0 },
   display: defaultDisplay(),
   fields: [],
   hiddenSections: [],
