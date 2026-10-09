@@ -8,6 +8,7 @@ import { SettingsPage } from "./components/SettingsPage";
 import { CardModal } from "./components/CardModal";
 import { SearchPalette } from "./components/SearchPalette";
 import { ConfirmHost } from "./components/ui";
+import { ContextMenuHost } from "./components/ContextMenu";
 
 export default function App() {
   const loaded = useStore((s) => s.loaded);
@@ -35,8 +36,17 @@ export default function App() {
         useStore.getState().setSearchOpen(!useStore.getState().searchOpen);
       }
     };
+    // Hide the webview's own menu (Reload / Inspect…) except where text can be edited.
+    const onCtx = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (!t.closest("input, textarea, [contenteditable]")) e.preventDefault();
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("contextmenu", onCtx);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("contextmenu", onCtx);
+    };
   }, []);
 
   if (loadError)
@@ -62,6 +72,7 @@ export default function App() {
       </main>
       {openCardId && <CardModal cardId={openCardId} />}
       {searchOpen && <SearchPalette />}
+      <ContextMenuHost />
       <ConfirmHost />
     </div>
   );

@@ -13,6 +13,28 @@ export interface ChecklistItem {
   id: ID;
   text: string;
   done: boolean;
+  /** When set, this item mirrors another card (its title and completion). */
+  cardId?: ID | null;
+}
+
+export type LinkType = "relates" | "blocks" | "blockedBy";
+
+/** Stored on both cards, with the inverse type on the other side. */
+export interface CardLink {
+  cardId: ID;
+  type: LinkType;
+}
+
+export type RecurrenceFreq = "daily" | "weekly" | "monthly" | "yearly";
+
+export interface Recurrence {
+  freq: RecurrenceFreq;
+  /** Every N days/weeks/months/years. */
+  interval: number;
+  /** Weekly only: 0 = Sunday … 6 = Saturday. Empty = same weekday as the due date. */
+  weekdays: number[];
+  /** Last date (yyyy-MM-dd) an occurrence may fall on. */
+  until: string | null;
 }
 
 export interface Attachment {
@@ -45,6 +67,8 @@ export interface Card {
   attachments: Attachment[];
   comments: Comment[];
   assignees: string[];
+  links: CardLink[];
+  recurrence: Recurrence | null;
   cover: string | null;
   order: number;
   archived: boolean;

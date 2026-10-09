@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Card, List } from "../../types";
 import { useStore } from "../../store";
 import { fromISO, isLate, progressMeta } from "../../utils";
+import { openCardMenu } from "../ContextMenu";
 
 const DAY_W = 34;
 const SPANS = { "2 weeks": 14, "6 weeks": 42, "3 months": 91 } as const;
@@ -42,6 +43,7 @@ export function TimelineView({ lists, cards }: { lists: List[]; cards: Card[] })
         className={`tl-bar ${c.progress === "completed" ? "done" : ""}`}
         style={{ left: left + 2, width, background: c.cover ?? color }}
         onClick={() => openCard(c.id)}
+        onContextMenu={(e) => openCardMenu(e, c.id)}
         title={`${c.title}\n${c.startDate ?? "?"} → ${c.dueDate ?? "?"}`}
       >
         {c.title}
@@ -98,7 +100,7 @@ export function TimelineView({ lists, cards }: { lists: List[]; cards: Card[] })
               <div className="tl-group-title">{r.list.title}</div>
               {r.cards.map((c) => (
                 <div key={c.id} className="tl-row">
-                  <div className="tl-label-col" onClick={() => openCard(c.id)} title={c.title}>
+                  <div className="tl-label-col" onClick={() => openCard(c.id)} onContextMenu={(e) => openCardMenu(e, c.id)} title={c.title}>
                     {c.title}
                   </div>
                   <div className="tl-track" style={{ width: nDays * dayW }}>

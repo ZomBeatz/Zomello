@@ -5,6 +5,7 @@ import type { Card } from "../types";
 import { useStore } from "../store";
 import { byOrder, dueStatus, isLate, PALETTE, prettyDate, toISO, todayISO } from "../utils";
 import { ColorPicker, Empty, ProgressIcon } from "./ui";
+import { openCardMenu } from "./ContextMenu";
 
 export function HomePage() {
   const data = useStore((s) => s.data);
@@ -44,7 +45,7 @@ export function HomePage() {
     .slice(0, 8);
 
   const Row = ({ c }: { c: Card }) => (
-    <li className="home-task" onClick={() => openCard(c.id)}>
+    <li className="home-task" onClick={() => openCard(c.id)} onContextMenu={(e) => openCardMenu(e, c.id)}>
       <button
         className="progress-toggle"
         onClick={(e) => {

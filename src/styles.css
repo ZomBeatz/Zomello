@@ -487,3 +487,65 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 .completed-cards { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
 .completed-cards .card-tile { opacity: .75; }
 .completed-cards .card-tile:hover { opacity: 1; }
+
+/* ---------- context menu ---------- */
+.ctx-menu {
+  position: fixed; z-index: 200; min-width: 200px; max-width: 340px; padding: 5px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg);
+  font-size: 13.5px; animation: fade .08s;
+}
+.ctx-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border-radius: 6px; text-align: left; }
+.ctx-item:hover, .ctx-item.open { background: var(--surface-2); }
+.ctx-item.danger { color: var(--danger); }
+.ctx-icon { width: 16px; display: inline-flex; justify-content: center; color: var(--text-2); flex-shrink: 0; }
+.ctx-sep { height: 1px; background: var(--border); margin: 4px 6px; }
+
+/* ---------- pickers ---------- */
+.picker { width: 320px; display: flex; flex-direction: column; }
+.picker-search { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--muted); }
+.picker-search input { flex: 1; border: none; background: transparent; padding: 2px 0; box-shadow: none; }
+.picker-list { list-style: none; margin: 0; padding: 4px; max-height: 300px; overflow-y: auto; }
+.picker-list li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+.picker-list li:hover, .picker-list li.sel { background: var(--surface-2); }
+.picker-hint { padding: 0 12px 8px; margin: 0; }
+.board-dot.inline { display: inline-block; width: 8px; height: 8px; margin-right: 5px; vertical-align: 0; }
+.check {
+  width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--border); flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center; color: #fff;
+}
+.check.on { background: var(--accent); border-color: var(--accent); }
+.label-picker .label-editing { flex-direction: column; align-items: stretch; cursor: default; background: var(--surface-2); }
+.label-picker .label-editing:hover { background: var(--surface-2); }
+.label-picker li .icon-btn { opacity: 0; }
+.label-picker li:hover .icon-btn { opacity: 1; }
+.label-create { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px 12px; border-top: 1px solid var(--border); }
+.label-create .btn { align-self: flex-start; }
+.bucket-picker { display: flex; flex-direction: column; gap: 4px; padding: 4px 8px 8px; width: 260px; }
+.bucket-picker label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; margin-top: 4px; }
+.bucket-picker .btn { margin-top: 8px; align-self: flex-start; }
+.link-type-seg { margin: 8px 10px 0; }
+
+/* ---------- card detail additions ---------- */
+.label-pill.lg { font-size: 12px; padding: 3px 6px 3px 10px; display: inline-flex; align-items: center; gap: 4px; }
+.label-pill.lg button { display: inline-flex; color: #fff; opacity: .7; border-radius: 50%; padding: 1px; }
+.label-pill.lg button:hover { opacity: 1; background: #0003; }
+.blocked-banner { display: flex; align-items: center; gap: 8px; background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); padding: 8px 12px; border-radius: 8px; font-weight: 500; }
+.badge.blocked { color: var(--danger); border-color: var(--danger); font-weight: 600; }
+.linked-item { display: flex; align-items: center; gap: 8px; min-width: 0; text-align: left; padding: 2px 4px; border-radius: 5px; }
+.linked-item:hover { background: var(--surface-3); }
+.linked-item > span:first-of-type { flex-shrink: 1; }
+.linked-item .muted { flex-shrink: 2; }
+.checklist li.done .linked-item > span:first-of-type { text-decoration: line-through; color: var(--muted); }
+.linked-list { list-style: none; padding: 0; margin: 0 0 8px; display: flex; flex-direction: column; gap: 4px; }
+.linked-list li { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 8px; background: var(--surface-2); }
+.link-type { font-size: 12px; padding: 2px 4px; width: 110px; flex-shrink: 0; background: transparent; border-color: transparent; color: var(--text-2); }
+.link-type.static { display: inline-block; padding-left: 8px; }
+.recurrence { display: flex; flex-direction: column; gap: 6px; }
+.recurrence .interval { width: 60px; padding: 3px 6px; }
+.recurrence input[type="date"] { flex: 1; }
+.weekdays { display: flex; gap: 4px; }
+.weekdays button {
+  width: 28px; height: 28px; border-radius: 50%; font-size: 12px; font-weight: 600;
+  background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border);
+}
+.weekdays button.on { background: var(--accent); border-color: var(--accent); color: #fff; }

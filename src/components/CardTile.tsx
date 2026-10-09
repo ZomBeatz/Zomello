@@ -1,9 +1,10 @@
 import { memo } from "react";
-import { AlignLeft, Calendar, CheckSquare, MessageSquare, Paperclip } from "lucide-react";
+import { AlignLeft, Ban, Calendar, CheckSquare, Link2, MessageSquare, Paperclip, Repeat } from "lucide-react";
 import type { Board, Card } from "../types";
 import { useStore } from "../store";
-import { checklistStats, dueStatus, prettyDate } from "../utils";
+import { checklistStats, describeRecurrence, dueStatus, isBlocked, prettyDate } from "../utils";
 import { Avatar, PriorityBadge, ProgressIcon } from "./ui";
+import { openCardMenu } from "./ContextMenu";
 
 export const CardTile = memo(function CardTile({
   card,
@@ -19,6 +20,7 @@ export const CardTile = memo(function CardTile({
 }) {
   const openCard = useStore((s) => s.openCard);
   const updateCard = useStore((s) => s.updateCard);
+  const blocked = useStore((s) => card.progress !== "completed" && isBlocked(card, s.data.cards));
   const labels = board.labels.filter((l) => card.labelIds.includes(l.id));
   const cl = checklistStats(card);
   const due = dueStatus(card);
@@ -28,6 +30,7 @@ export const CardTile = memo(function CardTile({
     <div
       className={`card-tile ${dragging ? "dragging" : ""} ${done ? "done" : ""}`}
       onClick={() => openCard(card.id)}
+      onContextMenu={(e) => openCardMenu(e, card.id)}
       onKeyDown={(e) => e.key === "Enter" && openCard(card.id)}
       tabIndex={0}
     >
@@ -56,6 +59,11 @@ export const CardTile = memo(function CardTile({
         <span className="card-title">{card.title}</span>
       </div>
       <div className="card-badges">
+        {blocked && (
+          <span className="badge blocked" title="Blocked by an unfinished task">
+            <Ban size={12} /> Blocked
+          </span>
+        )}
         <PriorityBadge priority={card.priority} />
         {bucketName && <span className="badge subtle">{bucketName}</span>}
         {card.dueDate && (
@@ -63,6 +71,17 @@ export const CardTile = memo(function CardTile({
             <Calendar size={12} />
             {card.startDate ? `${prettyDate(card.startDate)} – ` : ""}
             {prettyDate(card.dueDate)}
+          </span>
+        )}
+        {card.recurrence && (
+          <span className="badge icon-only" title={describeRecurrence(card.recurrence)}>
+            <Repeat size={12} />
+          </span>
+        )}
+        {card.links.length > 0 && (
+          <span className="badge" title="Linked tasks">
+            <Link2 size={12} />
+            {card.links.length}
           </span>
         )}
         {card.description && (

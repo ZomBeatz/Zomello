@@ -1,8 +1,8 @@
 import { create } from "zustand";
-import { addDays } from "date-fns";
+import { addDays, differenceInCalendarDays } from "date-fns";
 import { loadRaw, saveRaw } from "./storage";
-import type { AppData, Board, BoardUi, Card, Filter, ID, List, Route, Settings } from "./types";
-import { byOrder, emptyFilter, PALETTE, toISO, uid } from "./utils";
+import type { AppData, Board, BoardUi, Card, Filter, ID, LinkType, List, Route, Settings } from "./types";
+import { byOrder, emptyFilter, fromISO, inverseLink, nextRecurrenceDate, PALETTE, toISO, todayISO, uid } from "./utils";
 
 const DEFAULT_LABELS = [
   { name: "Bug", color: "#ef4444" },
@@ -50,6 +50,8 @@ const newCard = (boardId: ID, listId: ID, title: string, order: number, extra: P
   attachments: [],
   comments: [],
   assignees: [],
+  links: [],
+  recurrence: null,
   cover: null,
   order,
   archived: false,
@@ -153,6 +155,14 @@ interface State {
   moveCardToBoard(id: ID, boardId: ID, listId: ID): void;
   /** Set `order` by position for `ids` and apply `patch` to the moved card. */
   applyCardOrder(ids: ID[], movedId: ID, patch: Partial<Card>): void;
+  linkCards(a: ID, b: ID, type: LinkType): void;
+  unlinkCards(a: ID, b: ID): void;
+  /** Point a checklist item at a card (or detach it with null). */
+  linkChecklistItem(cardId: ID, itemId: ID, target: ID | null): void;
+  /** Create a card from a checklist item and keep the item linked to it. */
+  spinOffChecklistItem(cardId: ID, itemId: ID, listId: ID): ID;
+  /** Toggle a checklist item; linked items toggle the linked card instead. */
+  toggleChecklistItem(cardId: ID, itemId: ID): void;
 
   setBoardUi(boardId: ID, patch: Partial<BoardUi>): void;
   setFilter(boardId: ID, patch: Partial<Filter>): void;
@@ -165,6 +175,77 @@ const progressPatch = (prev: Card, patch: Partial<Card>): Partial<Card> => {
   if (!patch.progress || patch.progress === prev.progress) return patch;
   return { ...patch, completedAt: patch.progress === "completed" ? Date.now() : null };
 };
+
+/** The next instance of a recurring card, or null when the rule has run out. */
+function nextOccurrence(c: Card): Card | null {
+  if (!c.recurrence) return null;
+  const due = nextRecurrenceDate(c.recurrence, c.dueDate ?? todayISO());
+  if (!due) return null;
+  const startDate =
+    c.startDate && c.dueDate
+      ? toISO(addDays(fromISO(due), differenceInCalendarDays(fromISO(c.startDate), fromISO(c.dueDate))))
+      : null;
+  return {
+    ...structuredClone(c),
+    id: uid(),
+    dueDate: due,
+    startDate,
+    progress: "notStarted",
+    completedAt: null,
+    archived: false,
+    checklist: c.checklist.map((i) => ({ ...i, id: uid(), done: i.cardId ? i.done : false })),
+    comments: [],
+    links: [],
+    order: c.order - 0.5,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+}
+
+/**
+ * Apply a patch to one card inside a cards map. Handles completedAt and, when a
+ * recurring card gets completed, spawns its next occurrence (the completed one
+ * stops recurring so re-toggling it can't spawn duplicates).
+ */
+function patchCard(cards: Record<ID, Card>, id: ID, patch: Partial<Card>): Record<ID, Card> {
+  const prev = cards[id];
+  if (!prev) return cards;
+  let next: Card = { ...prev, ...progressPatch(prev, patch), updatedAt: Date.now() };
+  const out = { ...cards };
+  if (next.progress === "completed" && prev.progress !== "completed" && next.recurrence) {
+    const spawn = nextOccurrence(next);
+    if (spawn) out[spawn.id] = spawn;
+    next = { ...next, recurrence: null };
+  }
+  out[id] = next;
+  // Keep checklist items that point at this card in sync with its completion.
+  if (next.progress !== prev.progress) {
+    const done = next.progress === "completed";
+    for (const c of Object.values(out)) {
+      if (c.checklist.some((i) => i.cardId === id && i.done !== done))
+        out[c.id] = { ...c, checklist: c.checklist.map((i) => (i.cardId === id ? { ...i, done } : i)) };
+    }
+  }
+  return out;
+}
+
+/** Remove links / checklist references pointing at deleted cards. */
+function pruneRefs(cards: Record<ID, Card>): Record<ID, Card> {
+  const out: Record<ID, Card> = {};
+  for (const [id, c] of Object.entries(cards)) {
+    const links = c.links.filter((l) => cards[l.cardId]);
+    const dangling = c.checklist.some((i) => i.cardId && !cards[i.cardId]);
+    out[id] =
+      links.length === c.links.length && !dangling
+        ? c
+        : {
+            ...c,
+            links,
+            checklist: c.checklist.map((i) => (i.cardId && !cards[i.cardId] ? { ...i, cardId: null } : i)),
+          };
+  }
+  return out;
+}
 
 export const useStore = create<State>((set, get) => {
   /** Apply an immutable update to `data`. */
@@ -228,7 +309,7 @@ export const useStore = create<State>((set, get) => {
           boards,
           ui,
           lists: Object.fromEntries(Object.entries(d.lists).filter(([, l]) => l.boardId !== id)),
-          cards: Object.fromEntries(Object.entries(d.cards).filter(([, c]) => c.boardId !== id)),
+          cards: pruneRefs(Object.fromEntries(Object.entries(d.cards).filter(([, c]) => c.boardId !== id))),
           savedFilters: d.savedFilters.filter((f) => f.boardId !== id),
         };
       });
@@ -265,6 +346,7 @@ export const useStore = create<State>((set, get) => {
           boardId: board.id,
           listId: listMap.get(c.listId)!,
           labelIds: c.labelIds.map((l) => labelMap.get(l)).filter((x): x is ID => !!x),
+          links: [],
         }));
       mut((d) => ({
         ...d,
@@ -287,7 +369,7 @@ export const useStore = create<State>((set, get) => {
     deleteList(id) {
       mut((d) => {
         const { [id]: _, ...lists } = d.lists;
-        return { ...d, lists, cards: Object.fromEntries(Object.entries(d.cards).filter(([, c]) => c.listId !== id)) };
+        return { ...d, lists, cards: pruneRefs(Object.fromEntries(Object.entries(d.cards).filter(([, c]) => c.listId !== id))) };
       });
     },
     reorderLists(ids) {
@@ -308,16 +390,12 @@ export const useStore = create<State>((set, get) => {
       return card.id;
     },
     updateCard(id, patch) {
-      mut((d) => {
-        const prev = d.cards[id];
-        if (!prev) return d;
-        return { ...d, cards: { ...d.cards, [id]: { ...prev, ...progressPatch(prev, patch), updatedAt: Date.now() } } };
-      });
+      mut((d) => ({ ...d, cards: patchCard(d.cards, id, patch) }));
     },
     deleteCard(id) {
       mut((d) => {
         const { [id]: _, ...cards } = d.cards;
-        return { ...d, cards };
+        return { ...d, cards: pruneRefs(cards) };
       });
       if (get().openCardId === id) set({ openCardId: null });
     },
@@ -331,6 +409,7 @@ export const useStore = create<State>((set, get) => {
         createdAt: Date.now(),
         updatedAt: Date.now(),
         checklist: src.checklist.map((i) => ({ ...i, id: uid() })),
+        links: [],
       };
       mut((d) => ({ ...d, cards: { ...d.cards, [card.id]: card } }));
       return card.id;
@@ -355,10 +434,58 @@ export const useStore = create<State>((set, get) => {
         ids.forEach((id, i) => {
           if (cards[id].order !== i) cards[id] = { ...cards[id], order: i };
         });
-        const prev = cards[movedId];
-        cards[movedId] = { ...prev, ...progressPatch(prev, patch), updatedAt: Date.now() };
+        return { ...d, cards: patchCard(cards, movedId, patch) };
+      });
+    },
+    linkCards(a, b, type) {
+      if (a === b) return;
+      mut((d) => {
+        const ca = d.cards[a], cb = d.cards[b];
+        if (!ca || !cb) return d;
+        return {
+          ...d,
+          cards: {
+            ...d.cards,
+            [a]: { ...ca, links: [...ca.links.filter((l) => l.cardId !== b), { cardId: b, type }] },
+            [b]: { ...cb, links: [...cb.links.filter((l) => l.cardId !== a), { cardId: a, type: inverseLink(type) }] },
+          },
+        };
+      });
+    },
+    unlinkCards(a, b) {
+      mut((d) => {
+        const cards = { ...d.cards };
+        if (cards[a]) cards[a] = { ...cards[a], links: cards[a].links.filter((l) => l.cardId !== b) };
+        if (cards[b]) cards[b] = { ...cards[b], links: cards[b].links.filter((l) => l.cardId !== a) };
         return { ...d, cards };
       });
+    },
+    linkChecklistItem(cardId, itemId, target) {
+      const c = get().data.cards[cardId];
+      const t = target ? get().data.cards[target] : null;
+      get().updateCard(cardId, {
+        checklist: c.checklist.map((i) =>
+          i.id === itemId ? { ...i, cardId: target, text: t ? t.title : i.text, done: t ? t.progress === "completed" : i.done } : i,
+        ),
+      });
+    },
+    spinOffChecklistItem(cardId, itemId, listId) {
+      const c = get().data.cards[cardId];
+      const item = c.checklist.find((i) => i.id === itemId)!;
+      const newId = get().createCard(listId, item.text, item.done ? { progress: "completed" } : {});
+      get().linkChecklistItem(cardId, itemId, newId);
+      return newId;
+    },
+    toggleChecklistItem(cardId, itemId) {
+      const d = get().data;
+      const item = d.cards[cardId].checklist.find((i) => i.id === itemId);
+      if (!item) return;
+      const target = item.cardId ? d.cards[item.cardId] : null;
+      if (target) get().updateCard(target.id, { progress: target.progress === "completed" ? "notStarted" : "completed" });
+      else
+        get().updateCard(cardId, {
+          checklist: d.cards[cardId].checklist.map((i) => (i.id === itemId ? { ...i, done: !i.done } : i)),
+        });
     },
 
     setBoardUi(boardId, patch) {
