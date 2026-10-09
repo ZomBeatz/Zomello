@@ -102,6 +102,8 @@ export function storedSrc(url: string): string {
   if (!inTauri || url.startsWith("data:")) return url;
   // Served by the app itself (see `serve_attachment` in lib.rs); Windows' webview needs the http form.
   const path = url.split("/").map(encodeURIComponent).join("/");
+  // `npm run app` serves the page from the Vite dev server, which can't load zfile:// — it serves them itself.
+  if (location.protocol.startsWith("http") && location.port) return `/__zfile/${path}`;
   return isWindows ? `http://zfile.localhost/${path}` : `zfile://localhost/${path}`;
 }
 
@@ -136,11 +138,4 @@ export async function notify(title: string, body: string): Promise<void> {
   if (!("Notification" in window)) return;
   if (Notification.permission === "default") await Notification.requestPermission();
   if (Notification.permission === "granted") new Notification(title, { body });
-}
-
-/** Temporary drag & drop diagnostics (written to debug.log next to the data file). */
-export function debugLog(...parts: unknown[]) {
-  const line = parts.map((p) => (typeof p === "string" ? p : JSON.stringify(p))).join(" ");
-  console.debug("[zomello]", line);
-  if (inTauri) void invoke("debug_log", { line }).catch(() => {});
 }

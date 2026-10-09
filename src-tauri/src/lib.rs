@@ -196,15 +196,6 @@ fn store_file_from_path(app: AppHandle, path: String) -> Result<StoredFile, Stri
     Ok(StoredFile { rel: rel.to_string_lossy().replace('\\', "/"), name, size: meta.len() })
 }
 
-/// Temporary diagnostics: append a line to `debug.log` in the data dir.
-#[tauri::command]
-fn debug_log(app: AppHandle, line: String) -> Result<(), String> {
-    use std::io::Write;
-    let path = data_dir(&app)?.join("debug.log");
-    let mut f = fs::OpenOptions::new().create(true).append(true).open(path).map_err(|e| e.to_string())?;
-    writeln!(f, "{} {}", now_secs(), line).map_err(|e| e.to_string())
-}
-
 /// Read a file the user dropped (by path), e.g. a Trello/Planner export, as raw bytes.
 #[tauri::command]
 fn read_dropped_file(path: String) -> Result<tauri::ipc::Response, String> {
@@ -365,7 +356,6 @@ pub fn run() {
             save_attachment,
             store_file_from_path,
             read_dropped_file,
-            debug_log,
             attachment_abs_path,
             list_attachments,
             delete_attachment

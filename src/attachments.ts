@@ -1,5 +1,5 @@
 import { useStore } from "./store";
-import { debugLog, fileUrlToPath, inTauri, storeFile, storeFromPath } from "./storage";
+import { fileUrlToPath, inTauri, storeFile, storeFromPath } from "./storage";
 import type { Attachment, ID } from "./types";
 import { isImage, uid } from "./utils";
 
@@ -34,11 +34,7 @@ export const dropIsEmpty = (p: DropPayload) => !p.files.length && !p.paths.lengt
 export async function attachToCard(cardId: ID, p: DropPayload): Promise<number> {
   const st = useStore.getState();
   const added: Attachment[] = [];
-  const fail = (name: string, e: unknown) => {
-    debugLog("attach failed", name, String(e));
-    st.toast(`Couldn't attach ${name}: ${e}`);
-  };
-  debugLog("attachToCard", cardId, { files: p.files.map((f) => [f.name, f.size, f.type]), paths: p.paths, links: p.links });
+  const fail = (name: string, e: unknown) => st.toast(`Couldn't attach ${name}: ${e}`);
   for (const f of p.files) {
     try {
       added.push({ id: uid(), name: f.name, url: await storeFile(f), addedAt: Date.now(), stored: true, size: f.size, mime: f.type });
