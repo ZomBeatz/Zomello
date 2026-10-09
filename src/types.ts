@@ -201,6 +201,21 @@ export interface ReminderSettings {
   digest: boolean;
 }
 
+export interface A11ySettings {
+  /** Turn off animations and transitions. */
+  reduceMotion: boolean;
+  /** Stronger borders and text contrast. */
+  highContrast: boolean;
+  /** Always underline links. */
+  underlineLinks: boolean;
+  /** Extra letter, word and line spacing (easier reading, dyslexia-friendly). */
+  readableSpacing: boolean;
+  /** Thick, always-visible keyboard focus outline. */
+  strongFocus: boolean;
+  /** Bigger buttons and checkboxes. */
+  largerTargets: boolean;
+}
+
 export interface Settings {
   theme: "system" | "light" | "dark";
   me: string;
@@ -212,6 +227,9 @@ export interface Settings {
   defaultView: ViewMode;
   sidebarCollapsed: boolean;
   reminders: ReminderSettings;
+  /** Page zoom, 1 = 100%. Ctrl + mouse wheel, Ctrl +/-/0. */
+  zoom: number;
+  a11y: A11ySettings;
 }
 
 /** A reusable card blueprint. Labels are stored by name so templates work on any board. */

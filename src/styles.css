@@ -726,3 +726,69 @@ button.board-tag:hover { filter: brightness(1.2); }
 .shortcut-groups dd { margin: 0; color: var(--text-2); text-align: right; }
 .chart-value.wide { width: auto; min-width: 52px; }
 .chart-row:has(.chart-value.wide) { grid-template-columns: 110px 1fr 60px; }
+.crash { margin: 60px auto; max-width: 560px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--warn); }
+.crash h2 { color: var(--text); margin: 4px 0 0; }
+.crash pre { max-width: 100%; white-space: pre-wrap; background: var(--surface-2); color: var(--text-2); padding: 10px 14px; border-radius: 8px; font-size: 12px; }
+
+/* linked-card trail */
+.trail-bar {
+  display: flex; align-items: center; gap: 12px; padding: 10px 56px 10px 16px;
+  background: var(--accent-soft); border-bottom: 1px solid var(--border); border-radius: 14px 14px 0 0;
+}
+.trail-back { background: var(--surface); flex-shrink: 0; }
+.trail-text { display: flex; flex-direction: column; min-width: 0; }
+.crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; font-size: 13px; }
+.crumb { display: inline-flex; align-items: center; gap: 2px; color: var(--muted); }
+.crumb button { color: var(--accent); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crumb button:hover { text-decoration: underline; }
+.crumb.current { color: var(--text); font-weight: 600; }
+.card-modal:has(.trail-bar) .detail-cover { border-radius: 0; }
+.card-slide.forward { animation: slide-in-right .22s ease-out; }
+.card-slide.back { animation: slide-in-left .22s ease-out; }
+@keyframes slide-in-right { from { transform: translateX(36px); opacity: 0; } }
+@keyframes slide-in-left { from { transform: translateX(-36px); opacity: 0; } }
+@media (max-width: 900px) { .hide-narrow { display: none; } }
+
+/* ---------- accessibility ---------- */
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+[data-strongfocus] :focus-visible { outline: 3px solid var(--accent) !important; outline-offset: 2px !important; box-shadow: 0 0 0 6px var(--accent-soft) !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition: none !important; }
+}
+[data-reducemotion] *, [data-reducemotion] *::before, [data-reducemotion] *::after {
+  animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition: none !important;
+}
+
+:root[data-highcontrast] {
+  --text-2: var(--text);
+  --muted: color-mix(in srgb, var(--text) 80%, var(--bg));
+  --border: color-mix(in srgb, var(--text) 45%, var(--bg));
+}
+[data-highcontrast] .card-tile, [data-highcontrast] .column, [data-highcontrast] .panel,
+[data-highcontrast] .modal, [data-highcontrast] .popover, [data-highcontrast] .ctx-menu { border: 1px solid var(--border); }
+[data-highcontrast] .badge { border-width: 1.5px; font-weight: 600; }
+[data-highcontrast] .label-pill { outline: 1px solid color-mix(in srgb, var(--text) 50%, transparent); }
+[data-highcontrast] .card-tile[class*="aged-"] { opacity: 1; filter: none; }
+
+[data-underlinelinks] a, [data-underlinelinks] .link, [data-underlinelinks] .crumb button,
+[data-underlinelinks] .linked-item > span:first-of-type, [data-underlinelinks] .markdown a { text-decoration: underline; }
+
+[data-readablespacing] body { letter-spacing: .03em; word-spacing: .14em; line-height: 1.7; }
+[data-readablespacing] .card-title, [data-readablespacing] .markdown p { line-height: 1.6; }
+
+[data-largertargets] .icon-btn { padding: 8px; }
+[data-largertargets] .icon-btn.tiny { padding: 6px; }
+[data-largertargets] .btn { padding: 9px 15px; }
+[data-largertargets] .btn.sm { padding: 7px 12px; }
+[data-largertargets] .nav-item { padding: 10px 12px; }
+[data-largertargets] input[type="checkbox"] { width: 20px; height: 20px; }
+[data-largertargets] .progress-toggle svg { width: 20px; height: 20px; }
+[data-largertargets] .menu-item, [data-largertargets] .ctx-item { padding: 9px 10px; }
+
+.zoom-control { display: flex; align-items: center; gap: 8px; }
+.zoom-control input[type="range"] { width: 200px; accent-color: var(--accent); }
+.zoom-control .zoom-value { min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.a11y-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2px 20px; }
+.a11y-grid .check-row { align-items: flex-start; }
+.a11y-grid .check-row span { display: flex; flex-direction: column; }

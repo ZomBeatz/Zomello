@@ -2,6 +2,8 @@ import { useMemo, useRef, useState } from "react";
 import {
   Activity as ActivityIcon,
   AlignLeft,
+  ArrowLeft,
+  ChevronRight,
   Archive,
   Ban,
   BookmarkPlus,
@@ -39,11 +41,16 @@ import { useNow } from "./useNow";
 
 export function CardModal({ cardId }: { cardId: ID }) {
   const card = useStore((s) => s.data.cards[cardId]);
+  const trail = useStore((s) => s.cardTrail);
+  const dir = useStore((s) => s.cardNavDir);
   const close = () => useStore.getState().openCard(null);
   if (!card) return null;
   return (
     <Modal onClose={close} width={920} className="card-modal">
-      <CardDetail key={card.id} card={card} onClose={close} />
+      {trail.length > 0 && <TrailBar cardId={card.id} />}
+      <div key={card.id} className={`card-slide ${dir ?? ""}`}>
+        <CardDetail card={card} onClose={close} />
+      </div>
     </Modal>
   );
 }
@@ -218,7 +225,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
                   <li key={item.id} className={checked ? "done" : ""}>
                     <input type="checkbox" checked={checked} onChange={() => toggleChecklistItem(card.id, item.id)} />
                     {linked ? (
-                      <button className="linked-item grow" onClick={() => openCard(linked.id)} title="Open linked task">
+                      <button className="linked-item grow" onClick={() => openCard(linked.id, { via: "checklist" })} title="Open linked task">
                         <Link2 size={13} />
                         <span className="ellipsis">{linked.title}</span>
                         <span className="muted small ellipsis">
@@ -331,7 +338,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
                       ))}
                     </select>
                     <ProgressIcon progress={c.progress} size={14} />
-                    <button className="linked-item grow" onClick={() => openCard(c.id)}>
+                    <button className="linked-item grow" onClick={() => openCard(c.id, { via: "link" })}>
                       <span className="ellipsis">{c.title}</span>
                       <span className="muted small ellipsis">
                         <span className="board-dot inline" style={{ background: allBoards[c.boardId]?.color }} />
@@ -348,7 +355,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
                 <li key={`parent-${p.id}`}>
                   <span className="link-type static">Checklist item in</span>
                   <ProgressIcon progress={p.progress} size={14} />
-                  <button className="linked-item grow" onClick={() => openCard(p.id)}>
+                  <button className="linked-item grow" onClick={() => openCard(p.id, { via: "parent" })}>
                     <span className="ellipsis">{p.title}</span>
                     <span className="muted small ellipsis">
                       {allBoards[p.boardId]?.title} › {allLists[p.listId]?.title}
@@ -969,6 +976,44 @@ function CoverEditor({ card }: { card: Card }) {
         </div>
       )}
       {images.length === 0 && <span className="muted small">Attach an image to use it as a cover.</span>}
+    </div>
+  );
+}
+
+const VIA_TEXT = {
+  checklist: "Opened from a checklist item in",
+  link: "Opened from a linked task in",
+  parent: "Opened from a sub-task of",
+} as const;
+
+/** Shown when a card was opened by following a link from another card. */
+function TrailBar({ cardId }: { cardId: ID }) {
+  const trail = useStore((s) => s.cardTrail);
+  const cards = useStore((s) => s.data.cards);
+  const cardBack = useStore((s) => s.cardBack);
+  const last = trail[trail.length - 1];
+  const from = cards[last.cardId];
+  return (
+    <div className="trail-bar">
+      <button className="btn sm trail-back" onClick={() => cardBack()} title="Back (Alt+←)">
+        <ArrowLeft size={14} /> Back
+      </button>
+      <div className="trail-text">
+        <span className="muted small">{VIA_TEXT[last.via]}</span>
+        <nav className="crumbs" aria-label="Cards you came through">
+          {trail.map((step, i) => (
+            <span key={i} className="crumb">
+              <button onClick={() => cardBack(i)}>{cards[step.cardId]?.title ?? "deleted card"}</button>
+              <ChevronRight size={12} />
+            </span>
+          ))}
+          <span className="crumb current" aria-current="page">
+            {cards[cardId]?.title}
+          </span>
+        </nav>
+      </div>
+      <span className="grow" />
+      {from && <span className="muted small hide-narrow">Alt+← to go back</span>}
     </div>
   );
 }
