@@ -35,7 +35,8 @@ export const SHORTCUTS: { group: string; items: [string, string][] }[] = [
     items: [
       ["Enter  or  E", "Open it"],
       ["C", "Complete / un-complete"],
-      ["T", "Start / stop its timer"],
+      ["T", "Start / pause its timer"],
+      ["F", "Start a focus countdown on it"],
       ["D", "Due today (again: tomorrow)"],
       ["A", "Archive"],
       ["Shift D", "Duplicate"],
@@ -106,6 +107,8 @@ export function handleShortcut(e: KeyboardEvent) {
         return st.updateCard(card.id, { progress: done ? "notStarted" : "completed" });
       case "t":
         return card.time.some((t) => t.end === null) ? st.stopTimer() : st.startTimer(card.id);
+      case "f":
+        return st.startFocus(st.data.settings.focusMinutes, card.id);
       case "d": {
         const today = toISO(new Date());
         return st.updateCard(card.id, { dueDate: card.dueDate === today ? toISO(addDays(new Date(), 1)) : today });

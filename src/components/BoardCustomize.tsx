@@ -1,20 +1,51 @@
-import { useRef } from "react";
-import { ImagePlus, X } from "lucide-react";
-import type { BadgeKey, Board, BoardDisplay } from "../types";
+import { useRef, useState } from "react";
+import { ArrowDown, ArrowUp, ImagePlus, Plus, Trash2, X } from "lucide-react";
+import type { BadgeKey, BadgeMode, Board, BoardDisplay, CardSection, FieldDef, FieldType } from "../types";
 import { useStore } from "../store";
-import { BOARD_EMOJIS, GRADIENTS, PALETTE } from "../utils";
+import { BOARD_EMOJIS, GRADIENTS, isImage, PALETTE, uid } from "../utils";
 import { storedSrc, storeFile } from "../storage";
-import { ColorPicker, Modal } from "./ui";
+import { ask, ColorPicker, Modal } from "./ui";
 
-const BADGES: { key: BadgeKey; name: string }[] = [
-  { key: "dates", name: "Dates" },
-  { key: "priority", name: "Priority" },
-  { key: "checklist", name: "Checklist progress" },
-  { key: "assignees", name: "Assignees" },
-  { key: "description", name: "Description & notes" },
+const BADGES: { key: BadgeKey; name: string; icon: string; full: string }[] = [
+  { key: "dates", name: "Dates", icon: "Due date", full: "Dates + “in 3 days / 2 days late” + repeat rule" },
+  { key: "priority", name: "Priority", icon: "Colored flag", full: "Named badge (Urgent, Important…)" },
+  { key: "checklist", name: "Checklist", icon: "Count (2/5)", full: "The items, tickable right on the card" },
+  { key: "assignees", name: "Assigned to", icon: "Avatars", full: "Avatars with names" },
+  { key: "description", name: "Description", icon: "Icon", full: "First lines of the description" },
+  { key: "notes", name: "Notes", icon: "Count", full: "Latest note" },
+  { key: "links", name: "Linked tasks", icon: "Count", full: "Linked task names" },
+  { key: "attachments", name: "Files & links", icon: "Count", full: "File names" },
+  { key: "time", name: "Time tracked", icon: "Total", full: "Total / estimate" },
+];
+
+export const SECTIONS: { key: CardSection; name: string }[] = [
+  { key: "assignees", name: "Assigned to" },
+  { key: "labels", name: "Labels" },
+  { key: "fields", name: "Custom fields" },
+  { key: "description", name: "Description" },
+  { key: "checklist", name: "Checklist" },
   { key: "links", name: "Linked tasks" },
-  { key: "time", name: "Time tracked" },
-  { key: "attachments", name: "Attachments" },
+  { key: "files", name: "Files & links" },
+  { key: "notes", name: "Notes" },
+  { key: "activity", name: "Activity" },
+  { key: "progress", name: "Progress" },
+  { key: "priority", name: "Priority" },
+  { key: "startDate", name: "Start date" },
+  { key: "dueDate", name: "Due date" },
+  { key: "reminder", name: "Reminder" },
+  { key: "repeat", name: "Repeat" },
+  { key: "time", name: "Time & focus" },
+  { key: "cover", name: "Cover" },
+  { key: "moveBoard", name: "Move to board" },
+];
+
+const FIELD_TYPES: { id: FieldType; name: string }[] = [
+  { id: "text", name: "Text" },
+  { id: "number", name: "Number" },
+  { id: "select", name: "Dropdown" },
+  { id: "checkbox", name: "Checkbox" },
+  { id: "date", name: "Date" },
+  { id: "url", name: "Link" },
 ];
 
 const BG_COLORS = ["#1e293b", "#0f172a", "#164e63", "#14532d", "#4c1d95", "#7c2d12", "#831843", "#334155"];
@@ -33,10 +64,20 @@ export function BoardCustomize({ board }: { board: Board }) {
   const set = (patch: Partial<Board>) => updateBoard(board.id, patch);
   const setDisplay = (patch: Partial<BoardDisplay>) => set({ display: { ...board.display, ...patch } });
   const fileRef = useRef<HTMLInputElement>(null);
+  const [dropBg, setDropBg] = useState(false);
   const bg = board.background;
 
+  const useImage = async (f: File) => {
+    if (!isImage(f.name, f.type)) return useStore.getState().toast("That isn't an image.");
+    try {
+      set({ background: { type: "image", value: await storeFile(f) } });
+    } catch (err) {
+      useStore.getState().toast(`Couldn't use that image: ${err}`);
+    }
+  };
+
   return (
-    <Modal onClose={close} width={620} className="customize">
+    <Modal onClose={close} width={680} className="customize">
       <header className="customize-head">
         <h2>Customize “{board.title}”</h2>
         <button className="icon-btn" onClick={close}>
@@ -70,8 +111,24 @@ export function BoardCustomize({ board }: { board: Board }) {
           <ColorPicker value={board.color} onChange={(color) => set({ color: color ?? PALETTE[6] })} />
         </section>
 
-        <section>
+        <section
+          data-file-drop
+          className={dropBg ? "drop-target" : ""}
+          onDragOver={(e) => {
+            if (!e.dataTransfer.types.includes("Files")) return;
+            e.preventDefault();
+            setDropBg(true);
+          }}
+          onDragLeave={(e) => e.currentTarget === e.target && setDropBg(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDropBg(false);
+            const f = e.dataTransfer.files[0];
+            if (f) void useImage(f);
+          }}
+        >
           <h4>Background</h4>
+          <p className="muted small">Pick one, upload an image, or drop an image here.</p>
           <div className="bg-grid">
             <button className={`bg-swatch none ${bg.type === "none" ? "sel" : ""}`} onClick={() => set({ background: { type: "none" } })}>
               Default
@@ -112,15 +169,10 @@ export function BoardCustomize({ board }: { board: Board }) {
               type="file"
               accept="image/*"
               hidden
-              onChange={async (e) => {
+              onChange={(e) => {
                 const f = e.target.files?.[0];
                 e.target.value = "";
-                if (!f) return;
-                try {
-                  set({ background: { type: "image", value: await storeFile(f) } });
-                } catch (err) {
-                  useStore.getState().toast(`Couldn't use that image: ${err}`);
-                }
+                if (f) void useImage(f);
               }}
             />
           </div>
@@ -157,15 +209,52 @@ export function BoardCustomize({ board }: { board: Board }) {
 
         <section>
           <h4>Show on cards</h4>
-          <div className="badge-grid">
+          <p className="muted small">What each card on the board shows. “Icon” is compact; “Details” shows the actual information.</p>
+          <div className="badge-modes">
             {BADGES.map((b) => (
-              <label key={b.key} className="check-row">
+              <div key={b.key} className="badge-mode-row">
+                <span className="grow">
+                  {b.name}
+                  <small className="muted">
+                    {board.display.badges[b.key] === "full" ? b.full : board.display.badges[b.key] === "icon" ? b.icon : "Hidden"}
+                  </small>
+                </span>
+                <div className="seg">
+                  {(["off", "icon", "full"] as BadgeMode[]).map((m) => (
+                    <button
+                      key={m}
+                      className={board.display.badges[b.key] === m ? "active" : ""}
+                      onClick={() => setDisplay({ badges: { ...board.display.badges, [b.key]: m } })}
+                    >
+                      {m === "off" ? "Hidden" : m === "icon" ? "Icon" : "Details"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <FieldsEditor board={board} />
+
+        <section>
+          <h4>Card details window</h4>
+          <p className="muted small">Hide parts of the card window you don't use on this board. Nothing is deleted — tick it again to bring it back.</p>
+          <div className="badge-grid">
+            {SECTIONS.map((sct) => (
+              <label key={sct.key} className="check-row">
                 <input
                   type="checkbox"
-                  checked={board.display.badges[b.key]}
-                  onChange={(e) => setDisplay({ badges: { ...board.display.badges, [b.key]: e.target.checked } })}
+                  checked={!board.hiddenSections.includes(sct.key)}
+                  onChange={(e) =>
+                    set({
+                      hiddenSections: e.target.checked
+                        ? board.hiddenSections.filter((x) => x !== sct.key)
+                        : [...board.hiddenSections, sct.key],
+                    })
+                  }
                 />
-                {b.name}
+                {sct.name}
               </label>
             ))}
           </div>
@@ -184,5 +273,94 @@ export function BoardCustomize({ board }: { board: Board }) {
         </section>
       </div>
     </Modal>
+  );
+}
+
+function FieldsEditor({ board }: { board: Board }) {
+  const updateBoard = useStore((s) => s.updateBoard);
+  const setFields = (fields: FieldDef[]) => updateBoard(board.id, { fields });
+  const patch = (id: string, p: Partial<FieldDef>) => setFields(board.fields.map((f) => (f.id === id ? { ...f, ...p } : f)));
+  const move = (i: number, d: -1 | 1) => {
+    const arr = [...board.fields];
+    [arr[i], arr[i + d]] = [arr[i + d], arr[i]];
+    setFields(arr);
+  };
+  return (
+    <section>
+      <h4>Custom fields</h4>
+      <p className="muted small">Extra information every card on this board can have — e.g. Client, Cost, Version, Approved.</p>
+      <div className="fields-editor">
+        {board.fields.map((f, i) => (
+          <div key={f.id} className="field-def">
+            <div className="row gap-sm">
+              <input className="grow" value={f.name} placeholder="Field name" onChange={(e) => patch(f.id, { name: e.target.value })} />
+              <select value={f.type} onChange={(e) => patch(f.id, { type: e.target.value as FieldType })}>
+                {FIELD_TYPES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+              <label className="check-row small" title="Show this field on cards in the board">
+                <input type="checkbox" checked={f.showOnCard} onChange={(e) => patch(f.id, { showOnCard: e.target.checked })} />
+                On card
+              </label>
+              <button className="icon-btn tiny" disabled={i === 0} onClick={() => move(i, -1)} title="Move up">
+                <ArrowUp size={13} />
+              </button>
+              <button className="icon-btn tiny" disabled={i === board.fields.length - 1} onClick={() => move(i, 1)} title="Move down">
+                <ArrowDown size={13} />
+              </button>
+              <button
+                className="icon-btn tiny danger"
+                title="Delete field"
+                onClick={async () => {
+                  if (await ask(`Delete the field "${f.name}"? Values on cards are kept hidden, and Ctrl+Z brings it back.`, { okText: "Delete", danger: true }))
+                    setFields(board.fields.filter((x) => x.id !== f.id));
+                }}
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+            {f.type === "select" && (
+              <div className="field-options">
+                {f.options.map((o) => (
+                  <span key={o.id} className="field-option" style={{ borderColor: o.color }}>
+                    <input
+                      type="color"
+                      value={o.color}
+                      onChange={(e) => patch(f.id, { options: f.options.map((x) => (x.id === o.id ? { ...x, color: e.target.value } : x)) })}
+                    />
+                    <input
+                      value={o.label}
+                      onChange={(e) => patch(f.id, { options: f.options.map((x) => (x.id === o.id ? { ...x, label: e.target.value } : x)) })}
+                    />
+                    <button className="icon-btn tiny" onClick={() => patch(f.id, { options: f.options.filter((x) => x.id !== o.id) })}>
+                      <X size={11} />
+                    </button>
+                  </span>
+                ))}
+                <button
+                  className="btn sm ghost"
+                  onClick={() =>
+                    patch(f.id, {
+                      options: [...f.options, { id: uid(), label: `Option ${f.options.length + 1}`, color: PALETTE[f.options.length % PALETTE.length] }],
+                    })
+                  }
+                >
+                  <Plus size={12} /> Option
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+        <button
+          className="btn sm"
+          onClick={() => setFields([...board.fields, { id: uid(), name: "New field", type: "text", options: [], showOnCard: true }])}
+        >
+          <Plus size={13} /> Add field
+        </button>
+      </div>
+    </section>
   );
 }

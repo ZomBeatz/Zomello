@@ -344,3 +344,59 @@ export const fileSize = (n?: number) =>
 
 export const isImage = (name: string, mime?: string) =>
   (mime ?? "").startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i.test(name);
+
+// ---- Bucket sorting (display only; never rewrites a card's custom `order`) ----
+export const SORT_MODES: { id: import("./types").SortMode; name: string; hint: string }[] = [
+  { id: "custom", name: "Custom order", hint: "Drag cards to arrange them" },
+  { id: "due", name: "Due date", hint: "Soonest first; no date last" },
+  { id: "priority", name: "Priority", hint: "Urgent first" },
+  { id: "alpha", name: "Name (A–Z)", hint: "Alphabetical" },
+  { id: "progress", name: "Progress", hint: "In progress, then not started" },
+  { id: "created", name: "Newest", hint: "Most recently created first" },
+  { id: "updated", name: "Recently updated", hint: "Last changed first" },
+];
+const PRI_RANK = { urgent: 0, important: 1, medium: 2, low: 3 } as const;
+const PROG_RANK = { inProgress: 0, notStarted: 1, completed: 2 } as const;
+
+export function sortCards(cards: Card[], mode: import("./types").SortMode, desc = false): Card[] {
+  if (mode === "custom") return cards;
+  const key = (c: Card): string | number => {
+    switch (mode) {
+      case "due": return c.dueDate ?? "9999-99-99";
+      case "priority": return PRI_RANK[c.priority];
+      case "alpha": return c.title.toLocaleLowerCase();
+      case "progress": return PROG_RANK[c.progress];
+      case "created": return -c.createdAt;
+      case "updated": return -c.updatedAt;
+    }
+  };
+  const out = [...cards].sort((a, b) => {
+    const x = key(a), y = key(b);
+    const cmp = typeof x === "string" ? x.localeCompare(y as string, undefined, { numeric: true }) : x - (y as number);
+    return cmp || a.order - b.order;
+  });
+  return desc ? out.reverse() : out;
+}
+
+/** Markdown → short plain-text preview. */
+export const plainText = (md: string) =>
+  md
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/^\s*(#{1,6}|>|[-*+]\s+\[[ xX]\]|[-*+]|\d+\.)\s*/gm, "")
+    .replace(/[*_`~]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+// ---- Custom fields ----
+export function formatFieldValue(f: import("./types").FieldDef, v: import("./types").FieldValue): string {
+  if (v == null || v === "") return "";
+  switch (f.type) {
+    case "checkbox": return v ? "Yes" : "No";
+    case "select": return f.options.find((o) => o.id === v)?.label ?? "";
+    case "date": return prettyDate(String(v));
+    case "number": return Number(v).toLocaleString();
+    default: return String(v);
+  }
+}

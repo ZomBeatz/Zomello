@@ -21,8 +21,9 @@ let toastTimer: ReturnType<typeof setTimeout> | undefined;
 export function setZoom(z: number) {
   const st = useStore.getState();
   const next = clamp(z);
-  if (next === st.data.settings.zoom) return;
-  st.updateSettings({ zoom: next });
+  // Always re-apply, even if the saved value already matches — the webview may be out of step.
+  void applyZoom(next);
+  if (next !== st.data.settings.zoom) st.updateSettings({ zoom: next });
   // One toast for a burst of wheel steps.
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => st.toast(`Zoom ${Math.round(next * 100)}%  ·  Ctrl+0 to reset`, { key: "zoom" }), 250);
@@ -42,18 +43,21 @@ export function installZoomControls() {
       acc = 0;
     }
   };
+  // Match physical keys too, so numpad keys (with or without Num Lock) and other layouts work.
   const onKey = (e: KeyboardEvent) => {
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
-    if (e.key === "=" || e.key === "+") zoomBy(STEP);
-    else if (e.key === "-" || e.key === "_") zoomBy(-STEP);
-    else if (e.key === "0") setZoom(1);
+    if (e.key === "=" || e.key === "+" || e.code === "Equal" || e.code === "NumpadAdd") zoomBy(STEP);
+    else if (e.key === "-" || e.key === "_" || e.code === "Minus" || e.code === "NumpadSubtract") zoomBy(-STEP);
+    else if (e.key === "0" || e.code === "Digit0" || e.code === "Numpad0") setZoom(1);
     else return;
     e.preventDefault();
+    e.stopPropagation();
   };
-  window.addEventListener("wheel", onWheel, { passive: false });
-  window.addEventListener("keydown", onKey);
+  window.addEventListener("wheel", onWheel, { passive: false, capture: true });
+  // Capture phase: runs before anything else can swallow the key.
+  window.addEventListener("keydown", onKey, { capture: true });
   return () => {
-    window.removeEventListener("wheel", onWheel);
-    window.removeEventListener("keydown", onKey);
+    window.removeEventListener("wheel", onWheel, { capture: true });
+    window.removeEventListener("keydown", onKey, { capture: true });
   };
 }

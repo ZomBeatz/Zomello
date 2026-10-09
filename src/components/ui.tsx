@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, CircleDashed, CircleDot, CheckCircle2, X } from "lucide-react";
 import type { Priority, Progress } from "../types";
@@ -227,8 +227,12 @@ export function InlineEdit({
   return multiline ? <textarea rows={2} {...props} /> : <input {...props} />;
 }
 
-export function AutoTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function AutoTextarea({
+  ref: outerRef,
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { ref?: React.Ref<HTMLTextAreaElement> }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  useImperativeHandle(outerRef, () => ref.current!);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;

@@ -114,6 +114,8 @@ export interface Card {
   estimate: number | null;
   /** Local date-time "yyyy-MM-ddTHH:mm" for a desktop reminder. */
   reminder: string | null;
+  /** Custom field values by FieldDef id. */
+  fields: Record<ID, FieldValue>;
   order: number;
   archived: boolean;
   createdAt: number;
@@ -122,6 +124,8 @@ export interface Card {
 }
 
 /** A column on a board. Planner calls these "buckets". */
+export type SortMode = "custom" | "due" | "alpha" | "priority" | "created" | "updated" | "progress";
+
 export interface List {
   id: ID;
   boardId: ID;
@@ -130,6 +134,9 @@ export interface List {
   archived: boolean;
   wipLimit: number | null;
   collapsed: boolean;
+  /** How cards are shown in this bucket. Display only — the custom (`order`) arrangement is never changed by it. */
+  sort: SortMode;
+  sortDesc: boolean;
 }
 
 export type BoardBackground =
@@ -139,13 +146,41 @@ export type BoardBackground =
   /** value: stored image path (or data: URL in browser dev). */
   | { type: "image"; value: string };
 
-export type BadgeKey = "dates" | "checklist" | "assignees" | "priority" | "description" | "links" | "time" | "attachments";
+export type BadgeKey =
+  | "dates" | "checklist" | "assignees" | "priority" | "description" | "notes" | "links" | "time" | "attachments";
+/** off = hidden, icon = compact badge, full = the actual information. */
+export type BadgeMode = "off" | "icon" | "full";
+
+/** Sections of the card details window that a board can hide. */
+export type CardSection =
+  | "assignees" | "labels" | "fields" | "description" | "checklist" | "links" | "files" | "notes" | "activity"
+  | "progress" | "priority" | "startDate" | "dueDate" | "reminder" | "repeat" | "time" | "cover" | "moveBoard";
+
+export type FieldType = "text" | "number" | "select" | "checkbox" | "date" | "url";
+
+export interface FieldOption {
+  id: ID;
+  label: string;
+  color: string;
+}
+
+export interface FieldDef {
+  id: ID;
+  name: string;
+  type: FieldType;
+  /** Choices for "select" fields. */
+  options: FieldOption[];
+  /** Show the value on the card in the board. */
+  showOnCard: boolean;
+}
+
+export type FieldValue = string | number | boolean | null;
 
 export interface BoardDisplay {
   columnWidth: "narrow" | "normal" | "wide";
   compact: boolean;
   labelStyle: "text" | "bar";
-  badges: Record<BadgeKey, boolean>;
+  badges: Record<BadgeKey, BadgeMode>;
   /** Fade cards that haven't been touched in a while. */
   aging: boolean;
 }
@@ -159,6 +194,8 @@ export interface Board {
   icon: string | null;
   background: BoardBackground;
   display: BoardDisplay;
+  fields: FieldDef[];
+  hiddenSections: CardSection[];
   labels: Label[];
   archived: boolean;
   starred: boolean;
@@ -229,6 +266,9 @@ export interface Settings {
   reminders: ReminderSettings;
   /** Page zoom, 1 = 100%. Ctrl + mouse wheel, Ctrl +/-/0. */
   zoom: number;
+  /** Default length of a focus countdown, minutes. */
+  focusMinutes: number;
+  focusSound: boolean;
   a11y: A11ySettings;
 }
 
@@ -265,3 +305,14 @@ export type Route =
   | { page: "board"; boardId: ID }
   | { page: "archive" }
   | { page: "settings" };
+
+/** A countdown ("focus") timer, optionally tied to a card's time tracking. */
+export interface FocusTimer {
+  cardId: ID | null;
+  label: string;
+  durationMs: number;
+  /** When running: the moment it hits zero. */
+  endsAt: number | null;
+  /** When paused: time left. */
+  remainingMs: number;
+}
