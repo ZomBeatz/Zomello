@@ -37,11 +37,13 @@ export const emptyFilter = (): Filter => ({
   progress: [],
   assignees: [],
   due: "any",
+  relatedTo: null,
+  relatedDeep: false,
 });
 
 export const filterIsActive = (f: Filter) =>
   !!f.text || f.labelIds.length > 0 || f.priorities.length > 0 || f.progress.length > 0 ||
-  f.assignees.length > 0 || f.due !== "any";
+  f.assignees.length > 0 || f.due !== "any" || !!f.relatedTo;
 
 export type DueStatus = "overdue" | "today" | "soon" | "later" | "done" | null;
 
@@ -453,4 +455,23 @@ export function parentIndex(cards: Record<string, Card>): Map<string, Card[]> {
     for (const id of subtaskIds(c)) map.set(id, [...(map.get(id) ?? []), c]);
   parentCache = { cards, map };
   return map;
+}
+
+/** The card plus everything related to it: parents, sub-tasks and linked cards (optionally the whole chain). */
+export function relatedSet(id: string, cards: Record<string, Card>, deep: boolean): Set<string> {
+  const parents = parentIndex(cards);
+  const neighbours = (cid: string) => {
+    const c = cards[cid];
+    if (!c) return [];
+    return [...(parents.get(cid) ?? []).map((p) => p.id), ...subtaskIds(c), ...c.links.map((l) => l.cardId)];
+  };
+  const out = new Set([id]);
+  let frontier = [id];
+  while (frontier.length) {
+    const next: string[] = [];
+    for (const cid of frontier) for (const n of neighbours(cid)) if (!out.has(n)) (out.add(n), next.push(n));
+    if (!deep) break;
+    frontier = next;
+  }
+  return out;
 }

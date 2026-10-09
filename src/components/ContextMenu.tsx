@@ -18,6 +18,7 @@ import {
   Copy,
   ExternalLink,
   Flag,
+  GitFork,
   Kanban,
   Link2,
   Repeat,
@@ -27,7 +28,7 @@ import {
 } from "lucide-react";
 import type { ID } from "../types";
 import { useStore } from "../store";
-import { byOrder, describeRecurrence, PRIORITIES, PROGRESS, RECURRENCE_PRESETS, toISO } from "../utils";
+import { byOrder, describeRecurrence, PRIORITIES, PROGRESS, RECURRENCE_PRESETS, relatedSet, toISO } from "../utils";
 import { ask, Avatar } from "./ui";
 import { CardPicker, LabelPicker } from "./pickers";
 
@@ -185,6 +186,7 @@ function cardMenu(cardId: ID): MenuEntry[] {
     .sort(byOrder);
   const today = new Date();
   const running = card.time.some((t) => t.end === null);
+  const hasRelations = relatedSet(cardId, data.cards, false).size > 1;
   const at = (d: Date) => format(d, "yyyy-MM-dd'T'HH:mm");
   const tomorrow9 = setMinutes(setHours(addDays(today, 1), 9), 0);
 
@@ -330,6 +332,18 @@ function cardMenu(cardId: ID): MenuEntry[] {
         />
       ),
     },
+    ...(hasRelations
+      ? [
+          {
+            label: "Show related tasks",
+            icon: <GitFork size={14} />,
+            onClick: () => {
+              st.navigate({ page: "board", boardId: card.boardId });
+              st.setFilter(card.boardId, { relatedTo: cardId, relatedDeep: false });
+            },
+          },
+        ]
+      : []),
     {
       label: "Hand to AI…",
       icon: <Bot size={14} />,

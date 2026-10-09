@@ -92,7 +92,8 @@ const UPDATE_SPEC = `type Update = {
 
 function boardContext(board: Board, lists: List[], people: string[]) {
   const lines = [
-    `Board: "${board.title}"${board.description ? ` — ${board.description}` : ""}`,
+    `Board: "${board.title}"`,
+    ...(board.description.trim() ? [`About this board:\n${board.description.trim()}`] : []),
     `Buckets (in order): ${lists.map((l) => `"${l.title}"`).join(", ") || "none yet"}`,
     `Labels: ${board.labels.map((l) => `"${l.name}"`).join(", ") || "none"}`,
     `People: ${people.map((p) => `"${p}"`).join(", ") || "none"}`,
@@ -165,9 +166,19 @@ ${FORMAT_SPEC}
 Use 3–6 buckets that fit the work (e.g. a workflow like To do / Doing / Done, or phases). Keep titles short and actionable.`;
 }
 
-export type DelegateTask = "triage" | "breakdown" | "prioritize" | "status" | "custom" | "none";
+export type DelegateTask = "workorder" | "triage" | "breakdown" | "prioritize" | "status" | "custom" | "none";
 
 export const DELEGATE_TASKS: { id: DelegateTask; name: string; ask: string; replies: boolean }[] = [
+  {
+    id: "workorder",
+    name: "Do them (work order, e.g. for a coding assistant)",
+    ask: `Work through the numbered items below, in order (most important first). For each one:
+1. Do it — fix the bug / build the feature / complete the task. Ask me if something is ambiguous rather than guessing.
+2. Check it works (build, run, test as appropriate).
+3. Report back: what you changed, anything I should know or test, and follow-ups you noticed.
+When you're finished (or if you stop part-way), reply with the status JSON below: mark finished items "completed", partly done ones "inProgress", and put your summary in each item's note. Add follow-ups with addChecklist or addSubtasks.`,
+    replies: true,
+  },
   {
     id: "triage",
     name: "Work through them (e.g. bugs)",
@@ -200,7 +211,7 @@ export const DELEGATE_TASKS: { id: DelegateTask; name: string; ask: string; repl
 export function exportMarkdown(
   boardId: ID,
   cards: Card[],
-  opts: { heading?: string; notes?: boolean; checklists?: boolean; done?: boolean } = {},
+  opts: { heading?: string; notes?: boolean; checklists?: boolean; done?: boolean; numbered?: boolean } = {},
 ): string {
   const { data } = useStore.getState();
   const board = data.boards[boardId];
@@ -208,15 +219,29 @@ export function exportMarkdown(
   const label = (id: ID) => board.labels.find((l) => l.id === id)?.name;
   const shown = cards.filter((c) => opts.done !== false || c.progress !== "completed");
   const out: string[] = [`# ${opts.heading ?? board.title}`, ""];
-  const byList = new Map<ID, Card[]>();
-  for (const c of shown) byList.set(c.listId, [...(byList.get(c.listId) ?? []), c]);
-  for (const l of lists) {
-    const cs = (byList.get(l.id) ?? []).sort(byOrder);
-    if (!cs.length) continue;
-    out.push(`## ${l.title}`, "");
-    for (const c of cs) {
+  const listIndex = new Map(lists.map((l, i) => [l.id, i]));
+  const RANK = { urgent: 0, important: 1, medium: 2, low: 3 } as const;
+  // Work orders: one numbered list, most important first. Otherwise: grouped by bucket.
+  const groups: { title: string | null; cards: Card[] }[] = opts.numbered
+    ? [
+        {
+          title: null,
+          cards: [...shown].sort(
+            (a, b) => RANK[a.priority] - RANK[b.priority] || (listIndex.get(a.listId) ?? 0) - (listIndex.get(b.listId) ?? 0) || byOrder(a, b),
+          ),
+        },
+      ]
+    : lists.map((l) => ({ title: l.title, cards: shown.filter((c) => c.listId === l.id).sort(byOrder) })).filter((g) => g.cards.length);
+  // A single bucket doesn't need its own heading under the export title.
+  const showListHeadings = groups.length > 1 || (groups[0]?.title && !(opts.heading ?? "").includes(groups[0].title));
+  let n = 0;
+  for (const g of groups) {
+    if (g.title && showListHeadings) out.push(`## ${g.title}`, "");
+    for (const c of g.cards) {
+      n++;
       const meta = [
         `id: ${shortId(c.id)}`,
+        opts.numbered && `bucket: ${data.lists[c.listId]?.title}`,
         PROGRESS.find((p) => p.id === c.progress)!.name,
         `priority: ${PRIORITIES.find((p) => p.id === c.priority)!.name}`,
         c.startDate && `start ${c.startDate}`,
@@ -227,7 +252,7 @@ export function exportMarkdown(
         c.estimate && `estimate ${formatDuration(c.estimate * 60_000)}`,
         trackedMs(c) > 0 && `tracked ${formatDuration(trackedMs(c))}`,
       ].filter(Boolean);
-      out.push(`### ${c.title}`, `_${meta.join(" · ")}_`);
+      out.push(`### ${opts.numbered ? `${n}. ` : ""}${c.title}`, `_${meta.join(" · ")}_`);
       for (const f of board.fields) {
         const v = formatFieldValue(f, c.fields[f.id] ?? null);
         if (v) out.push(`- **${f.name}:** ${v}`);
@@ -258,7 +283,7 @@ export function exportMarkdown(
 export function promptDelegate(boardId: ID, cards: Card[], task: DelegateTask, custom: string, scope: string): string {
   const { data } = useStore.getState();
   const t = DELEGATE_TASKS.find((x) => x.id === task)!;
-  const body = exportMarkdown(boardId, cards, { heading: scope });
+  const body = exportMarkdown(boardId, cards, { heading: scope, numbered: task === "workorder" });
   if (task === "none") return body;
   const ask = task === "custom" ? custom.trim() || "(describe what you want done)" : t.ask;
   return `You're helping me with tasks from my task board app (Zomello).
@@ -472,4 +497,9 @@ export function applyReply(r: AiReply, target: { boardId: ID | null; listId: ID 
     }
   }
   return res;
+}
+
+/** One-click work order for a set of cards (used by "Copy work order"). */
+export function workOrder(boardId: ID, cards: Card[], scope: string): string {
+  return promptDelegate(boardId, cards.filter((c) => c.progress !== "completed" && !c.archived), "workorder", "", scope);
 }

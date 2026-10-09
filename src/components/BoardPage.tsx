@@ -6,10 +6,13 @@ import {
   CalendarDays,
   Copy,
   Filter as FilterIcon,
+  GitFork,
   GanttChart,
   Kanban,
   MoreHorizontal,
   Bot,
+  CheckCircle2,
+  ClipboardCopy,
   LayoutTemplate,
   Palette,
   Plus,
@@ -22,13 +25,15 @@ import {
 } from "lucide-react";
 import type { Board, DueFilter, Filter, GroupBy, ID, ViewMode } from "../types";
 import { useBoardUi, useStore } from "../store";
-import { byOrder, emptyFilter, filterIsActive, matchesFilter, PALETTE, PRIORITIES, PROGRESS, uid } from "../utils";
+import { byOrder, emptyFilter, filterIsActive, matchesFilter, PALETTE, PRIORITIES, PROGRESS, relatedSet, uid } from "../utils";
 import { ask, Avatar, ColorPicker, InlineEdit, MenuItem, Popover } from "./ui";
 import { KanbanView } from "./views/KanbanView";
 import { ListView } from "./views/ListView";
 import { CalendarView } from "./views/CalendarView";
 import { TimelineView } from "./views/TimelineView";
 import { ChartsView } from "./views/ChartsView";
+import { copyText } from "./Markdown";
+import { workOrder } from "../ai";
 import { boardBackground } from "./BoardCustomize";
 
 const VIEWS: { id: ViewMode; name: string; icon: React.ReactNode }[] = [
@@ -60,8 +65,10 @@ export function BoardPage({ boardId }: { boardId: ID }) {
   );
   const cards = useMemo(() => {
     const live = new Set(lists.map((l) => l.id));
+    const related = ui.filter.relatedTo ? relatedSet(ui.filter.relatedTo, allCards, ui.filter.relatedDeep) : null;
     return Object.values(allCards).filter(
-      (c) => c.boardId === boardId && !c.archived && live.has(c.listId) && matchesFilter(c, ui.filter),
+      (c) =>
+        c.boardId === boardId && !c.archived && live.has(c.listId) && matchesFilter(c, ui.filter) && (!related || related.has(c.id)),
     );
   }, [allCards, lists, boardId, ui.filter]);
 
@@ -95,6 +102,7 @@ export function BoardPage({ boardId }: { boardId: ID }) {
         {ui.view === "charts" && <ChartsView lists={lists} cards={cards} people={people} />}
       </div>
       </div>
+      <SelectionBar boardId={boardId} />
     </div>
   );
 }
@@ -161,6 +169,16 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
               }}
             >
               AI tools (prompts & export)…
+            </MenuItem>
+            <MenuItem
+              icon={<ClipboardCopy size={14} />}
+              onClick={() => {
+                close();
+                const all = Object.values(useStore.getState().data.cards).filter((c) => c.boardId === board.id);
+                copyText(workOrder(board.id, all, `${board.title}: open items`));
+              }}
+            >
+              Copy work order (all open cards)
             </MenuItem>
             <MenuItem
               icon={<LayoutTemplate size={14} />}
@@ -282,6 +300,7 @@ function Toolbar({
   const { setFilter, setBoardUi, saveFilter, deleteSavedFilter } = useStore.getState();
   const saved = useStore((s) => s.data.savedFilters).filter((f) => f.boardId === board.id);
   const f = ui.filter;
+  const relatedTitle = useStore((s) => (f.relatedTo ? s.data.cards[f.relatedTo]?.title : undefined));
   const active = filterIsActive(f);
   const nActive =
     f.labelIds.length + f.priorities.length + f.progress.length + f.assignees.length + (f.due !== "any" ? 1 : 0);
@@ -426,6 +445,19 @@ function Toolbar({
         )}
       </Popover>
 
+      {f.relatedTo && (
+        <span className="related-chip" title="Showing only this card and the cards related to it">
+          <GitFork size={13} />
+          <span className="ellipsis">Related to “{relatedTitle ?? "deleted card"}”</span>
+          <label className="check-row small" title="Follow the relations all the way (sub-tasks of sub-tasks, etc.)">
+            <input type="checkbox" checked={f.relatedDeep} onChange={(e) => setFilter(board.id, { relatedDeep: e.target.checked })} />
+            Whole chain
+          </label>
+          <button className="icon-btn tiny" title="Stop filtering by related tasks" onClick={() => setFilter(board.id, { relatedTo: null, relatedDeep: false })}>
+            <X size={12} />
+          </button>
+        </span>
+      )}
       {active && (
         <button className="btn ghost sm" onClick={() => setBoardUi(board.id, { filter: emptyFilter() })}>
           <X size={14} /> Clear
@@ -446,6 +478,44 @@ function Toolbar({
           </select>
         </label>
       )}
+    </div>
+  );
+}
+
+/** Shown while cards are Ctrl+clicked: bulk actions, mainly handing a list of items to an AI. */
+function SelectionBar({ boardId }: { boardId: ID }) {
+  const selected = useStore((s) => s.selected);
+  const cards = useStore((s) => s.data.cards);
+  const { setOverlay, clearSelected, updateCard, toast } = useStore.getState();
+  const picked = selected.map((id) => cards[id]).filter(Boolean);
+  if (!picked.length) return null;
+  return (
+    <div className="selection-bar" role="toolbar" aria-label="Selected cards">
+      <span className="sel-count">{picked.length} selected</span>
+      <button
+        className="btn sm primary"
+        title="Copy a numbered work order for these cards, ready to paste into an AI"
+        onClick={() => copyText(workOrder(boardId, picked, `${picked.length} selected cards`))}
+      >
+        <ClipboardCopy size={14} /> Copy work order
+      </button>
+      <button className="btn sm" onClick={() => setOverlay({ aiDialog: { tab: "export", boardId, cardIds: selected } })}>
+        <Bot size={14} /> Hand to AI…
+      </button>
+      <button
+        className="btn sm"
+        onClick={() => {
+          for (const c of picked) updateCard(c.id, { progress: "completed" });
+          toast(`Completed ${picked.length} card${picked.length === 1 ? "" : "s"}`, { undo: true });
+          clearSelected();
+        }}
+      >
+        <CheckCircle2 size={14} /> Complete
+      </button>
+      <button className="icon-btn" title="Clear selection (Esc)" onClick={clearSelected}>
+        <X size={15} />
+      </button>
+      <span className="muted small sel-hint">Ctrl+click cards to add or remove</span>
     </div>
   );
 }

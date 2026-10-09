@@ -167,7 +167,7 @@ function ExportTab({ init, onNext }: { init: AiDialogState; onNext: () => void }
   const [scope, setScope] = useState<Scope>(init.cardIds?.length ? "cards" : init.listId ? "list" : "board");
   const [listId, setListId] = useState<ID | undefined>(init.listId);
   const effList = lists.some((l) => l.id === listId) ? listId : lists[0]?.id;
-  const [task, setTask] = useState<DelegateTask>(init.cardIds?.length === 1 ? "breakdown" : "triage");
+  const [task, setTask] = useState<DelegateTask>("workorder");
   const [custom, setCustom] = useState("");
   const [done, setDone] = useState(false);
   const filter = boardId ? data.ui[boardId]?.filter : undefined;

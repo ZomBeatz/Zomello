@@ -177,6 +177,10 @@ export function normalize(raw: unknown): AppData {
   for (const l of Object.values(d.lists)) lists[l.id] = { ...newList(l.boardId, "", 0), ...l };
   const cards: AppData["cards"] = {};
   for (const c of Object.values(d.cards)) cards[c.id] = { ...newCard(c.boardId, c.listId, "", 0), ...c };
+  // Repair linked checklist items whose copied title went stale (before renames were synced).
+  for (const c of Object.values(cards))
+    if (c.checklist.some((i) => i.cardId && cards[i.cardId] && cards[i.cardId].title !== i.text))
+      cards[c.id] = { ...c, checklist: c.checklist.map((i) => (i.cardId && cards[i.cardId] ? { ...i, text: cards[i.cardId].title } : i)) };
   const ui: AppData["ui"] = {};
   for (const [k, v] of Object.entries(d.ui ?? {})) ui[k] = { ...defaultUi(), ...v, filter: { ...emptyFilter(), ...v.filter } };
   return {
@@ -246,6 +250,10 @@ interface State {
   focus: FocusTimer | null;
   importOpen: boolean;
   aiDialog: AiDialogState | null;
+  /** Cards picked with Ctrl+click on the board (for bulk actions like handing them to an AI). */
+  selected: ID[];
+  toggleSelected(id: ID): void;
+  clearSelected(): void;
 
   load(): Promise<void>;
   undo(): boolean;
@@ -277,6 +285,8 @@ interface State {
   createBoard(title: string, color?: string): ID;
   updateBoard(id: ID, patch: Partial<Board>): void;
   deleteBoard(id: ID): void;
+  /** Save the sidebar order (ids in display order). */
+  reorderBoards(ids: ID[]): void;
   /** Copy a board; without cards it's a "new board from template". */
   duplicateBoard(id: ID, opts?: { title?: string; withCards?: boolean }): ID;
 
@@ -388,6 +398,13 @@ function patchCard(cards: Record<ID, Card>, id: ID, patch: Partial<Card>): Recor
   const changes = diffActivity(prev, next);
   if (changes.length) next.activity = [...next.activity, ...changes].slice(-MAX_ACTIVITY);
   const out = { ...cards };
+  // Linked checklist items keep a copy of the task's title — keep it current when the task is renamed.
+  if (next.title !== prev.title) {
+    for (const c of Object.values(out)) {
+      if (c.id !== id && c.checklist.some((i) => i.cardId === id && i.text !== next.title))
+        out[c.id] = { ...c, checklist: c.checklist.map((i) => (i.cardId === id ? { ...i, text: next.title } : i)) };
+    }
+  }
   if (next.progress === "completed" && prev.progress !== "completed" && next.recurrence) {
     const spawn = nextOccurrence(next);
     if (spawn) out[spawn.id] = spawn;
@@ -485,6 +502,13 @@ export const useStore = create<State>((set, get) => {
     focus: loadFocus(),
     importOpen: false,
     aiDialog: null,
+    selected: [],
+    toggleSelected(id) {
+      set((s) => ({ selected: s.selected.includes(id) ? s.selected.filter((x) => x !== id) : [...s.selected, id] }));
+    },
+    clearSelected() {
+      if (get().selected.length) set({ selected: [] });
+    },
 
     undo() {
       const prev = past.pop();
@@ -533,7 +557,7 @@ export const useStore = create<State>((set, get) => {
     },
 
     navigate(route) {
-      set({ route, openCardId: null, cardTrail: [], cardNavDir: null });
+      set({ route, openCardId: null, cardTrail: [], cardNavDir: null, selected: [] });
     },
     openCard(id, opts) {
       const { openCardId, cardTrail } = get();
@@ -568,6 +592,15 @@ export const useStore = create<State>((set, get) => {
     },
     updateBoard(id, patch) {
       mut((d) => ({ ...d, boards: { ...d.boards, [id]: { ...d.boards[id], ...patch } } }));
+    },
+    reorderBoards(ids) {
+      mut((d) => {
+        const boards = { ...d.boards };
+        ids.forEach((id, i) => {
+          if (boards[id] && boards[id].order !== i) boards[id] = { ...boards[id], order: i };
+        });
+        return { ...d, boards };
+      });
     },
     deleteBoard(id) {
       mut((d) => {

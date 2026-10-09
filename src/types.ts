@@ -220,6 +220,10 @@ export interface Filter {
   progress: Progress[];
   assignees: string[];
   due: DueFilter;
+  /** Only this card and the cards related to it (parents, sub-tasks, links). */
+  relatedTo: ID | null;
+  /** Follow relations all the way (whole chain), not just direct ones. */
+  relatedDeep: boolean;
 }
 
 export interface SavedFilter {
