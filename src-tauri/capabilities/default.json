@@ -3,7 +3,8 @@
   "identifier": "default",
   "description": "Capabilities for the main window",
   "windows": [
-    "main"
+    "main",
+    "board-*"
   ],
   "permissions": [
     "core:default",
@@ -18,6 +19,7 @@
         }
       ]
     },
-    "clipboard-manager:allow-write-text"
+    "clipboard-manager:allow-write-text",
+    "core:window:allow-set-title"
   ]
 }

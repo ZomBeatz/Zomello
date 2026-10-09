@@ -315,6 +315,47 @@ fn percent_decode(s: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
+/// Linux: turn on WebKitGTK's spell checker for a window (Windows' WebView2 has it built in).
+fn enable_spellcheck(window: &tauri::WebviewWindow) {
+    #[cfg(target_os = "linux")]
+    let _ = window.with_webview(|webview| {
+        use webkit2gtk::{WebContextExt, WebViewExt};
+        if let Some(ctx) = webview.inner().context() {
+            // Use the system language (e.g. en_US from LANG); falls back to US English.
+            let lang = std::env::var("LANG")
+                .ok()
+                .and_then(|l| l.split('.').next().map(str::to_string))
+                .filter(|l| l.len() >= 2 && l != "C" && l != "POSIX")
+                .unwrap_or_else(|| "en_US".into());
+            ctx.set_spell_checking_enabled(true);
+            ctx.set_spell_checking_languages(&[lang.as_str()]);
+        }
+    });
+    #[cfg(not(target_os = "linux"))]
+    let _ = window;
+}
+
+/// Open a board in its own window (or focus it if it's already open).
+/// Async so window creation doesn't block the main thread (required on Windows).
+#[tauri::command]
+async fn open_board_window(app: AppHandle, board_id: String, title: String) -> Result<(), String> {
+    let id: String = board_id.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '-').collect();
+    let label = format!("board-{id}");
+    if let Some(w) = app.get_webview_window(&label) {
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+        return Ok(());
+    }
+    let window = tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App(format!("index.html?board={id}").into()))
+        .title(format!("{title} — Zomello"))
+        .inner_size(1200.0, 820.0)
+        .min_inner_size(700.0, 500.0)
+        .build()
+        .map_err(|e| e.to_string())?;
+    enable_spellcheck(&window);
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // WebKitGTK's DMA-BUF renderer shows a blank window on many NVIDIA/Wayland setups.
@@ -327,9 +368,22 @@ pub fn run() {
         // Must be first: a second launch just focuses the running window, so two
         // processes never write the same data file.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(w) = app.get_webview_window("main") {
-                let _ = w.unminimize();
-                let _ = w.set_focus();
+            // Launching again brings the main window back (re-creating it if only board windows are open).
+            match app.get_webview_window("main") {
+                Some(w) => {
+                    let _ = w.unminimize();
+                    let _ = w.set_focus();
+                }
+                None => {
+                    if let Ok(w) = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
+                        .title("Zomello")
+                        .inner_size(1400.0, 900.0)
+                        .min_inner_size(900.0, 600.0)
+                        .build()
+                    {
+                        enable_spellcheck(&w);
+                    }
+                }
             }
         }))
         // Safety net: the app window only ever shows the app itself. Links open in the browser
@@ -355,30 +409,16 @@ pub fn run() {
             data_location,
             save_attachment,
             store_file_from_path,
+            open_board_window,
             read_dropped_file,
             attachment_abs_path,
             list_attachments,
             delete_attachment
         ])
         .setup(|app| {
-            #[cfg(target_os = "linux")]
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.with_webview(|webview| {
-                    use webkit2gtk::{WebContextExt, WebViewExt};
-                    if let Some(ctx) = webview.inner().context() {
-                        // Use the system language (e.g. en_US from LANG); falls back to US English.
-                        let lang = std::env::var("LANG")
-                            .ok()
-                            .and_then(|l| l.split('.').next().map(str::to_string))
-                            .filter(|l| l.len() >= 2 && l != "C" && l != "POSIX")
-                            .unwrap_or_else(|| "en_US".into());
-                        ctx.set_spell_checking_enabled(true);
-                        ctx.set_spell_checking_languages(&[lang.as_str()]);
-                    }
-                });
+                enable_spellcheck(&window);
             }
-            #[cfg(not(target_os = "linux"))]
-            let _ = app;
             Ok(())
         })
         .run(tauri::generate_context!())

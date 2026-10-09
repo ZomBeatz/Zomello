@@ -10,6 +10,7 @@ import {
   GanttChart,
   Kanban,
   MoreHorizontal,
+  AppWindow,
   Bot,
   CheckCircle2,
   ClipboardCopy,
@@ -34,6 +35,7 @@ import { TimelineView } from "./views/TimelineView";
 import { ChartsView } from "./views/ChartsView";
 import { copyText } from "./Markdown";
 import { workOrder } from "../ai";
+import { isBoardWindow, openBoardWindow } from "../windows";
 import { boardBackground } from "./BoardCustomize";
 
 const VIEWS: { id: ViewMode; name: string; icon: React.ReactNode }[] = [
@@ -161,6 +163,17 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
             <MenuItem icon={<Copy size={14} />} onClick={() => (close(), navigate({ page: "board", boardId: duplicateBoard(board.id) }))}>
               Duplicate board
             </MenuItem>
+            {!isBoardWindow && (
+              <MenuItem
+                icon={<AppWindow size={14} />}
+                onClick={() => {
+                  close();
+                  void openBoardWindow(board.id, board.title);
+                }}
+              >
+                Open in new window
+              </MenuItem>
+            )}
             <MenuItem
               icon={<Bot size={14} />}
               onClick={() => {

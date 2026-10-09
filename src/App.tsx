@@ -19,6 +19,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { startReminders } from "./reminders";
 import { applyZoom, installZoomControls } from "./zoom";
 import { startFocusWatcher } from "./focus";
+import { isBoardWindow, onOtherWindowData, setWindowTitle } from "./windows";
 import { installFileDropPolicy } from "./fileDrop";
 import { ImportDialog } from "./components/ImportDialog";
 import { DropOverlay } from "./components/DropOverlay";
@@ -46,11 +47,36 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!loaded) return;
+    // Reminders and the focus timer's alarm run in the main window only (no double notifications).
+    if (!loaded || isBoardWindow) return;
     const a = startReminders();
     const b = startFocusWatcher();
     return () => (a(), b());
   }, [loaded]);
+
+  // Other windows' saves (board windows ↔ main window).
+  useEffect(() => onOtherWindowData((json) => useStore.getState().loaded && useStore.getState().applyRemoteData(json)), []);
+  // The focus countdown lives in shared local storage; follow changes made in other windows.
+  useEffect(() => {
+    const h = (e: StorageEvent) => {
+      if (e.key !== "zomello-focus") return;
+      try {
+        useStore.setState({ focus: e.newValue ? JSON.parse(e.newValue) : null });
+      } catch {
+        /* ignore */
+      }
+    };
+    window.addEventListener("storage", h);
+    return () => window.removeEventListener("storage", h);
+  }, []);
+
+  // Board windows are titled after their board.
+  const windowTitle = useStore((s) =>
+    isBoardWindow && s.route.page === "board" ? `${s.data.boards[s.route.boardId]?.title ?? "Board"} — Zomello` : "Zomello",
+  );
+  useEffect(() => {
+    if (isBoardWindow) void setWindowTitle(windowTitle);
+  }, [windowTitle]);
 
   useEffect(() => installFileDropPolicy(), []);
 

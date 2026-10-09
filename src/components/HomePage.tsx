@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { addDays } from "date-fns";
-import { AlertTriangle, CalendarClock, CheckCircle2, FileUp, Plus, Sparkles, Sun, Timer } from "lucide-react";
+import { AlertTriangle, AppWindow, CalendarClock, CheckCircle2, ExternalLink, FileUp, Plus, Sparkles, Sun, Timer } from "lucide-react";
+import { openBoardWindow } from "../windows";
 import type { Card } from "../types";
 import { useStore } from "../store";
 import { byOrder, dueStatus, isLate, PALETTE, prettyDate, toISO, todayISO } from "../utils";
 import { ColorPicker, Empty, ProgressIcon } from "./ui";
-import { openCardMenu } from "./ContextMenu";
+import { openCardMenu, openContextMenu } from "./ContextMenu";
 
 export function HomePage() {
   const data = useStore((s) => s.data);
@@ -102,7 +103,20 @@ export function HomePage() {
           const done = cs.filter((c) => c.progress === "completed").length;
           const late = cs.filter(isLate).length;
           return (
-            <button key={b.id} className="board-tile" onClick={() => navigate({ page: "board", boardId: b.id })}>
+            <button
+              key={b.id}
+              className="board-tile"
+              onClick={() => navigate({ page: "board", boardId: b.id })}
+              onMouseDown={(e) => e.button === 1 && e.preventDefault()}
+              onAuxClick={(e) => e.button === 1 && void openBoardWindow(b.id, b.title)}
+              onContextMenu={(e) =>
+                openContextMenu(e, () => [
+                  { label: "Open", icon: <ExternalLink size={14} />, onClick: () => navigate({ page: "board", boardId: b.id }) },
+                  { label: "Open in new window", icon: <AppWindow size={14} />, onClick: () => void openBoardWindow(b.id, b.title) },
+                ])
+              }
+              title="Middle-click or right-click to open in a new window"
+            >
               <span className="tile-band" style={{ background: b.color }} />
               <span className="tile-title">{b.title}</span>
               <span className="muted small">
