@@ -590,7 +590,11 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 
 /* board look */
 .board-icon { font-size: 20px; line-height: 1; }
-.board-page.has-bg .board-content { background: var(--board-bg); }
+.board-stage { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+.board-stage > .board-content { position: relative; z-index: 1; }
+/* Separate layer so blur / dim affect only the wallpaper, never the cards. */
+.board-bg { position: absolute; inset: 0; background: var(--board-bg); pointer-events: none; }
+.board-bg::after { content: ""; position: absolute; inset: 0; background: #000; opacity: var(--dim, 0); }
 .board-page.has-bg .column { background: color-mix(in srgb, var(--column) 86%, transparent); backdrop-filter: blur(8px); }
 .board-page.has-bg .add-list-btn { background: color-mix(in srgb, var(--surface) 75%, transparent); backdrop-filter: blur(8px); }
 .board-page.has-bg .list-view, .board-page.has-bg .charts, .board-page.has-bg .calendar-wrap, .board-page.has-bg .timeline { backdrop-filter: none; }
@@ -949,3 +953,7 @@ body[data-filedrag="card"] .drop-hint { display: flex; }
 .cal-chip { touch-action: none; }
 .cal-chip.ghost { opacity: .35; }
 .cal-chip.drag-chip { box-shadow: var(--shadow-lg); background: var(--surface); cursor: grabbing; max-width: 200px; }
+
+.slider-row { display: flex; align-items: center; gap: 10px; }
+.slider-row input[type="range"] { width: 220px; accent-color: var(--accent); }
+.slider-value { min-width: 42px; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--text-2); }

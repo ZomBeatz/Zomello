@@ -73,12 +73,26 @@ export function BoardPage({ boardId }: { boardId: ID }) {
     >
       <BoardHeader board={board} view={ui.view} />
       <Toolbar board={board} ui={ui} people={people} count={cards.length} />
+      <div className="board-stage">
+      {board.background.type !== "none" && (
+        <div
+          className="board-bg"
+          aria-hidden="true"
+          style={{
+            filter: board.backgroundFx.blur ? `blur(${board.backgroundFx.blur}px)` : undefined,
+            // Blurring softens the edges; scale up slightly so they stay off-screen.
+            transform: board.backgroundFx.blur ? `scale(${1 + board.backgroundFx.blur / 200})` : undefined,
+            "--dim": board.backgroundFx.dim / 100,
+          } as React.CSSProperties}
+        />
+      )}
       <div className="board-content">
         {ui.view === "board" && <KanbanView board={board} lists={lists} cards={cards} groupBy={ui.groupBy} />}
         {ui.view === "list" && <ListView board={board} lists={lists} cards={cards} />}
         {ui.view === "calendar" && <CalendarView board={board} lists={lists} cards={cards} />}
         {ui.view === "timeline" && <TimelineView lists={lists} cards={cards} />}
         {ui.view === "charts" && <ChartsView lists={lists} cards={cards} people={people} />}
+      </div>
       </div>
     </div>
   );
