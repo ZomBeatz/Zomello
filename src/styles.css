@@ -946,3 +946,6 @@ body[data-filedrag="card"] .drop-hint { display: flex; }
 .lightbox-nav:hover { background: #ffffff33; }
 .lightbox-nav.prev { left: 16px; }
 .lightbox-nav.next { right: 16px; }
+.cal-chip { touch-action: none; }
+.cal-chip.ghost { opacity: .35; }
+.cal-chip.drag-chip { box-shadow: var(--shadow-lg); background: var(--surface); cursor: grabbing; max-width: 200px; }

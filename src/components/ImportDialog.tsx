@@ -1,9 +1,9 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, FileUp, X } from "lucide-react";
 import { useStore } from "../store";
 import { importStats, parseImportFile, type ImportedBoard } from "../importers";
 import { Modal } from "./ui";
-import { readDrop } from "../attachments";
+import { registerDropZone } from "../fileDrop";
 import { fileFromPath, inTauri } from "../storage";
 
 export function ImportDialog() {
@@ -13,7 +13,6 @@ export function ImportDialog() {
   const [busy, setBusy] = useState(false);
   const [title, setTitle] = useState("");
   const [addPeople, setAddPeople] = useState(true);
-  const [over, setOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const people = useStore((s) => s.data.settings.people);
 
@@ -41,6 +40,14 @@ export function ImportDialog() {
     st.toast(`Imported “${title}” from ${board.source}`, { undo: true });
   };
 
+  useEffect(
+    () =>
+      registerDropZone("import", ({ files, paths }) => {
+        if (files[0]) void load(files[0]);
+        else if (paths[0] && inTauri) void fileFromPath(paths[0]).then(load, (err) => setError(String(err)));
+      }),
+  );
+
   const stats = board && importStats(board);
   const newPeople = board ? board.people.filter((p) => !people.includes(p)) : [];
 
@@ -54,22 +61,9 @@ export function ImportDialog() {
       </header>
       <div className="customize-body">
         <div
-          data-file-drop
-          className={`import-drop ${over ? "drop-target" : ""}`}
+          data-file-drop="import"
+          className="import-drop"
           onClick={() => fileRef.current?.click()}
-          onDragOver={(e) => {
-            if (!e.dataTransfer.types.includes("Files") && !e.dataTransfer.types.includes("text/uri-list")) return;
-            e.preventDefault();
-            setOver(true);
-          }}
-          onDragLeave={() => setOver(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setOver(false);
-            const d = readDrop(e.dataTransfer);
-            if (d.files[0]) void load(d.files[0]);
-            else if (d.paths[0] && inTauri) void fileFromPath(d.paths[0]).then(load, (err) => setError(String(err)));
-          }}
         >
           <FileUp size={28} />
           <b>{busy ? "Reading…" : "Choose or drop an export file"}</b>

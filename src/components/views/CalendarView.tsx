@@ -12,20 +12,49 @@ import {
   startOfWeek,
 } from "date-fns";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { DndContext, DragOverlay, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import type { Board, Card, List } from "../../types";
 import { useStore } from "../../store";
 import { fromISO, progressMeta, toISO } from "../../utils";
 import { ProgressIcon } from "../ui";
 import { openCardMenu } from "../ContextMenu";
 
-const DRAG_MIME = "text/zomello-card";
+/** A chip you can drag between days (pointer-based, so it works the same on Linux and Windows). */
+function Chip({ card, color, onOpen }: { card: Card; color: string; onOpen: () => void }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: card.id });
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className={`cal-chip ${card.progress === "completed" ? "done" : ""} ${isDragging ? "ghost" : ""}`}
+      style={{ borderLeftColor: color }}
+      onClick={onOpen}
+      onContextMenu={(e) => openCardMenu(e, card.id)}
+      title={card.title}
+    >
+      <ProgressIcon progress={card.progress} size={12} />
+      <span>{card.title}</span>
+    </div>
+  );
+}
+
+function DropCell({ id, className, children }: { id: string; className: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} className={`${className} ${isOver ? "drop" : ""}`}>
+      {children}
+    </div>
+  );
+}
 
 export function CalendarView({ board, lists, cards }: { board: Board; lists: List[]; cards: Card[] }) {
   const openCard = useStore((s) => s.openCard);
   const updateCard = useStore((s) => s.updateCard);
   const createCard = useStore((s) => s.createCard);
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
-  const [hoverDay, setHoverDay] = useState<string | null>(null);
+  const [dragging, setDragging] = useState<Card | null>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const weekStartsOn = useStore((s) => s.data.settings.weekStartsOn);
 
   const days = useMemo(() => {
@@ -42,10 +71,7 @@ export function CalendarView({ board, lists, cards }: { board: Board; lists: Lis
   }, [cards]);
   const unscheduled = cards.filter((c) => !c.dueDate && c.progress !== "completed");
 
-  const dropOn = (day: string | null, e: React.DragEvent) => {
-    e.preventDefault();
-    setHoverDay(null);
-    const id = e.dataTransfer.getData(DRAG_MIME);
+  const dropOn = (day: string | null, id: string) => {
     const card = cards.find((c) => c.id === id);
     if (!card) return;
     // Keep the start→due span length when moving a card that has both.
@@ -56,23 +82,22 @@ export function CalendarView({ board, lists, cards }: { board: Board; lists: Lis
     updateCard(id, { dueDate: day, startDate });
   };
 
-  const chip = (c: Card) => (
-    <div
-      key={c.id}
-      className={`cal-chip ${c.progress === "completed" ? "done" : ""}`}
-      style={{ borderLeftColor: c.cover ?? board.labels.find((l) => c.labelIds.includes(l.id))?.color ?? progressMeta(c.progress).color }}
-      draggable
-      onDragStart={(e) => e.dataTransfer.setData(DRAG_MIME, c.id)}
-      onClick={() => openCard(c.id)}
-      onContextMenu={(e) => openCardMenu(e, c.id)}
-      title={c.title}
-    >
-      <ProgressIcon progress={c.progress} size={12} />
-      <span>{c.title}</span>
-    </div>
-  );
+  const colorOf = (c: Card) =>
+    c.cover ?? board.labels.find((l) => c.labelIds.includes(l.id))?.color ?? progressMeta(c.progress).color;
+  const chip = (c: Card) => <Chip key={c.id} card={c} color={colorOf(c)} onOpen={() => openCard(c.id)} />;
 
   return (
+    <DndContext
+      sensors={sensors}
+      onDragStart={(e) => setDragging(cards.find((c) => c.id === e.active.id) ?? null)}
+      onDragCancel={() => setDragging(null)}
+      onDragEnd={(e) => {
+        setDragging(null);
+        const over = e.over?.id ? String(e.over.id) : null;
+        if (!over) return;
+        dropOn(over === "unscheduled" ? null : over.slice(4), String(e.active.id));
+      }}
+    >
     <div className="calendar-wrap">
       <div className="calendar">
         <div className="cal-toolbar">
@@ -96,16 +121,7 @@ export function CalendarView({ board, lists, cards }: { board: Board; lists: Lis
           {days.map((d) => {
             const iso = toISO(d);
             return (
-              <div
-                key={iso}
-                className={`cal-day ${isSameMonth(d, month) ? "" : "other"} ${isToday(d) ? "today" : ""} ${hoverDay === iso ? "drop" : ""}`}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setHoverDay(iso);
-                }}
-                onDragLeave={() => setHoverDay((h) => (h === iso ? null : h))}
-                onDrop={(e) => dropOn(iso, e)}
-              >
+              <DropCell key={iso} id={`day:${iso}`} className={`cal-day ${isSameMonth(d, month) ? "" : "other"} ${isToday(d) ? "today" : ""}`}>
                 <div className="cal-day-head">
                   <span className="num">{format(d, "d")}</span>
                   {lists.length > 0 && (
@@ -122,24 +138,25 @@ export function CalendarView({ board, lists, cards }: { board: Board; lists: Lis
                   )}
                 </div>
                 <div className="cal-chips">{(byDay[iso] ?? []).map(chip)}</div>
-              </div>
+              </DropCell>
             );
           })}
         </div>
       </div>
-      <aside
-        className={`cal-side ${hoverDay === "none" ? "drop" : ""}`}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setHoverDay("none");
-        }}
-        onDragLeave={() => setHoverDay(null)}
-        onDrop={(e) => dropOn(null, e)}
-      >
+      <DropCell id="unscheduled" className="cal-side">
         <h3>Unscheduled</h3>
         <p className="muted small">Drag onto a day to set a due date. Drop here to clear it.</p>
         {unscheduled.map(chip)}
-      </aside>
+      </DropCell>
     </div>
+      <DragOverlay dropAnimation={null}>
+        {dragging && (
+          <div className="cal-chip drag-chip" style={{ borderLeftColor: colorOf(dragging) }}>
+            <ProgressIcon progress={dragging.progress} size={12} />
+            <span>{dragging.title}</span>
+          </div>
+        )}
+      </DragOverlay>
+    </DndContext>
   );
 }
