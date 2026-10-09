@@ -1,10 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { ArrowDown, ArrowUp, ImagePlus, Plus, Trash2, X } from "lucide-react";
 import type { BadgeKey, BadgeMode, Board, BoardDisplay, CardSection, FieldDef, FieldType } from "../types";
 import { useStore } from "../store";
 import { BOARD_EMOJIS, GRADIENTS, isImage, PALETTE, uid } from "../utils";
-import { inTauri, storedSrc, storeFile, storeFromPath } from "../storage";
-import { readDrop } from "../attachments";
+import { storedSrc, storeFile, storeFromPath } from "../storage";
+import { registerDropZone } from "../fileDrop";
 import { ask, ColorPicker, Modal } from "./ui";
 
 const BADGES: { key: BadgeKey; name: string; icon: string; full: string }[] = [
@@ -65,8 +65,22 @@ export function BoardCustomize({ board }: { board: Board }) {
   const set = (patch: Partial<Board>) => updateBoard(board.id, patch);
   const setDisplay = (patch: Partial<BoardDisplay>) => set({ display: { ...board.display, ...patch } });
   const fileRef = useRef<HTMLInputElement>(null);
-  const [dropBg, setDropBg] = useState(false);
   const bg = board.background;
+
+  // Images dragged onto the Background section (handled by the app-wide drop handler).
+  useEffect(
+    () =>
+      registerDropZone("board-background", ({ files, paths }) => {
+        if (files[0]) return void useImage(files[0]);
+        const path = paths[0];
+        if (!path) return;
+        if (!isImage(path)) return useStore.getState().toast("That isn't an image.");
+        storeFromPath(path).then(
+          (r) => set({ background: { type: "image", value: r.rel } }),
+          (err) => useStore.getState().toast(`Couldn't use that image: ${err}`),
+        );
+      }),
+  );
 
   const useImage = async (f: File) => {
     if (!isImage(f.name, f.type)) return useStore.getState().toast("That isn't an image.");
@@ -112,29 +126,7 @@ export function BoardCustomize({ board }: { board: Board }) {
           <ColorPicker value={board.color} onChange={(color) => set({ color: color ?? PALETTE[6] })} />
         </section>
 
-        <section
-          data-file-drop
-          className={dropBg ? "drop-target" : ""}
-          onDragOver={(e) => {
-            if (!e.dataTransfer.types.includes("Files") && !e.dataTransfer.types.includes("text/uri-list")) return;
-            e.preventDefault();
-            setDropBg(true);
-          }}
-          onDragLeave={(e) => e.currentTarget === e.target && setDropBg(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDropBg(false);
-            const d = readDrop(e.dataTransfer);
-            if (d.files[0]) void useImage(d.files[0]);
-            else if (d.paths[0] && inTauri) {
-              if (!isImage(d.paths[0])) return useStore.getState().toast("That isn't an image.");
-              storeFromPath(d.paths[0]).then(
-                (s) => set({ background: { type: "image", value: s.rel } }),
-                (err) => useStore.getState().toast(`Couldn't use that image: ${err}`),
-              );
-            }
-          }}
-        >
+        <section data-file-drop="board-background">
           <h4>Background</h4>
           <p className="muted small">Pick one, upload an image, or drop an image here.</p>
           <div className="bg-grid">

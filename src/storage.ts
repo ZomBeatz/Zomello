@@ -1,4 +1,4 @@
-import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 
 /** True when running inside the Tauri shell; false in a plain browser (vite dev). */
 export const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -8,9 +8,7 @@ const LEGACY_LS_KEY = "planwise-data";
 
 export async function loadRaw(): Promise<string | null> {
   if (inTauri) {
-    const raw = (await invoke<string | null>("load_data")) ?? null;
-    dataDir = (await invoke<string>("data_location")).replace(/[\\/][^\\/]+$/, "");
-    return raw;
+    return (await invoke<string | null>("load_data")) ?? null;
   }
   try {
     return localStorage.getItem(LS_KEY) ?? localStorage.getItem(LEGACY_LS_KEY);
@@ -72,7 +70,6 @@ export async function openExternal(target: string): Promise<void> {
 }
 
 // ---- Stored attachments ----
-let dataDir = "";
 
 /** Copy a file into Zomello's storage. Returns the value to keep in `Attachment.url`. */
 export async function storeFile(file: File): Promise<string> {
@@ -103,8 +100,12 @@ export async function fileFromPath(path: string): Promise<File> {
 /** URL the webview can display for a stored file (images, previews). */
 export function storedSrc(url: string): string {
   if (!inTauri || url.startsWith("data:")) return url;
-  return convertFileSrc(`${dataDir}/${url}`);
+  // Served by the app itself (see `serve_attachment` in lib.rs); Windows' webview needs the http form.
+  const path = url.split("/").map(encodeURIComponent).join("/");
+  return isWindows ? `http://zfile.localhost/${path}` : `zfile://localhost/${path}`;
 }
+
+export const isWindows = typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent);
 
 /** Open a stored file with the system's default app. */
 export async function openStored(url: string): Promise<void> {

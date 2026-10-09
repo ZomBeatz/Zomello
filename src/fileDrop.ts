@@ -2,41 +2,46 @@ import { create } from "zustand";
 import { useStore } from "./store";
 import { attachToCard, dropIsEmpty, readDrop } from "./attachments";
 import type { ID } from "./types";
-import { debugLog } from "./storage";
+import { debugLog, inTauri, isWindows } from "./storage";
 
 /**
- * App-wide handling of things dragged in from outside (files, file paths, web links):
- *  - a card is open           → drop anywhere attaches to that card;
- *  - hovering a card tile      → drop attaches to that card;
- *  - over a `data-file-drop` zone (board background picker, import dialog) → the zone handles it;
- *  - anywhere else            → refused, with a hint.
- * Listeners run in the capture phase so text boxes never receive a dropped file as text, and the
- * webview never navigates to the file.
+ * Things dragged in from outside the app (files, web links):
+ *  - a card is open        → drop anywhere attaches to that card;
+ *  - hovering a card tile   → drop attaches to that card;
+ *  - over a drop zone (`data-file-drop="<name>"`, e.g. board background, import) → that zone's handler;
+ *  - anywhere else         → refused, with a hint.
+ *
+ * In the desktop app the *files* come from Tauri's native drop event (WebKitGTK doesn't hand the page
+ * a readable file list for drags from a file manager). Where the pointer is comes from the page's own
+ * dragover events when available (Linux), otherwise from the native event's position (Windows).
+ * In a plain browser everything goes through HTML5 drag events.
  */
 export type DropMode = "card" | "tile" | "zone" | "none";
 
-export const useDrop = create<{ active: boolean; mode: DropMode; cardId: ID | null }>(() => ({
-  active: false,
-  mode: "none",
-  cardId: null,
-}));
+interface DropState {
+  active: boolean;
+  mode: DropMode;
+  cardId: ID | null;
+  zone: string | null;
+}
+export const useDrop = create<DropState>(() => ({ active: false, mode: "none", cardId: null, zone: null }));
 
-const isExternal = (e: DragEvent) => {
-  const types = [...(e.dataTransfer?.types ?? [])];
-  return types.includes("Files") || types.includes("text/uri-list");
-};
-
-/** The browser cancels a drop whose dropEffect the source doesn't allow, so match what's offered. */
-function effectFor(dt: DataTransfer): DataTransfer["dropEffect"] {
-  const allowed = dt.effectAllowed;
-  if (allowed === "none") return "none";
-  if (["all", "uninitialized", "copy", "copyMove", "copyLink"].includes(allowed)) return "copy";
-  if (allowed.includes("ink")) return "link";
-  return "move";
+// ---- drop zones -------------------------------------------------------------------
+export interface ZoneDrop {
+  files: File[];
+  paths: string[];
+}
+const zones = new Map<string, (d: ZoneDrop) => void>();
+/** A `data-file-drop="<name>"` element registers what to do with files dropped on it. */
+export function registerDropZone(name: string, handler: (d: ZoneDrop) => void) {
+  zones.set(name, handler);
+  return () => {
+    if (zones.get(name) === handler) zones.delete(name);
+  };
 }
 
+// ---- where is the pointer -------------------------------------------------------------
 let highlighted: Element | null = null;
-let loggedOver = false;
 const highlight = (el: Element | null) => {
   if (highlighted === el) return;
   highlighted?.classList.remove("file-drop-target");
@@ -45,75 +50,129 @@ const highlight = (el: Element | null) => {
 };
 
 function reset() {
-  loggedOver = false;
   highlight(null);
-  useDrop.setState({ active: false, mode: "none", cardId: null });
+  useDrop.setState({ active: false, mode: "none", cardId: null, zone: null });
 }
 
-function modeFor(e: DragEvent): { mode: DropMode; cardId: ID | null; tile: Element | null } {
-  const t = e.target instanceof Element ? e.target : null;
-  if (t?.closest("[data-file-drop]")) return { mode: "zone", cardId: null, tile: null };
+function update(target: Element | null) {
+  const zoneEl = target?.closest("[data-file-drop]");
   const open = useStore.getState().openCardId;
-  if (open) return { mode: "card", cardId: open, tile: null };
-  const tile = t?.closest("[data-card-id]") ?? null;
-  if (tile) return { mode: "tile", cardId: tile.getAttribute("data-card-id"), tile };
-  return { mode: "none", cardId: null, tile: null };
+  const tile = !zoneEl && !open ? target?.closest("[data-card-id]") ?? null : null;
+  const next: DropState = zoneEl
+    ? { active: true, mode: "zone", cardId: null, zone: zoneEl.getAttribute("data-file-drop") }
+    : open
+      ? { active: true, mode: "card", cardId: open, zone: null }
+      : tile
+        ? { active: true, mode: "tile", cardId: tile.getAttribute("data-card-id"), zone: null }
+        : { active: true, mode: "none", cardId: null, zone: null };
+  highlight(tile);
+  // Zones show their own highlight.
+  document.querySelectorAll("[data-file-drop].drop-target").forEach((z) => z !== zoneEl && z.classList.remove("drop-target"));
+  zoneEl?.classList.add("drop-target");
+  const s = useDrop.getState();
+  if (!s.active || s.mode !== next.mode || s.cardId !== next.cardId || s.zone !== next.zone) useDrop.setState(next);
+  return next;
 }
+
+function clearZoneHighlight() {
+  document.querySelectorAll("[data-file-drop].drop-target").forEach((z) => z.classList.remove("drop-target"));
+}
+
+/** Deliver dropped things to whatever is under the pointer. */
+function deliver(state: DropState, files: File[], paths: string[], links: string[]) {
+  if (state.mode === "zone" && state.zone) zones.get(state.zone)?.({ files, paths });
+  else if (state.cardId) {
+    const payload = { files, paths, links };
+    if (!dropIsEmpty(payload)) void attachToCard(state.cardId, payload);
+  } else if (state.mode === "none" && (files.length || paths.length)) {
+    useStore.getState().toast("Drop files onto a card (or open a card first).", { key: "drop-hint" });
+  }
+}
+
+const isExternal = (e: DragEvent) => {
+  const types = [...(e.dataTransfer?.types ?? [])];
+  return types.includes("Files") || types.includes("text/uri-list");
+};
 
 export function installFileDropPolicy() {
   let leaveTimer: ReturnType<typeof setTimeout> | undefined;
+  /** The page's own dragover told us where the pointer is (so the native position isn't needed). */
+  let pageKnowsPointer = false;
 
   const onOver = (e: DragEvent) => {
     if (!isExternal(e)) return; // in-app drags (e.g. calendar chips) are left alone
     clearTimeout(leaveTimer);
-    const { mode, cardId, tile } = modeFor(e);
-    highlight(tile);
-    const s = useDrop.getState();
-    if (!s.active || s.mode !== mode || s.cardId !== cardId) useDrop.setState({ active: true, mode, cardId });
-    if (!loggedOver) {
-      loggedOver = true;
-      debugLog("dragover", { types: [...e.dataTransfer!.types], effectAllowed: e.dataTransfer!.effectAllowed, mode, cardId });
-    }
-    if (mode === "zone") return; // the zone's own handlers accept it
+    pageKnowsPointer = true;
+    const st = update(e.target instanceof Element ? e.target : null);
     e.preventDefault();
-    e.dataTransfer!.dropEffect = mode === "none" ? "none" : effectFor(e.dataTransfer!);
+    e.dataTransfer!.dropEffect = st.mode === "none" ? "none" : "copy";
   };
 
   const onDrop = (e: DragEvent) => {
     if (!isExternal(e)) return;
-    const { mode, cardId } = modeFor(e);
-    loggedOver = false;
-    const dt = e.dataTransfer;
-    debugLog("drop", {
-      mode, cardId, types: dt ? [...dt.types] : null,
-      files: dt ? Array.from(dt.files).map((f) => [f.name, f.size, f.type]) : null,
-      uris: dt?.getData("text/uri-list"), plain: dt?.getData("text/plain"),
-    });
-    reset();
-    if (mode === "zone") return;
     e.preventDefault();
-    e.stopPropagation(); // never let an input or the page itself receive it
-    if (!cardId || !e.dataTransfer) return;
-    const payload = readDrop(e.dataTransfer);
-    if (!dropIsEmpty(payload)) void attachToCard(cardId, payload);
+    e.stopPropagation(); // never let a text box or the page itself receive it
+    const st = useDrop.getState();
+    if (inTauri) return; // files arrive through the native drop event below
+    reset();
+    clearZoneHighlight();
+    const d = readDrop(e.dataTransfer!);
+    deliver(st, d.files, d.paths, d.links);
   };
 
-  // dragleave fires constantly while moving between elements; only reset when nothing follows.
   const onLeave = () => {
     clearTimeout(leaveTimer);
-    leaveTimer = setTimeout(reset, 80);
+    leaveTimer = setTimeout(() => {
+      reset();
+      clearZoneHighlight();
+      pageKnowsPointer = false;
+    }, 120);
   };
 
   window.addEventListener("dragenter", onOver, true);
   window.addEventListener("dragover", onOver, true);
   window.addEventListener("drop", onDrop, true);
   window.addEventListener("dragleave", onLeave, true);
-  window.addEventListener("dragend", reset, true);
+
+  let unlistenNative: (() => void) | undefined;
+  if (inTauri) {
+    void import("@tauri-apps/api/webview").then(async ({ getCurrentWebview }) => {
+      unlistenNative = await getCurrentWebview().onDragDropEvent((ev) => {
+        const p = ev.payload;
+        if (p.type === "leave") {
+          onLeave();
+          return;
+        }
+        if ((p.type === "enter" || p.type === "over") && !pageKnowsPointer) {
+          // Windows: the page gets no dragover for files, so locate the pointer from the native event.
+          clearTimeout(leaveTimer);
+          const scale = isWindows ? window.devicePixelRatio : useStore.getState().data.settings.zoom || 1;
+          update(document.elementFromPoint(p.position.x / scale, p.position.y / scale));
+        }
+        if (p.type === "drop") {
+          clearTimeout(leaveTimer);
+          if (!pageKnowsPointer) {
+            const scale = isWindows ? window.devicePixelRatio : useStore.getState().data.settings.zoom || 1;
+            update(document.elementFromPoint(p.position.x / scale, p.position.y / scale));
+          }
+          const st = useDrop.getState();
+          debugLog("native drop", { paths: p.paths, position: p.position, state: st, pageKnowsPointer });
+          reset();
+          clearZoneHighlight();
+          pageKnowsPointer = false;
+          // Web links dragged from a browser come through as "paths" too.
+          const web = p.paths.filter((x) => /^https?:/i.test(x));
+          deliver(st, [], p.paths.filter((x) => !web.includes(x)), web);
+        }
+      });
+    });
+  }
+
   return () => {
     window.removeEventListener("dragenter", onOver, true);
     window.removeEventListener("dragover", onOver, true);
     window.removeEventListener("drop", onDrop, true);
     window.removeEventListener("dragleave", onLeave, true);
-    window.removeEventListener("dragend", reset, true);
+    unlistenNative?.();
   };
 }

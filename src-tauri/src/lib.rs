@@ -265,6 +265,47 @@ fn delete_attachment(app: AppHandle, rel: String) -> Result<(), String> {
     Ok(())
 }
 
+fn mime_for(path: &Path) -> &'static str {
+    match path.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase()).as_deref() {
+        Some("png") => "image/png",
+        Some("jpg" | "jpeg") => "image/jpeg",
+        Some("gif") => "image/gif",
+        Some("webp") => "image/webp",
+        Some("avif") => "image/avif",
+        Some("bmp") => "image/bmp",
+        Some("svg") => "image/svg+xml",
+        Some("ico") => "image/x-icon",
+        Some("pdf") => "application/pdf",
+        Some("mp4") => "video/mp4",
+        Some("webm") => "video/webm",
+        Some("mp3") => "audio/mpeg",
+        Some("wav") => "audio/wav",
+        Some("txt" | "md") => "text/plain; charset=utf-8",
+        _ => "application/octet-stream",
+    }
+}
+
+/// Serves stored attachments to the webview at `zfile://localhost/attachments/<id>/<name>`
+/// (`http://zfile.localhost/...` on Windows). Only the attachments folder is reachable.
+fn serve_attachment(app: &AppHandle, request: &tauri::http::Request<Vec<u8>>) -> tauri::http::Response<Vec<u8>> {
+    let respond = |status: u16, mime: &str, body: Vec<u8>| {
+        tauri::http::Response::builder()
+            .status(status)
+            .header("Content-Type", mime)
+            .header("Access-Control-Allow-Origin", "*")
+            .body(body)
+            .unwrap()
+    };
+    let rel = percent_decode(request.uri().path().trim_start_matches('/'));
+    match attachment_path(app, &rel) {
+        Ok(path) => match fs::read(&path) {
+            Ok(bytes) => respond(200, mime_for(&path), bytes),
+            Err(_) => respond(404, "text/plain", b"not found".to_vec()),
+        },
+        Err(_) => respond(403, "text/plain", b"forbidden".to_vec()),
+    }
+}
+
 fn percent_decode(s: &str) -> String {
     let b = s.as_bytes();
     let mut out = Vec::with_capacity(b.len());
@@ -310,6 +351,7 @@ pub fn run() {
                 })
                 .build(),
         )
+        .register_uri_scheme_protocol("zfile", |ctx, request| serve_attachment(ctx.app_handle(), &request))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
