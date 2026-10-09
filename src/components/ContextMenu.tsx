@@ -6,6 +6,7 @@ import {
   ArrowRightLeft,
   Bell,
   BookmarkPlus,
+  Bot,
   Hourglass,
   Pause,
   Play,
@@ -328,6 +329,11 @@ function cardMenu(cardId: ID): MenuEntry[] {
           }}
         />
       ),
+    },
+    {
+      label: "Hand to AI…",
+      icon: <Bot size={14} />,
+      onClick: () => st.setOverlay({ aiDialog: { tab: "export", boardId: card.boardId, cardIds: [cardId] } }),
     },
     { label: "Duplicate", icon: <Copy size={14} />, onClick: () => st.duplicateCard(cardId) },
     {

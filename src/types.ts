@@ -139,6 +139,8 @@ export interface List {
   /** How cards are shown in this bucket. Display only — the custom (`order`) arrangement is never changed by it. */
   sort: SortMode;
   sortDesc: boolean;
+  /** Per-bucket overrides of the board's "Show on cards" settings. */
+  badges?: Partial<Record<BadgeKey, BadgeMode>>;
 }
 
 export type BoardBackground =
@@ -233,6 +235,8 @@ export interface BoardUi {
   filter: Filter;
   /** Group ids whose "Completed" section is expanded on the board view. */
   showCompleted: string[];
+  /** Bucket the last checklist spin-off from this board went to (default for the next one). */
+  lastSpinOffList?: ID;
 }
 
 export interface ReminderSettings {

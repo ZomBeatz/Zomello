@@ -67,7 +67,9 @@ export const CardTile = memo(function CardTile({
   const subIds = subtaskIds(card);
   const subDone = card.checklist.filter((i) => i.cardId && i.done).length;
   const relCount = (t: string) => card.links.filter((l) => l.type === t).length;
-  const mode = board.display.badges;
+  // The bucket can override the board's "Show on cards" settings.
+  const listBadges = useStore((s) => s.data.lists[card.listId]?.badges);
+  const mode = listBadges ? { ...board.display.badges, ...listBadges } : board.display.badges;
   const labels = board.labels.filter((l) => card.labelIds.includes(l.id));
   const cl = checklistStats(card);
   const due = dueStatus(card);

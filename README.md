@@ -21,6 +21,12 @@ React and TypeScript. Everything stays on your machine.
 - **Custom fields** per board (text, number, dropdown, checkbox, date, link), optionally shown on cards
 - **Card display**: each detail can be hidden, an icon, or the full information; card window sections can be hidden
 - **Import** boards from Trello (.json) or Microsoft Planner (.xlsx / .csv)
+- **AI hand-off** (no AI built in): copy-ready prompts to fill a bucket or plan a whole board with the board's context;
+  Markdown exports of a board / bucket / cards with a task (triage bugs, break down, prioritize, status); paste the
+  AI's reply back to add cards (with linked sub-tasks), build a board, or update cards — previewed and undoable
+- **Sub-tasks**: checklist items linked to cards, parent/sub-task badges and hover highlights, loop prevention,
+  "Add to a parent task"; drag to reorder checklists, insert between items, labels on items
+- **Spell check** in every text field (system dictionary; on Linux install `hunspell-en_us`)
 - **Activity history** on every card (moves, progress, dates, priority, assignment, renames, archive)
 - **Card templates** (save from any card; use from "+ Add card", Quick add) and "new board with this layout"
 - **Views**: Board · List · Calendar · Timeline · Charts; group the board by bucket, progress, priority,

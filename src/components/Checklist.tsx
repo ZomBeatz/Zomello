@@ -92,6 +92,15 @@ export function ChecklistSection({ card }: { card: Card }) {
             insert(card.checklist.length, newItem.trim());
             setNewItem("");
           }
+          if (e.key === "Escape") {
+            e.currentTarget.value = "";
+            setNewItem("");
+          }
+        }}
+        onBlur={(e) => {
+          if (!e.currentTarget.value.trim() || !newItem.trim()) return;
+          insert(useStore.getState().data.cards[card.id].checklist.length, newItem.trim());
+          setNewItem("");
         }}
       />
     </section>
@@ -126,10 +135,15 @@ function InsertBox({ onAdd, onClose }: { onAdd: (text: string) => void; onClose:
           }
           if (e.key === "Escape") {
             e.stopPropagation();
+            e.currentTarget.value = "";
+            setText("");
             onClose();
           }
         }}
-        onBlur={() => !text.trim() && onClose()}
+        onBlur={(e) => {
+          if (e.currentTarget.value.trim()) onAdd(e.currentTarget.value.trim());
+          onClose();
+        }}
       />
     </li>
   );
@@ -143,6 +157,9 @@ function ChecklistRow({ card, item, before }: { card: Card; item: ChecklistItem;
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
 
   const linked = item.cardId ? allCards[item.cardId] : null;
+  const lastSpin = useStore((s) => s.data.ui[card.boardId]?.lastSpinOffList);
+  const spinList = (lastSpin && lists[lastSpin] && !lists[lastSpin].archived && lists[lastSpin]) || lists[card.listId];
+  const spinTarget = { boardId: spinList?.boardId ?? card.boardId, listId: spinList?.id ?? card.listId };
   const checked = linked ? linked.progress === "completed" : item.done;
   // Linked items use (and edit) the linked task's labels; plain items have their own.
   const labelBoard = boards[linked ? linked.boardId : card.boardId];
@@ -225,10 +242,13 @@ function ChecklistRow({ card, item, before }: { card: Card; item: ChecklistItem;
                   <div className="menu">
                     <span className="menu-heading">Spin off “{item.text}” to…</span>
                     <BucketPicker
-                      defaultBoardId={card.boardId}
+                      // Default: wherever the last spin-off from this board went, else this card's bucket.
+                      defaultBoardId={spinTarget.boardId}
+                      defaultListId={spinTarget.listId}
                       action="Create task"
                       onPick={(listId) => {
                         spinOffChecklistItem(card.id, item.id, listId);
+                        useStore.getState().setBoardUi(card.boardId, { lastSpinOffList: listId });
                         close();
                       }}
                     />

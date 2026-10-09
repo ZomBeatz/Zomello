@@ -31,6 +31,9 @@ import {
   ArrowDownUp,
   Check,
   ChevronsLeftRight,
+  SlidersHorizontal,
+  Sparkles,
+  Bot,
   Gauge,
   LayoutTemplate,
   MoreHorizontal,
@@ -38,11 +41,12 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import type { Board, Card, GroupBy, ID, List } from "../../types";
+import type { BadgeKey, BadgeMode, Board, Card, GroupBy, ID, List } from "../../types";
 import { useStore } from "../../store";
 import { buildGroups, SORT_MODES, sortCards, type Group } from "../../utils";
 import { CardTile } from "../CardTile";
-import { ask, InlineEdit, MenuItem, Popover } from "../ui";
+import { ask, InlineEdit, MenuItem, Modal, Popover } from "../ui";
+import { BADGES } from "../BoardCustomize";
 
 const COL_PREFIX = "col:";
 
@@ -283,6 +287,7 @@ function Column({
   const updateList = useStore((s) => s.updateList);
   const deleteList = useStore((s) => s.deleteList);
   const list = group.list;
+  const [displayOpen, setDisplayOpen] = useState(false);
   const sortable = useSortable({
     id: `${COL_PREFIX}${group.id}`,
     data: { type: "column" },
@@ -358,6 +363,27 @@ function Column({
                 <MenuItem icon={<ChevronsLeftRight size={14} />} onClick={() => (updateList(list.id, { collapsed: true }), close())}>
                   Collapse
                 </MenuItem>
+                <MenuItem
+                  icon={<Sparkles size={14} />}
+                  onClick={() => {
+                    close();
+                    useStore.getState().setOverlay({ aiDialog: { tab: "ask", mode: "cards", boardId: board.id, listId: list.id } });
+                  }}
+                >
+                  Ask AI for cards here…
+                </MenuItem>
+                <MenuItem
+                  icon={<Bot size={14} />}
+                  onClick={() => {
+                    close();
+                    useStore.getState().setOverlay({ aiDialog: { tab: "export", boardId: board.id, listId: list.id } });
+                  }}
+                >
+                  Export bucket for AI…
+                </MenuItem>
+                <MenuItem icon={<SlidersHorizontal size={14} />} onClick={() => (setDisplayOpen(true), close())}>
+                  Card display{list.badges && Object.keys(list.badges).length ? " (custom)" : ""}…
+                </MenuItem>
                 <label className="menu-item">
                   <Gauge size={14} />
                   <span>WIP limit</span>
@@ -408,6 +434,7 @@ function Column({
         </SortableContext>
       </div>
       {group.patch && lists.length > 0 && <AddCard group={group} lists={lists} />}
+      {displayOpen && list && <BucketDisplayDialog list={list} board={board} onClose={() => setDisplayOpen(false)} />}
       {completed.length > 0 && (
         <CompletedSection
           boardId={board.id}
@@ -590,15 +617,31 @@ function AddCard({ group, lists }: { group: Group; lists: List[] }) {
             e.preventDefault();
             submit();
           }
-          if (e.key === "Escape") setOpen(false);
+          if (e.key === "Escape") {
+            e.currentTarget.value = ""; // so the blur that follows doesn't save
+            setTitle("");
+            setOpen(false);
+          }
         }}
-        onBlur={() => !title.trim() && setOpen(false)}
+        // Clicking away keeps what was typed (Esc or × cancels).
+        onBlur={(e) => {
+          if (e.currentTarget.value.trim()) submit();
+          setOpen(false);
+        }}
       />
       <div className="row gap">
         <button className="btn primary sm" onMouseDown={(e) => e.preventDefault()} onClick={submit}>
           Add card
         </button>
-        <button className="icon-btn" onClick={() => setOpen(false)}>
+        <button
+          className="icon-btn"
+          title="Cancel"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setTitle("");
+            setOpen(false);
+          }}
+        >
           <X size={16} />
         </button>
       </div>
@@ -629,18 +672,86 @@ function AddList({ boardId }: { boardId: ID }) {
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter") submit();
-          if (e.key === "Escape") setOpen(false);
+          if (e.key === "Escape") {
+            e.currentTarget.value = ""; // so the blur that follows doesn't save
+            setTitle("");
+            setOpen(false);
+          }
         }}
-        onBlur={() => !title.trim() && setOpen(false)}
+        // Clicking away keeps what was typed (Esc or × cancels).
+        onBlur={(e) => {
+          if (e.currentTarget.value.trim()) submit();
+          setOpen(false);
+        }}
       />
       <div className="row gap">
         <button className="btn primary sm" onMouseDown={(e) => e.preventDefault()} onClick={submit}>
           Add
         </button>
-        <button className="icon-btn" onClick={() => setOpen(false)}>
+        <button
+          className="icon-btn"
+          title="Cancel"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setTitle("");
+            setOpen(false);
+          }}
+        >
           <X size={16} />
         </button>
       </div>
     </div>
+  );
+}
+
+/** Per-bucket overrides of the board's "Show on cards" settings. */
+function BucketDisplayDialog({ list, board, onClose }: { list: List; board: Board; onClose: () => void }) {
+  const updateList = useStore((s) => s.updateList);
+  const set = (key: BadgeKey, mode: BadgeMode | null) => {
+    const next = { ...(list.badges ?? {}) };
+    if (mode === null) delete next[key];
+    else next[key] = mode;
+    updateList(list.id, { badges: Object.keys(next).length ? next : undefined });
+  };
+  const label = (m: BadgeMode) => (m === "off" ? "Hidden" : m === "icon" ? "Icon" : "Details");
+  return (
+    <Modal onClose={onClose} width={560} className="customize">
+      <header className="customize-head">
+        <h2>Card display in “{list.title}”</h2>
+        <button className="icon-btn" onClick={onClose}>
+          <X size={18} />
+        </button>
+      </header>
+      <div className="customize-body">
+        <p className="muted small">
+          Overrides the board's settings for cards in this bucket only. “Board” follows the board (currently shown in brackets).
+        </p>
+        <div className="badge-modes">
+          {BADGES.map((b) => {
+            const own = list.badges?.[b.key];
+            return (
+              <div key={b.key} className="badge-mode-row">
+                <span className="grow">{b.name}</span>
+                <div className="seg">
+                  <button className={!own ? "active" : ""} onClick={() => set(b.key, null)}>
+                    Board ({label(board.display.badges[b.key])})
+                  </button>
+                  {(["off", "icon", "full"] as BadgeMode[]).map((m) => (
+                    <button key={m} className={own === m ? "active" : ""} onClick={() => set(b.key, m)}>
+                      {label(m)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {list.badges && (
+          <button className="btn sm ghost" onClick={() => updateList(list.id, { badges: undefined })}>
+            Use the board's settings for everything
+          </button>
+        )}
+      </div>
+    </Modal>
   );
 }

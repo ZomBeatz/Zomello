@@ -203,6 +203,17 @@ export const defaultUi = (view: BoardUi["view"] = "board"): BoardUi => ({
   showCompleted: [],
 });
 
+/** What the AI tools window was opened for. */
+export interface AiDialogState {
+  tab: "ask" | "export" | "apply";
+  /** "Ask AI": add cards to a bucket, or build a whole new board. */
+  mode?: "cards" | "board";
+  boardId?: ID;
+  listId?: ID;
+  /** Export just these cards (e.g. one card from its menu). */
+  cardIds?: ID[];
+}
+
 export interface CardTrailStep {
   cardId: ID;
   /** How we left this card: through a checklist link, a linked task, or a "checklist item in" parent link. */
@@ -234,6 +245,7 @@ interface State {
   toasts: Toast[];
   focus: FocusTimer | null;
   importOpen: boolean;
+  aiDialog: AiDialogState | null;
 
   load(): Promise<void>;
   undo(): boolean;
@@ -241,7 +253,9 @@ interface State {
   /** `key`: a new toast with the same key replaces the old one (e.g. zoom level). */
   toast(text: string, opts?: { undo?: boolean; key?: string }): void;
   dismissToast(id: ID): void;
-  setOverlay(patch: Partial<Pick<State, "quickAddOpen" | "helpOpen" | "customizeBoardId" | "searchOpen" | "importOpen">>): void;
+  setOverlay(
+    patch: Partial<Pick<State, "quickAddOpen" | "helpOpen" | "customizeBoardId" | "searchOpen" | "importOpen" | "aiDialog">>,
+  ): void;
 
   startFocus(minutes: number, cardId?: ID | null, label?: string): void;
   pauseFocus(): void;
@@ -290,6 +304,9 @@ interface State {
   spinOffChecklistItem(cardId: ID, itemId: ID, listId: ID): ID;
   /** Toggle a checklist item; linked items toggle the linked card instead. */
   toggleChecklistItem(cardId: ID, itemId: ID): void;
+  /** Make `childId` a sub-task of `parentId` (adds a linked item to the parent's checklist). */
+  addToParent(parentId: ID, childId: ID): void;
+  removeFromParent(parentId: ID, childId: ID): void;
 
   startTimer(cardId: ID): void;
   stopTimer(): void;
@@ -467,6 +484,7 @@ export const useStore = create<State>((set, get) => {
     toasts: [],
     focus: loadFocus(),
     importOpen: false,
+    aiDialog: null,
 
     undo() {
       const prev = past.pop();
@@ -840,6 +858,22 @@ export const useStore = create<State>((set, get) => {
       const newId = get().createCard(listId, item.text, { labelIds, ...(item.done ? { progress: "completed" } : {}) });
       get().linkChecklistItem(cardId, itemId, newId);
       return newId;
+    },
+    addToParent(parentId, childId) {
+      const d = get().data;
+      const loop = subtaskLoopReason(parentId, childId, d.cards);
+      if (loop) return get().toast(`Can't add: ${loop}.`);
+      const child = d.cards[childId];
+      get().updateCard(parentId, {
+        checklist: [
+          ...d.cards[parentId].checklist,
+          { id: uid(), text: child.title, cardId: childId, done: child.progress === "completed" },
+        ],
+      });
+    },
+    removeFromParent(parentId, childId) {
+      const p = get().data.cards[parentId];
+      if (p) get().updateCard(parentId, { checklist: p.checklist.filter((i) => i.cardId !== childId) });
     },
     toggleChecklistItem(cardId, itemId) {
       const d = get().data;

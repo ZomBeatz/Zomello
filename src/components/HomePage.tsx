@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { addDays } from "date-fns";
-import { AlertTriangle, CalendarClock, CheckCircle2, FileUp, Plus, Sun, Timer } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, FileUp, Plus, Sparkles, Sun, Timer } from "lucide-react";
 import type { Card } from "../types";
 import { useStore } from "../store";
 import { byOrder, dueStatus, isLate, PALETTE, prettyDate, toISO, todayISO } from "../utils";
@@ -133,6 +133,9 @@ export function HomePage() {
           </button>
           <button className="btn ghost sm" onClick={() => useStore.getState().setOverlay({ importOpen: true })}>
             <FileUp size={14} /> Import from Trello or Planner
+          </button>
+          <button className="btn ghost sm" onClick={() => useStore.getState().setOverlay({ aiDialog: { tab: "ask", mode: "board" } })}>
+            <Sparkles size={14} /> Plan a new board with AI
           </button>
         </div>
       </div>

@@ -95,9 +95,18 @@ export function Sidebar() {
                 setTitle("");
                 setAdding(false);
               }
-              if (e.key === "Escape") setAdding(false);
+              if (e.key === "Escape") {
+                e.currentTarget.value = "";
+                setTitle("");
+                setAdding(false);
+              }
             }}
-            onBlur={() => setAdding(false)}
+            // Clicking away creates the board if a name was typed.
+            onBlur={(e) => {
+              if (e.currentTarget.value.trim() && title.trim()) navigate({ page: "board", boardId: createBoard(title.trim()) });
+              setTitle("");
+              setAdding(false);
+            }}
           />
         )}
       </div>
