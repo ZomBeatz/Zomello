@@ -42,6 +42,23 @@ React and TypeScript. Everything stays on your machine.
 The `.desktop` file must be named after the executable (`zomello`): on Wayland, KDE matches the window to it
 by that name, which is where the title-bar/taskbar icon comes from.
 
+## Windows
+Zomello runs on Windows 10/11 too (it uses the built-in Edge WebView2). Ways to build the installer:
+- **Cross-compile from Linux** (NSIS `.exe` installer):
+  ```bash
+  rustup target add x86_64-pc-windows-msvc
+  cargo install --locked cargo-xwin      # downloads Microsoft's CRT/SDK headers on first use (their license applies)
+  paru -S nsis                           # NSIS installer builder (AUR)
+  npm run tauri -- build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis
+  ```
+  → `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/Zomello_*_x64-setup.exe`
+- **On a Windows PC**: install Node.js LTS, Rust (rustup) and the "Desktop development with C++" build tools, then
+  `npm install` and `npm run bundle`.
+- **GitHub Actions**: push the repo to GitHub and run the *Build installers* workflow (`.github/workflows/build.yml`).
+
+The installer is unsigned, so Windows SmartScreen will say "Windows protected your PC" — click **More info → Run anyway**.
+It installs per-user (no admin needed); data lives in `%APPDATA%\com.zombeatz.zomello`.
+
 ## Run
 ```bash
 npm install

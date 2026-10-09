@@ -3,6 +3,8 @@ import { AlertTriangle, FileUp, X } from "lucide-react";
 import { useStore } from "../store";
 import { importStats, parseImportFile, type ImportedBoard } from "../importers";
 import { Modal } from "./ui";
+import { readDrop } from "../attachments";
+import { fileFromPath, inTauri } from "../storage";
 
 export function ImportDialog() {
   const close = () => useStore.getState().setOverlay({ importOpen: false });
@@ -56,7 +58,7 @@ export function ImportDialog() {
           className={`import-drop ${over ? "drop-target" : ""}`}
           onClick={() => fileRef.current?.click()}
           onDragOver={(e) => {
-            if (!e.dataTransfer.types.includes("Files")) return;
+            if (!e.dataTransfer.types.includes("Files") && !e.dataTransfer.types.includes("text/uri-list")) return;
             e.preventDefault();
             setOver(true);
           }}
@@ -64,8 +66,9 @@ export function ImportDialog() {
           onDrop={(e) => {
             e.preventDefault();
             setOver(false);
-            const f = e.dataTransfer.files[0];
-            if (f) void load(f);
+            const d = readDrop(e.dataTransfer);
+            if (d.files[0]) void load(d.files[0]);
+            else if (d.paths[0] && inTauri) void fileFromPath(d.paths[0]).then(load, (err) => setError(String(err)));
           }}
         >
           <FileUp size={28} />

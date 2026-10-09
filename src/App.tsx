@@ -21,6 +21,7 @@ import { applyZoom, installZoomControls } from "./zoom";
 import { startFocusWatcher } from "./focus";
 import { installFileDropPolicy } from "./fileDrop";
 import { ImportDialog } from "./components/ImportDialog";
+import { DropOverlay } from "./components/DropOverlay";
 
 const DENSITY = { compact: "13px", normal: "14px", comfortable: "15.5px" };
 
@@ -134,6 +135,7 @@ export default function App() {
           </div>
         </Modal>
       )}
+      <DropOverlay />
       <Toasts />
       <ContextMenuHost />
       <ConfirmHost />
