@@ -40,9 +40,44 @@ export interface Recurrence {
 export interface Attachment {
   id: ID;
   name: string;
+  /** A link/path, or for stored files `attachments/…` (relative to the data dir; data: URL in browser dev). */
   url: string;
   addedAt: number;
+  /** True when the file was copied into Zomello's own storage. */
+  stored?: boolean;
+  size?: number;
+  mime?: string;
 }
+
+export type ActivityKind =
+  | "created"
+  | "moved"
+  | "board"
+  | "progress"
+  | "priority"
+  | "due"
+  | "archived"
+  | "restored"
+  | "assigned"
+  | "unassigned"
+  | "renamed";
+
+/** `from`/`to` hold ids or raw values; names are resolved when displayed. */
+export interface Activity {
+  at: number;
+  kind: ActivityKind;
+  from?: string | null;
+  to?: string | null;
+}
+
+export interface TimeEntry {
+  id: ID;
+  start: number;
+  /** null while the timer is running. */
+  end: number | null;
+}
+
+export type CoverSize = "strip" | "full";
 
 export interface Comment {
   id: ID;
@@ -70,6 +105,15 @@ export interface Card {
   links: CardLink[];
   recurrence: Recurrence | null;
   cover: string | null;
+  /** Attachment id of an image attachment used as the cover. */
+  coverImage: ID | null;
+  coverSize: CoverSize;
+  activity: Activity[];
+  time: TimeEntry[];
+  /** Estimated effort in minutes. */
+  estimate: number | null;
+  /** Local date-time "yyyy-MM-ddTHH:mm" for a desktop reminder. */
+  reminder: string | null;
   order: number;
   archived: boolean;
   createdAt: number;
@@ -88,11 +132,33 @@ export interface List {
   collapsed: boolean;
 }
 
+export type BoardBackground =
+  | { type: "none" }
+  | { type: "color"; value: string }
+  | { type: "gradient"; value: string }
+  /** value: stored image path (or data: URL in browser dev). */
+  | { type: "image"; value: string };
+
+export type BadgeKey = "dates" | "checklist" | "assignees" | "priority" | "description" | "links" | "time" | "attachments";
+
+export interface BoardDisplay {
+  columnWidth: "narrow" | "normal" | "wide";
+  compact: boolean;
+  labelStyle: "text" | "bar";
+  badges: Record<BadgeKey, boolean>;
+  /** Fade cards that haven't been touched in a while. */
+  aging: boolean;
+}
+
 export interface Board {
   id: ID;
   title: string;
   description: string;
   color: string;
+  /** Emoji shown next to the board name. */
+  icon: string | null;
+  background: BoardBackground;
+  display: BoardDisplay;
   labels: Label[];
   archived: boolean;
   starred: boolean;
@@ -128,10 +194,40 @@ export interface BoardUi {
   showCompleted: string[];
 }
 
+export interface ReminderSettings {
+  enabled: boolean;
+  /** "HH:mm" — once a day, a summary of what's due / late. */
+  digestTime: string;
+  digest: boolean;
+}
+
 export interface Settings {
   theme: "system" | "light" | "dark";
   me: string;
   people: string[];
+  /** Accent color override; null = brand default. */
+  accent: string | null;
+  density: "compact" | "normal" | "comfortable";
+  weekStartsOn: 0 | 1;
+  defaultView: ViewMode;
+  sidebarCollapsed: boolean;
+  reminders: ReminderSettings;
+}
+
+/** A reusable card blueprint. Labels are stored by name so templates work on any board. */
+export interface CardTemplate {
+  id: ID;
+  name: string;
+  createdAt: number;
+  title: string;
+  description: string;
+  checklist: string[];
+  labels: { name: string; color: string }[];
+  priority: Priority;
+  assignees: string[];
+  recurrence: Recurrence | null;
+  cover: string | null;
+  estimate: number | null;
 }
 
 export interface AppData {
@@ -140,12 +236,14 @@ export interface AppData {
   lists: Record<ID, List>;
   cards: Record<ID, Card>;
   savedFilters: SavedFilter[];
+  templates: CardTemplate[];
   ui: Record<ID, BoardUi>;
   settings: Settings;
 }
 
 export type Route =
   | { page: "home" }
+  | { page: "mytasks" }
   | { page: "board"; boardId: ID }
   | { page: "archive" }
   | { page: "settings" };

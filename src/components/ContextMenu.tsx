@@ -1,9 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { addDays, nextMonday } from "date-fns";
+import { addDays, addHours, format, nextMonday, setHours, setMinutes } from "date-fns";
 import {
   Archive,
   ArrowRightLeft,
+  Bell,
+  BookmarkPlus,
+  Pause,
+  Play,
   Calendar,
   Check,
   CheckCircle2,
@@ -178,6 +182,9 @@ function cardMenu(cardId: ID): MenuEntry[] {
     .filter((b) => !b.archived && b.id !== card.boardId)
     .sort(byOrder);
   const today = new Date();
+  const running = card.time.some((t) => t.end === null);
+  const at = (d: Date) => format(d, "yyyy-MM-dd'T'HH:mm");
+  const tomorrow9 = setMinutes(setHours(addDays(today, 1), 9), 0);
 
   return [
     { label: "Open", icon: <ExternalLink size={14} />, onClick: () => st.openCard(cardId) },
@@ -255,6 +262,22 @@ function cardMenu(cardId: ID): MenuEntry[] {
         { label: "Custom…", onClick: () => st.openCard(cardId) },
       ],
     },
+    {
+      label: "Remind me",
+      icon: <Bell size={14} />,
+      submenu: [
+        { label: "In 1 hour", onClick: () => set({ reminder: at(addHours(today, 1)) }) },
+        { label: "In 3 hours", onClick: () => set({ reminder: at(addHours(today, 3)) }) },
+        { label: "Tomorrow 9:00", onClick: () => set({ reminder: at(tomorrow9) }) },
+        { label: "Next Monday 9:00", onClick: () => set({ reminder: at(setMinutes(setHours(nextMonday(today), 9), 0)) }) },
+        ...(card.reminder ? [{ separator: true }, { label: "Remove reminder", onClick: () => set({ reminder: null }) }] : []),
+      ],
+    },
+    {
+      label: running ? "Stop timer" : "Start timer",
+      icon: running ? <Pause size={14} /> : <Play size={14} />,
+      onClick: () => (running ? st.stopTimer() : st.startTimer(cardId)),
+    },
     { separator: true },
     {
       label: "Move to bucket",
@@ -301,13 +324,31 @@ function cardMenu(cardId: ID): MenuEntry[] {
       ),
     },
     { label: "Duplicate", icon: <Copy size={14} />, onClick: () => st.duplicateCard(cardId) },
-    { label: "Archive", icon: <Archive size={14} />, onClick: () => set({ archived: true }) },
+    {
+      label: "Save as template",
+      icon: <BookmarkPlus size={14} />,
+      onClick: () => {
+        st.saveTemplate(cardId, card.title);
+        st.toast(`Saved template "${card.title}" (rename it in Settings)`);
+      },
+    },
+    {
+      label: "Archive",
+      icon: <Archive size={14} />,
+      onClick: () => {
+        set({ archived: true });
+        st.toast(`Archived "${card.title}"`, { undo: true });
+      },
+    },
     {
       label: "Delete",
       icon: <Trash2 size={14} />,
       danger: true,
       onClick: async () => {
-        if (await ask(`Delete "${card.title}" permanently?`, { okText: "Delete", danger: true })) st.deleteCard(cardId);
+        if (await ask(`Delete "${card.title}"?`, { okText: "Delete", danger: true })) {
+          st.deleteCard(cardId);
+          st.toast(`Deleted "${card.title}"`, { undo: true });
+        }
       },
     },
   ];

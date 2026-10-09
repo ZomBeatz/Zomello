@@ -1,14 +1,19 @@
-import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 
 /** True when running inside the Tauri shell; false in a plain browser (vite dev). */
 export const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
-const LS_KEY = "planwise-data";
+const LS_KEY = "zomello-data";
+const LEGACY_LS_KEY = "planwise-data";
 
 export async function loadRaw(): Promise<string | null> {
-  if (inTauri) return (await invoke<string | null>("load_data")) ?? null;
+  if (inTauri) {
+    const raw = (await invoke<string | null>("load_data")) ?? null;
+    dataDir = (await invoke<string>("data_location")).replace(/[\\/][^\\/]+$/, "");
+    return raw;
+  }
   try {
-    return localStorage.getItem(LS_KEY);
+    return localStorage.getItem(LS_KEY) ?? localStorage.getItem(LEGACY_LS_KEY);
   } catch {
     return null;
   }
@@ -57,4 +62,59 @@ export async function openExternal(target: string): Promise<void> {
     return openPath(target);
   }
   window.open(target, "_blank", "noopener");
+}
+
+// ---- Stored attachments ----
+let dataDir = "";
+
+/** Copy a file into Zomello's storage. Returns the value to keep in `Attachment.url`. */
+export async function storeFile(file: File): Promise<string> {
+  if (inTauri) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    return invoke<string>("save_attachment", bytes, { headers: { "x-name": encodeURIComponent(file.name) } });
+  }
+  // Browser dev mode: inline as a data URL.
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
+}
+
+/** URL the webview can display for a stored file (images, previews). */
+export function storedSrc(url: string): string {
+  if (!inTauri || url.startsWith("data:")) return url;
+  return convertFileSrc(`${dataDir}/${url}`);
+}
+
+/** Open a stored file with the system's default app. */
+export async function openStored(url: string): Promise<void> {
+  if (!inTauri) return void window.open(url, "_blank", "noopener");
+  const abs = await invoke<string>("attachment_abs_path", { rel: url });
+  const { openPath } = await import("@tauri-apps/plugin-opener");
+  return openPath(abs);
+}
+
+/** Delete stored files that nothing references any more. Returns how many were removed. */
+export async function cleanupStoredFiles(referenced: Set<string>): Promise<number> {
+  if (!inTauri) return 0;
+  const all = await invoke<string[]>("list_attachments");
+  const orphans = all.filter((p) => !referenced.has(p));
+  for (const rel of orphans) await invoke("delete_attachment", { rel });
+  return orphans.length;
+}
+
+// ---- Notifications ----
+export async function notify(title: string, body: string): Promise<void> {
+  if (inTauri) {
+    const n = await import("@tauri-apps/plugin-notification");
+    let ok = await n.isPermissionGranted();
+    if (!ok) ok = (await n.requestPermission()) === "granted";
+    if (ok) n.sendNotification({ title, body });
+    return;
+  }
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "default") await Notification.requestPermission();
+  if (Notification.permission === "granted") new Notification(title, { body });
 }

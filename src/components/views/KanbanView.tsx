@@ -30,6 +30,7 @@ import {
   ChevronRight,
   ChevronsLeftRight,
   Gauge,
+  LayoutTemplate,
   MoreHorizontal,
   Plus,
   Trash2,
@@ -416,11 +417,43 @@ function AddCard({ group, lists }: { group: Group; lists: List[] }) {
     createCard(group.list?.id ?? lists[0].id, t, group.patch!(null));
     setTitle("");
   };
+  const templates = useStore((s) => s.data.templates);
   if (!open)
     return (
-      <button className="add-card-btn" onClick={() => setOpen(true)}>
-        <Plus size={15} /> Add card
-      </button>
+      <div className="add-card-row">
+        <button className="add-card-btn" onClick={() => setOpen(true)}>
+          <Plus size={15} /> Add card
+        </button>
+        {templates.length > 0 && (
+          <Popover
+            align="right"
+            trigger={(_, t) => (
+              <button className="icon-btn" title="New card from template" onClick={t}>
+                <LayoutTemplate size={15} />
+              </button>
+            )}
+          >
+            {(close) => (
+              <div className="menu">
+                <span className="menu-heading">New from template</span>
+                {templates.map((t) => (
+                  <MenuItem
+                    key={t.id}
+                    icon={<LayoutTemplate size={14} />}
+                    onClick={() => {
+                      close();
+                      const id = useStore.getState().createFromTemplate(t.id, group.list?.id ?? lists[0].id, group.patch!(null));
+                      useStore.getState().openCard(id);
+                    }}
+                  >
+                    {t.name}
+                  </MenuItem>
+                ))}
+              </div>
+            )}
+          </Popover>
+        )}
+      </div>
     );
   return (
     <div className="add-card-form">

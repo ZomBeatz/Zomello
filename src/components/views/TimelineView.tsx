@@ -12,7 +12,8 @@ const SPANS = { "2 weeks": 14, "6 weeks": 42, "3 months": 91 } as const;
 export function TimelineView({ lists, cards }: { lists: List[]; cards: Card[] }) {
   const openCard = useStore((s) => s.openCard);
   const [span, setSpan] = useState<keyof typeof SPANS>("6 weeks");
-  const [start, setStart] = useState(() => addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), -7));
+  const weekStartsOn = useStore((s) => s.data.settings.weekStartsOn);
+  const [start, setStart] = useState(() => addDays(startOfWeek(new Date(), { weekStartsOn }), -7));
   const nDays = SPANS[span];
   const days = useMemo(() => Array.from({ length: nDays }, (_, i) => addDays(start, i)), [start, nDays]);
   const dayW = span === "3 months" ? 18 : DAY_W;
@@ -63,7 +64,7 @@ export function TimelineView({ lists, cards }: { lists: List[]; cards: Card[] })
         <button className="icon-btn" onClick={() => setStart((d) => addDays(d, 7))}>
           <ChevronRight size={18} />
         </button>
-        <button className="btn sm" onClick={() => setStart(addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), -7))}>
+        <button className="btn sm" onClick={() => setStart(addDays(startOfWeek(new Date(), { weekStartsOn }), -7))}>
           Today
         </button>
         <div className="seg">
