@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { useStore } from "./store";
 import { attachToCard, dropIsEmpty, readDrop } from "./attachments";
 import type { ID } from "./types";
-import { debugLog, inTauri, isWindows } from "./storage";
+import { inTauri, isWindows } from "./storage";
 
 /**
  * Things dragged in from outside the app (files, web links):
@@ -135,9 +135,11 @@ export function installFileDropPolicy() {
   window.addEventListener("dragleave", onLeave, true);
 
   let unlistenNative: (() => void) | undefined;
+  let disposed = false;
+  let lastDrop = { key: "", at: 0 };
   if (inTauri) {
     void import("@tauri-apps/api/webview").then(async ({ getCurrentWebview }) => {
-      unlistenNative = await getCurrentWebview().onDragDropEvent((ev) => {
+      const un = await getCurrentWebview().onDragDropEvent((ev) => {
         const p = ev.payload;
         if (p.type === "leave") {
           onLeave();
@@ -150,13 +152,16 @@ export function installFileDropPolicy() {
           update(document.elementFromPoint(p.position.x / scale, p.position.y / scale));
         }
         if (p.type === "drop") {
+          // The same drop can be reported more than once; only handle it the first time.
+          const key = p.paths.join("\n");
+          if (key === lastDrop.key && Date.now() - lastDrop.at < 1500) return;
+          lastDrop = { key, at: Date.now() };
           clearTimeout(leaveTimer);
           if (!pageKnowsPointer) {
             const scale = isWindows ? window.devicePixelRatio : useStore.getState().data.settings.zoom || 1;
             update(document.elementFromPoint(p.position.x / scale, p.position.y / scale));
           }
           const st = useDrop.getState();
-          debugLog("native drop", { paths: p.paths, position: p.position, state: st, pageKnowsPointer });
           reset();
           clearZoneHighlight();
           pageKnowsPointer = false;
@@ -165,6 +170,9 @@ export function installFileDropPolicy() {
           deliver(st, [], p.paths.filter((x) => !web.includes(x)), web);
         }
       });
+      // If we were torn down while the listener was being set up, remove it right away.
+      if (disposed) un();
+      else unlistenNative = un;
     });
   }
 
@@ -173,6 +181,7 @@ export function installFileDropPolicy() {
     window.removeEventListener("dragover", onOver, true);
     window.removeEventListener("drop", onDrop, true);
     window.removeEventListener("dragleave", onLeave, true);
+    disposed = true;
     unlistenNative?.();
   };
 }

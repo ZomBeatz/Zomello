@@ -52,6 +52,7 @@ export default function App() {
 
   useEffect(() => installFileDropPolicy(), []);
 
+
   // Theme, accent color and density live on <html> so every component picks them up.
   useEffect(() => {
     const root = document.documentElement;
