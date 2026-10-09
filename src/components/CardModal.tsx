@@ -1,8 +1,16 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
+  Activity as ActivityIcon,
   AlignLeft,
   Archive,
   Ban,
+  BookmarkPlus,
+  FileText,
+  ImageIcon,
+  Pause,
+  Play,
+  Timer,
+  Upload,
   ArchiveRestore,
   CheckSquare,
   Copy,
@@ -16,12 +24,18 @@ import {
   Unlink,
   X,
 } from "lucide-react";
-import type { Card, ID, LinkType, Priority, Progress, Recurrence, RecurrenceFreq } from "../types";
+import type { Activity, Attachment, Card, ID, LinkType, Priority, Progress, Recurrence, RecurrenceFreq } from "../types";
 import { useStore } from "../store";
-import { byOrder, checklistStats, describeRecurrence, LINK_TYPES, PRIORITIES, PROGRESS, timeAgo, todayISO, uid, WEEKDAYS } from "../utils";
-import { openExternal } from "../storage";
+import {
+  byOrder, checklistStats, describeRecurrence, fileSize, formatDuration, isImage, LINK_TYPES, parseDuration,
+  prettyDate, priorityMeta, PRIORITIES, PROGRESS, progressMeta, timeAgo, todayISO, trackedMs, uid, WEEKDAYS,
+} from "../utils";
+import { format } from "date-fns";
+import { openExternal, openStored, storedSrc, storeFile } from "../storage";
 import { ask, AutoTextarea, Avatar, ColorPicker, InlineEdit, Modal, Popover, ProgressIcon } from "./ui";
 import { BucketPicker, CardPicker, LabelPicker } from "./pickers";
+import { Markdown, MarkdownField } from "./Markdown";
+import { useNow } from "./useNow";
 
 export function CardModal({ cardId }: { cardId: ID }) {
   const card = useStore((s) => s.data.cards[cardId]);
@@ -55,17 +69,57 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
     [allLists, card.boardId],
   );
   const set = (patch: Partial<Card>) => updateCard(card.id, patch);
-  const [desc, setDesc] = useState(card.description);
   const [newItem, setNewItem] = useState("");
   const [comment, setComment] = useState("");
-  const [link, setLink] = useState({ name: "", url: "" });
+  const [dragOver, setDragOver] = useState(false);
   const cl = checklistStats(card);
+  const coverImg = card.coverImage ? card.attachments.find((a) => a.id === card.coverImage) : undefined;
+
+  const attachFiles = async (files: FileList | File[]) => {
+    const added: Attachment[] = [];
+    for (const f of Array.from(files)) {
+      try {
+        const url = await storeFile(f);
+        added.push({ id: uid(), name: f.name, url, addedAt: Date.now(), stored: true, size: f.size, mime: f.type });
+      } catch (e) {
+        useStore.getState().toast(`Couldn't attach ${f.name}: ${e}`);
+      }
+    }
+    if (!added.length) return;
+    const cur = useStore.getState().data.cards[card.id];
+    const firstImage = added.find((a) => isImage(a.name, a.mime));
+    updateCard(card.id, {
+      attachments: [...cur.attachments, ...added],
+      // First image becomes the cover if the card has none yet.
+      ...(firstImage && !cur.coverImage ? { coverImage: firstImage.id } : {}),
+    });
+  };
 
   const toggleIn = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
   return (
-    <div className="card-detail">
-      {card.cover && <div className="detail-cover" style={{ background: card.cover }} />}
+    <div
+      className={`card-detail ${dragOver ? "drop" : ""}`}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes("Files")) {
+          e.preventDefault();
+          setDragOver(true);
+        }
+      }}
+      onDragLeave={(e) => e.currentTarget === e.target && setDragOver(false)}
+      onDrop={(e) => {
+        if (!e.dataTransfer.files.length) return;
+        e.preventDefault();
+        setDragOver(false);
+        void attachFiles(e.dataTransfer.files);
+      }}
+    >
+      {coverImg ? (
+        <img className="detail-cover image" src={storedSrc(coverImg.url)} alt="" />
+      ) : (
+        card.cover && <div className="detail-cover" style={{ background: card.cover }} />
+      )}
+      {dragOver && <div className="drop-hint">Drop files to attach</div>}
       <button className="icon-btn close" onClick={onClose} title="Close (Esc)">
         <X size={18} />
       </button>
@@ -134,12 +188,10 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
             <h4>
               <AlignLeft size={15} /> Description
             </h4>
-            <AutoTextarea
-              className="desc"
-              placeholder="Add a more detailed description…"
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
-              onBlur={() => desc !== card.description && set({ description: desc })}
+            <MarkdownField
+              value={card.description}
+              placeholder="Add a more detailed description… (Markdown supported)"
+              onSave={(description) => set({ description })}
             />
           </section>
 
@@ -333,56 +385,8 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
             </Popover>
           </section>
 
-          {/* Links / attachments */}
-          <section>
-            <h4>
-              <Link2 size={15} /> Links & files
-            </h4>
-            <ul className="attachments">
-              {card.attachments.map((a) => (
-                <li key={a.id}>
-                  <button className="link" onClick={() => openExternal(a.url)} title={a.url}>
-                    <ExternalLink size={13} /> {a.name}
-                  </button>
-                  <span className="muted small ellipsis">{a.url}</span>
-                  <button
-                    className="icon-btn tiny"
-                    onClick={() => set({ attachments: card.attachments.filter((x) => x.id !== a.id) })}
-                  >
-                    <X size={13} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <form
-              className="row gap-sm"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const url = link.url.trim();
-                if (!url) return;
-                const name = link.name.trim() || url.split(/[\\/]/).filter(Boolean).pop() || url;
-                set({ attachments: [...card.attachments, { id: uid(), name, url, addedAt: Date.now() }] });
-                setLink({ name: "", url: "" });
-              }}
-            >
-              <input
-                className="add-input grow"
-                placeholder="https://… or /path/to/file"
-                value={link.url}
-                onChange={(e) => setLink({ ...link, url: e.target.value })}
-              />
-              <input
-                className="add-input"
-                style={{ width: 150 }}
-                placeholder="Name (optional)"
-                value={link.name}
-                onChange={(e) => setLink({ ...link, name: e.target.value })}
-              />
-              <button className="btn sm" type="submit">
-                Add
-              </button>
-            </form>
-          </section>
+          {/* Files & links */}
+          <AttachmentsSection card={card} onFiles={attachFiles} />
 
           {/* Notes / comments */}
           <section>
@@ -424,11 +428,13 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
                       <X size={13} />
                     </button>
                   </div>
-                  <p>{c.text}</p>
+                  <Markdown text={c.text} />
                 </li>
               ))}
             </ul>
           </section>
+
+          <ActivitySection card={card} />
         </div>
 
         <aside className="detail-side">
@@ -464,6 +470,20 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
           </Field>
           <Field label="Due date">
             <DateInput value={card.dueDate} onChange={(dueDate) => set({ dueDate })} />
+          </Field>
+          <Field label="Reminder">
+            <div className="row gap-sm">
+              <input
+                type="datetime-local"
+                value={card.reminder ?? ""}
+                onChange={(e) => set({ reminder: e.target.value || null })}
+              />
+              {card.reminder && (
+                <button className="icon-btn tiny" title="Clear" onClick={() => set({ reminder: null })}>
+                  <X size={13} />
+                </button>
+              )}
+            </div>
           </Field>
           <Field label="Repeat">
             <RecurrenceEditor card={card} onChange={(recurrence) => set({ recurrence, ...(recurrence && !card.dueDate ? { dueDate: todayISO() } : {}) })} />
@@ -507,8 +527,11 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
               </Popover>
             </div>
           </Field>
-          <Field label="Cover color">
-            <ColorPicker value={card.cover} onChange={(cover) => set({ cover })} allowNone />
+          <Field label="Time">
+            <TimeTracker card={card} />
+          </Field>
+          <Field label="Cover">
+            <CoverEditor card={card} />
           </Field>
           <Field label="Move to board">
             <select
@@ -536,6 +559,33 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
             <button className="btn" onClick={() => openCard(duplicateCard(card.id))}>
               <Copy size={14} /> Duplicate
             </button>
+            <Popover
+              trigger={(_, t) => (
+                <button className="btn" onClick={t}>
+                  <BookmarkPlus size={14} /> Save as template
+                </button>
+              )}
+            >
+              {(close) => (
+                <form
+                  className="menu pad-sm"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const name = new FormData(e.currentTarget).get("name")?.toString().trim();
+                    if (!name) return;
+                    useStore.getState().saveTemplate(card.id, name);
+                    useStore.getState().toast(`Saved template "${name}"`);
+                    close();
+                  }}
+                >
+                  <span className="menu-heading">Template name</span>
+                  <input name="name" autoFocus defaultValue={card.title} />
+                  <button className="btn primary sm" style={{ marginTop: 8 }} type="submit">
+                    Save template
+                  </button>
+                </form>
+              )}
+            </Popover>
             {card.archived ? (
               <button className="btn" onClick={() => set({ archived: false })}>
                 <ArchiveRestore size={14} /> Restore
@@ -546,6 +596,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
                 onClick={() => {
                   set({ archived: true });
                   onClose();
+                  useStore.getState().toast(`Archived "${card.title}"`, { undo: true });
                 }}
               >
                 <Archive size={14} /> Archive
@@ -554,7 +605,10 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
             <button
               className="btn danger"
               onClick={async () => {
-                if (await ask(`Delete "${card.title}" permanently?`, { okText: "Delete", danger: true })) deleteCard(card.id);
+                if (await ask(`Delete "${card.title}"?`, { okText: "Delete", danger: true })) {
+                  deleteCard(card.id);
+                  useStore.getState().toast(`Deleted "${card.title}"`, { undo: true });
+                }
               }}
             >
               <Trash2 size={14} /> Delete
@@ -648,6 +702,273 @@ function RecurrenceEditor({ card, onChange }: { card: Card; onChange: (r: Recurr
           <span className="small muted">{describeRecurrence(r)}. Completing it creates the next one.</span>
         </>
       )}
+    </div>
+  );
+}
+
+function AttachmentsSection({ card, onFiles }: { card: Card; onFiles: (f: FileList) => Promise<void> }) {
+  const updateCard = useStore((s) => s.updateCard);
+  const [link, setLink] = useState({ name: "", url: "" });
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const images = card.attachments.filter((a) => a.stored && isImage(a.name, a.mime));
+  const others = card.attachments.filter((a) => !images.includes(a));
+  const remove = (a: Attachment) =>
+    updateCard(card.id, {
+      attachments: card.attachments.filter((x) => x.id !== a.id),
+      ...(card.coverImage === a.id ? { coverImage: null } : {}),
+    });
+  const open = (a: Attachment) => (a.stored ? openStored(a.url) : openExternal(a.url));
+
+  return (
+    <section>
+      <h4>
+        <Link2 size={15} /> Files & links
+        <span className="grow" />
+        <button className="btn sm ghost" disabled={busy} onClick={() => fileRef.current?.click()}>
+          <Upload size={13} /> {busy ? "Attaching…" : "Attach files"}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          hidden
+          onChange={async (e) => {
+            const files = e.target.files;
+            if (!files?.length) return;
+            setBusy(true);
+            await onFiles(files);
+            setBusy(false);
+            e.target.value = "";
+          }}
+        />
+      </h4>
+      {images.length > 0 && (
+        <div className="thumbs">
+          {images.map((a) => (
+            <figure key={a.id} className={card.coverImage === a.id ? "is-cover" : ""}>
+              <img src={storedSrc(a.url)} alt={a.name} onClick={() => open(a)} title="Open" />
+              <figcaption>
+                <span className="ellipsis">{a.name}</span>
+                <button
+                  className="icon-btn tiny"
+                  title={card.coverImage === a.id ? "Remove as cover" : "Use as cover"}
+                  onClick={() => updateCard(card.id, { coverImage: card.coverImage === a.id ? null : a.id })}
+                >
+                  <ImageIcon size={13} />
+                </button>
+                <button className="icon-btn tiny" title="Remove" onClick={() => remove(a)}>
+                  <X size={13} />
+                </button>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      )}
+      <ul className="attachments">
+        {others.map((a) => (
+          <li key={a.id}>
+            <button className="link" onClick={() => open(a)} title={a.stored ? "Open file" : a.url}>
+              {a.stored ? <FileText size={13} /> : <ExternalLink size={13} />} {a.name}
+            </button>
+            <span className="muted small ellipsis">{a.stored ? `${fileSize(a.size)} · stored` : a.url}</span>
+            <button className="icon-btn tiny" title="Remove" onClick={() => remove(a)}>
+              <X size={13} />
+            </button>
+          </li>
+        ))}
+      </ul>
+      <form
+        className="row gap-sm"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const url = link.url.trim();
+          if (!url) return;
+          const name = link.name.trim() || url.split(/[\\/]/).filter(Boolean).pop() || url;
+          updateCard(card.id, { attachments: [...card.attachments, { id: uid(), name, url, addedAt: Date.now() }] });
+          setLink({ name: "", url: "" });
+        }}
+      >
+        <input
+          className="add-input grow"
+          placeholder="Paste a link (https://…) or a file path — or drop files anywhere on this card"
+          value={link.url}
+          onChange={(e) => setLink({ ...link, url: e.target.value })}
+        />
+        <input
+          className="add-input"
+          style={{ width: 140 }}
+          placeholder="Name (optional)"
+          value={link.name}
+          onChange={(e) => setLink({ ...link, name: e.target.value })}
+        />
+        <button className="btn sm" type="submit">
+          Add
+        </button>
+      </form>
+    </section>
+  );
+}
+
+function ActivitySection({ card }: { card: Card }) {
+  const lists = useStore((s) => s.data.lists);
+  const boards = useStore((s) => s.data.boards);
+  const [all, setAll] = useState(false);
+  const items = [...card.activity].reverse();
+  const shown = all ? items : items.slice(0, 6);
+  const listName = (id?: string | null) => (id && lists[id]?.title) || "a deleted bucket";
+  const boardName = (id?: string | null) => (id && boards[id]?.title) || "a deleted board";
+  const date = (v?: string | null) => (v ? prettyDate(v) : "none");
+
+  const describe = (a: Activity): React.ReactNode => {
+    switch (a.kind) {
+      case "created": return "Created this task";
+      case "moved": return <>Moved from <b>{listName(a.from)}</b> to <b>{listName(a.to)}</b></>;
+      case "board": return <>Moved from board <b>{boardName(a.from)}</b> to <b>{boardName(a.to)}</b></>;
+      case "progress":
+        return a.to === "completed" ? <>Marked <b>complete</b></> : <>Progress set to <b>{progressMeta(a.to as Progress).name}</b></>;
+      case "priority": return <>Priority changed to <b>{priorityMeta(a.to as Priority).name}</b></>;
+      case "due": return a.to ? <>Due date set to <b>{date(a.to)}</b>{a.from ? <> (was {date(a.from)})</> : null}</> : "Removed the due date";
+      case "archived": return "Archived";
+      case "restored": return "Restored from the archive";
+      case "assigned": return <>Assigned to <b>{a.to}</b></>;
+      case "unassigned": return <>Unassigned <b>{a.from}</b></>;
+      case "renamed": return <>Renamed from “{a.from}”</>;
+    }
+  };
+
+  return (
+    <section>
+      <h4>
+        <ActivityIcon size={15} /> Activity
+      </h4>
+      {items.length === 0 ? (
+        <p className="muted small">Changes to this task will be recorded here.</p>
+      ) : (
+        <ul className="activity">
+          {shown.map((a, i) => (
+            <li key={i}>
+              <span className="activity-dot" />
+              <span className="grow">{describe(a)}</span>
+              <span className="muted small" title={format(a.at, "PPpp")}>
+                {timeAgo(a.at)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {items.length > 6 && (
+        <button className="btn ghost sm" onClick={() => setAll(!all)}>
+          {all ? "Show less" : `Show all ${items.length}`}
+        </button>
+      )}
+    </section>
+  );
+}
+
+function TimeTracker({ card }: { card: Card }) {
+  const running = card.time.some((t) => t.end === null);
+  const now = useNow(running ? 1000 : 60_000);
+  const total = trackedMs(card, now);
+  const { startTimer, stopTimer, addTime, deleteTimeEntry, updateCard } = useStore.getState();
+  const [manual, setManual] = useState("");
+  const [showLog, setShowLog] = useState(false);
+  const pct = card.estimate ? Math.min(100, (total / (card.estimate * 60_000)) * 100) : 0;
+
+  return (
+    <div className="time-tracker">
+      <div className="row gap-sm">
+        <span className={`time-total ${running ? "running" : ""}`}>{formatDuration(total, running)}</span>
+        {card.estimate ? <span className="muted small">/ {formatDuration(card.estimate * 60_000)}</span> : null}
+        <span className="grow" />
+        {running ? (
+          <button className="btn sm danger" onClick={stopTimer}>
+            <Pause size={13} /> Stop
+          </button>
+        ) : (
+          <button className="btn sm primary" onClick={() => startTimer(card.id)}>
+            <Play size={13} /> Start
+          </button>
+        )}
+      </div>
+      {card.estimate ? (
+        <div className={`progress-bar ${total > card.estimate * 60_000 ? "over" : ""}`}>
+          <span style={{ width: `${pct}%` }} />
+        </div>
+      ) : null}
+      <form
+        className="row gap-sm"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const m = parseDuration(manual);
+          if (m) addTime(card.id, m);
+          setManual("");
+        }}
+      >
+        <input className="grow" placeholder="Log time: 1h30m, 45m…" value={manual} onChange={(e) => setManual(e.target.value)} />
+      </form>
+      <div className="row gap-sm">
+        <Timer size={13} className="muted" />
+        <span className="small muted">Estimate</span>
+        <input
+          className="grow"
+          placeholder="e.g. 3h"
+          defaultValue={card.estimate ? formatDuration(card.estimate * 60_000).replace(" ", "") : ""}
+          onBlur={(e) => updateCard(card.id, { estimate: parseDuration(e.target.value) })}
+        />
+      </div>
+      {card.time.length > 0 && (
+        <button className="btn ghost sm" onClick={() => setShowLog(!showLog)}>
+          {showLog ? "Hide" : "Show"} log ({card.time.length})
+        </button>
+      )}
+      {showLog && (
+        <ul className="time-log">
+          {[...card.time].reverse().map((t) => (
+            <li key={t.id}>
+              <span className="grow small">{format(t.start, "MMM d, HH:mm")}</span>
+              <span className="small">{t.end ? formatDuration(t.end - t.start) : "running"}</span>
+              <button className="icon-btn tiny" onClick={() => deleteTimeEntry(card.id, t.id)}>
+                <X size={12} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function CoverEditor({ card }: { card: Card }) {
+  const updateCard = useStore((s) => s.updateCard);
+  const images = card.attachments.filter((a) => a.stored && isImage(a.name, a.mime));
+  const set = (patch: Partial<Card>) => updateCard(card.id, patch);
+  return (
+    <div className="cover-editor">
+      <ColorPicker value={card.coverImage ? null : card.cover} onChange={(cover) => set({ cover, coverImage: null })} allowNone />
+      {images.length > 0 && (
+        <div className="cover-thumbs">
+          {images.map((a) => (
+            <button
+              key={a.id}
+              className={card.coverImage === a.id ? "sel" : ""}
+              onClick={() => set({ coverImage: card.coverImage === a.id ? null : a.id })}
+            >
+              <img src={storedSrc(a.url)} alt={a.name} />
+            </button>
+          ))}
+        </div>
+      )}
+      {(card.cover || card.coverImage) && (
+        <div className="seg">
+          {(["strip", "full"] as const).map((sz) => (
+            <button key={sz} className={card.coverSize === sz ? "active" : ""} onClick={() => set({ coverSize: sz })}>
+              {sz === "strip" ? "Strip" : "Full card"}
+            </button>
+          ))}
+        </div>
+      )}
+      {images.length === 0 && <span className="muted small">Attach an image to use it as a cover.</span>}
     </div>
   );
 }

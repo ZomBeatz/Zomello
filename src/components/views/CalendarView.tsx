@@ -18,7 +18,7 @@ import { fromISO, progressMeta, toISO } from "../../utils";
 import { ProgressIcon } from "../ui";
 import { openCardMenu } from "../ContextMenu";
 
-const DRAG_MIME = "text/planwise-card";
+const DRAG_MIME = "text/zomello-card";
 
 export function CalendarView({ board, lists, cards }: { board: Board; lists: List[]; cards: Card[] }) {
   const openCard = useStore((s) => s.openCard);
@@ -26,13 +26,14 @@ export function CalendarView({ board, lists, cards }: { board: Board; lists: Lis
   const createCard = useStore((s) => s.createCard);
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [hoverDay, setHoverDay] = useState<string | null>(null);
+  const weekStartsOn = useStore((s) => s.data.settings.weekStartsOn);
 
   const days = useMemo(() => {
-    const start = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
-    const end = endOfWeek(endOfMonth(month), { weekStartsOn: 1 });
+    const start = startOfWeek(startOfMonth(month), { weekStartsOn });
+    const end = endOfWeek(endOfMonth(month), { weekStartsOn });
     const n = differenceInCalendarDays(end, start) + 1;
     return Array.from({ length: n }, (_, i) => addDays(start, i));
-  }, [month]);
+  }, [month, weekStartsOn]);
 
   const byDay = useMemo(() => {
     const m: Record<string, Card[]> = {};
@@ -87,7 +88,7 @@ export function CalendarView({ board, lists, cards }: { board: Board; lists: Lis
           </button>
         </div>
         <div className="cal-grid head">
-          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+          {days.slice(0, 7).map((d) => format(d, "EEE")).map((d) => (
             <div key={d}>{d}</div>
           ))}
         </div>

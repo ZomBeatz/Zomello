@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { addDays, differenceInCalendarDays } from "date-fns";
 import { loadRaw, saveRaw } from "./storage";
-import type { AppData, Board, BoardUi, Card, Filter, ID, LinkType, List, Route, Settings } from "./types";
+import type { Activity, AppData, Board, BoardDisplay, BoardUi, Card, CardTemplate, Filter, ID, LinkType, List, Route, Settings } from "./types";
 import { byOrder, emptyFilter, fromISO, inverseLink, nextRecurrenceDate, PALETTE, toISO, todayISO, uid } from "./utils";
 
 const DEFAULT_LABELS = [
@@ -13,11 +13,43 @@ const DEFAULT_LABELS = [
   { name: "Idea", color: "#eab308" },
 ];
 
+export const defaultDisplay = (): BoardDisplay => ({
+  columnWidth: "normal",
+  compact: false,
+  labelStyle: "text",
+  badges: {
+    dates: true,
+    checklist: true,
+    assignees: true,
+    priority: true,
+    description: true,
+    links: true,
+    time: true,
+    attachments: true,
+  },
+  aging: false,
+});
+
+export const defaultSettings = (): Settings => ({
+  theme: "system",
+  me: "Me",
+  people: ["Me"],
+  accent: null,
+  density: "normal",
+  weekStartsOn: 1,
+  defaultView: "board",
+  sidebarCollapsed: false,
+  reminders: { enabled: true, digest: true, digestTime: "09:00" },
+});
+
 export const newBoard = (title: string, color: string, order: number): Board => ({
   id: uid(),
   title,
   description: "",
   color,
+  icon: null,
+  background: { type: "none" },
+  display: defaultDisplay(),
   labels: DEFAULT_LABELS.map((l) => ({ id: uid(), ...l })),
   archived: false,
   starred: false,
@@ -53,6 +85,12 @@ const newCard = (boardId: ID, listId: ID, title: string, order: number, extra: P
   links: [],
   recurrence: null,
   cover: null,
+  coverImage: null,
+  coverSize: "strip",
+  activity: [],
+  time: [],
+  estimate: null,
+  reminder: null,
   order,
   archived: false,
   createdAt: Date.now(),
@@ -84,7 +122,7 @@ function sampleData(): AppData {
       dueDate: d(4),
     }),
     newCard(board.id, lists[1].id, "Press Ctrl+K to search everything", 1, { progress: "inProgress", dueDate: d(-1), priority: "urgent" }),
-    newCard(board.id, lists[2].id, "Install Planwise", 0, { progress: "completed", completedAt: Date.now() }),
+    newCard(board.id, lists[2].id, "Install Zomello", 0, { progress: "completed", completedAt: Date.now() }),
   ];
   return {
     version: 1,
@@ -92,18 +130,22 @@ function sampleData(): AppData {
     lists: Object.fromEntries(lists.map((l) => [l.id, l])),
     cards: Object.fromEntries(cards.map((c) => [c.id, c])),
     savedFilters: [],
+    templates: [],
     ui: {},
-    settings: { theme: "system", me: "Me", people: ["Me"] },
+    settings: defaultSettings(),
   };
 }
 
 /** Fill in any fields missing from older / hand-edited / imported files. */
 export function normalize(raw: unknown): AppData {
   const d = (raw ?? {}) as Partial<AppData>;
-  if (typeof d !== "object" || !d.boards || !d.lists || !d.cards) throw new Error("Not a Planwise data file");
-  const base = sampleData();
+  if (typeof d !== "object" || !d.boards || !d.lists || !d.cards) throw new Error("Not a Zomello data file");
   const boards: AppData["boards"] = {};
-  for (const b of Object.values(d.boards)) boards[b.id] = { ...newBoard("", PALETTE[6], 0), ...b, id: b.id };
+  for (const b of Object.values(d.boards)) {
+    const display = { ...defaultDisplay(), ...b.display };
+    display.badges = { ...defaultDisplay().badges, ...b.display?.badges };
+    boards[b.id] = { ...newBoard("", PALETTE[6], 0), ...b, id: b.id, display };
+  }
   const lists: AppData["lists"] = {};
   for (const l of Object.values(d.lists)) lists[l.id] = { ...newList(l.boardId, "", 0), ...l };
   const cards: AppData["cards"] = {};
@@ -116,12 +158,29 @@ export function normalize(raw: unknown): AppData {
     lists,
     cards,
     savedFilters: d.savedFilters ?? [],
+    templates: d.templates ?? [],
     ui,
-    settings: { ...base.settings, ...d.settings },
+    settings: {
+      ...defaultSettings(),
+      ...d.settings,
+      reminders: { ...defaultSettings().reminders, ...d.settings?.reminders },
+    },
   };
 }
 
-export const defaultUi = (): BoardUi => ({ view: "board", groupBy: "bucket", filter: emptyFilter(), showCompleted: [] });
+export const defaultUi = (view: BoardUi["view"] = "board"): BoardUi => ({
+  view,
+  groupBy: "bucket",
+  filter: emptyFilter(),
+  showCompleted: [],
+});
+
+export interface Toast {
+  id: ID;
+  text: string;
+  /** Show an Undo button that reverts the change. */
+  undo?: boolean;
+}
 
 interface State {
   data: AppData;
@@ -131,8 +190,17 @@ interface State {
   route: Route;
   openCardId: ID | null;
   searchOpen: boolean;
+  quickAddOpen: boolean;
+  helpOpen: boolean;
+  customizeBoardId: ID | null;
+  toasts: Toast[];
 
   load(): Promise<void>;
+  undo(): boolean;
+  redo(): boolean;
+  toast(text: string, opts?: { undo?: boolean }): void;
+  dismissToast(id: ID): void;
+  setOverlay(patch: Partial<Pick<State, "quickAddOpen" | "helpOpen" | "customizeBoardId" | "searchOpen">>): void;
   replaceData(data: AppData): void;
   navigate(route: Route): void;
   openCard(id: ID | null): void;
@@ -141,7 +209,8 @@ interface State {
   createBoard(title: string, color?: string): ID;
   updateBoard(id: ID, patch: Partial<Board>): void;
   deleteBoard(id: ID): void;
-  duplicateBoard(id: ID): ID;
+  /** Copy a board; without cards it's a "new board from template". */
+  duplicateBoard(id: ID, opts?: { title?: string; withCards?: boolean }): ID;
 
   createList(boardId: ID, title: string): ID;
   updateList(id: ID, patch: Partial<List>): void;
@@ -163,6 +232,16 @@ interface State {
   spinOffChecklistItem(cardId: ID, itemId: ID, listId: ID): ID;
   /** Toggle a checklist item; linked items toggle the linked card instead. */
   toggleChecklistItem(cardId: ID, itemId: ID): void;
+
+  startTimer(cardId: ID): void;
+  stopTimer(): void;
+  addTime(cardId: ID, minutes: number): void;
+  deleteTimeEntry(cardId: ID, entryId: ID): void;
+
+  saveTemplate(cardId: ID, name: string): void;
+  updateTemplate(id: ID, patch: Partial<CardTemplate>): void;
+  deleteTemplate(id: ID): void;
+  createFromTemplate(templateId: ID, listId: ID, extra?: Partial<Card>): ID;
 
   setBoardUi(boardId: ID, patch: Partial<BoardUi>): void;
   setFilter(boardId: ID, patch: Partial<Filter>): void;
@@ -196,6 +275,8 @@ function nextOccurrence(c: Card): Card | null {
     checklist: c.checklist.map((i) => ({ ...i, id: uid(), done: i.cardId ? i.done : false })),
     comments: [],
     links: [],
+    time: [],
+    activity: [{ at: Date.now(), kind: "created" }],
     order: c.order - 0.5,
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -207,10 +288,30 @@ function nextOccurrence(c: Card): Card | null {
  * recurring card gets completed, spawns its next occurrence (the completed one
  * stops recurring so re-toggling it can't spawn duplicates).
  */
+const MAX_ACTIVITY = 200;
+
+/** Activity entries describing what changed between two versions of a card. */
+function diffActivity(prev: Card, next: Card): Activity[] {
+  const at = Date.now();
+  const out: Activity[] = [];
+  if (prev.boardId !== next.boardId) out.push({ at, kind: "board", from: prev.boardId, to: next.boardId });
+  else if (prev.listId !== next.listId) out.push({ at, kind: "moved", from: prev.listId, to: next.listId });
+  if (prev.progress !== next.progress) out.push({ at, kind: "progress", from: prev.progress, to: next.progress });
+  if (prev.priority !== next.priority) out.push({ at, kind: "priority", from: prev.priority, to: next.priority });
+  if (prev.dueDate !== next.dueDate) out.push({ at, kind: "due", from: prev.dueDate, to: next.dueDate });
+  if (prev.archived !== next.archived) out.push({ at, kind: next.archived ? "archived" : "restored" });
+  if (prev.title !== next.title) out.push({ at, kind: "renamed", from: prev.title, to: next.title });
+  for (const a of next.assignees) if (!prev.assignees.includes(a)) out.push({ at, kind: "assigned", to: a });
+  for (const a of prev.assignees) if (!next.assignees.includes(a)) out.push({ at, kind: "unassigned", from: a });
+  return out;
+}
+
 function patchCard(cards: Record<ID, Card>, id: ID, patch: Partial<Card>): Record<ID, Card> {
   const prev = cards[id];
   if (!prev) return cards;
   let next: Card = { ...prev, ...progressPatch(prev, patch), updatedAt: Date.now() };
+  const changes = diffActivity(prev, next);
+  if (changes.length) next.activity = [...next.activity, ...changes].slice(-MAX_ACTIVITY);
   const out = { ...cards };
   if (next.progress === "completed" && prev.progress !== "completed" && next.recurrence) {
     const spawn = nextOccurrence(next);
@@ -247,9 +348,33 @@ function pruneRefs(cards: Record<ID, Card>): Record<ID, Card> {
   return out;
 }
 
+// ---- Undo / redo: snapshots of `data` (view state like filters is not undoable) ----
+const HISTORY_LIMIT = 150;
+/** Changes closer together than this are merged into one undo step (e.g. typing). */
+const COALESCE_MS = 700;
+let past: AppData[] = [];
+let future: AppData[] = [];
+let lastChange = 0;
+const undoable = (a: AppData, b: AppData) =>
+  a.boards !== b.boards || a.lists !== b.lists || a.cards !== b.cards ||
+  a.savedFilters !== b.savedFilters || a.templates !== b.templates || a.settings !== b.settings;
+
 export const useStore = create<State>((set, get) => {
-  /** Apply an immutable update to `data`. */
-  const mut = (fn: (d: AppData) => AppData) => set((s) => ({ data: fn(s.data) }));
+  /** Apply an immutable update to `data`, recording undo history. */
+  const mut = (fn: (d: AppData) => AppData) =>
+    set((s) => {
+      const next = fn(s.data);
+      if (s.loaded && next !== s.data && undoable(next, s.data)) {
+        const now = Date.now();
+        if (now - lastChange > COALESCE_MS) {
+          past.push(s.data);
+          if (past.length > HISTORY_LIMIT) past.shift();
+        }
+        lastChange = now;
+        future = [];
+      }
+      return { data: next };
+    });
 
   return {
     data: sampleData(),
@@ -259,6 +384,38 @@ export const useStore = create<State>((set, get) => {
     route: { page: "home" },
     openCardId: null,
     searchOpen: false,
+    quickAddOpen: false,
+    helpOpen: false,
+    customizeBoardId: null,
+    toasts: [],
+
+    undo() {
+      const prev = past.pop();
+      if (!prev) return false;
+      future.push(get().data);
+      lastChange = 0;
+      set((s) => ({ data: { ...prev, ui: s.data.ui } }));
+      return true;
+    },
+    redo() {
+      const next = future.pop();
+      if (!next) return false;
+      past.push(get().data);
+      lastChange = 0;
+      set((s) => ({ data: { ...next, ui: s.data.ui } }));
+      return true;
+    },
+    toast(text, opts) {
+      const t: Toast = { id: uid(), text, undo: opts?.undo };
+      set((s) => ({ toasts: [...s.toasts.slice(-3), t] }));
+      setTimeout(() => get().dismissToast(t.id), 6000);
+    },
+    dismissToast(id) {
+      set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
+    },
+    setOverlay(patch) {
+      set(patch);
+    },
 
     async load() {
       try {
@@ -273,6 +430,8 @@ export const useStore = create<State>((set, get) => {
     },
 
     replaceData(data) {
+      past.push(get().data);
+      future = [];
       set({ data, route: { page: "home" }, openCardId: null });
     },
 
@@ -294,6 +453,7 @@ export const useStore = create<State>((set, get) => {
         ...d,
         boards: { ...d.boards, [board.id]: board },
         lists: { ...d.lists, ...Object.fromEntries(lists.map((l) => [l.id, l])) },
+        ui: { ...d.ui, [board.id]: defaultUi(d.settings.defaultView) },
       }));
       return board.id;
     },
@@ -316,7 +476,7 @@ export const useStore = create<State>((set, get) => {
       const r = get().route;
       if (r.page === "board" && r.boardId === id) set({ route: { page: "home" } });
     },
-    duplicateBoard(id) {
+    duplicateBoard(id, opts) {
       const d = get().data;
       const src = d.boards[id];
       const order = Math.max(...Object.values(d.boards).map((b) => b.order)) + 1;
@@ -324,22 +484,23 @@ export const useStore = create<State>((set, get) => {
       const board: Board = {
         ...src,
         id: uid(),
-        title: `${src.title} (copy)`,
+        title: opts?.title ?? `${src.title} (copy)`,
         order,
         starred: false,
+        archived: false,
         createdAt: Date.now(),
         labels: src.labels.map((l) => ({ ...l, id: labelMap.get(l.id)! })),
       };
       const listMap = new Map<ID, ID>();
       const lists = Object.values(d.lists)
-        .filter((l) => l.boardId === id)
+        .filter((l) => l.boardId === id && !l.archived)
         .map((l) => {
           const nl = { ...l, id: uid(), boardId: board.id };
           listMap.set(l.id, nl.id);
           return nl;
         });
       const cards = Object.values(d.cards)
-        .filter((c) => c.boardId === id && listMap.has(c.listId))
+        .filter((c) => opts?.withCards !== false && c.boardId === id && listMap.has(c.listId))
         .map((c) => ({
           ...structuredClone(c),
           id: uid(),
@@ -347,6 +508,7 @@ export const useStore = create<State>((set, get) => {
           listId: listMap.get(c.listId)!,
           labelIds: c.labelIds.map((l) => labelMap.get(l)).filter((x): x is ID => !!x),
           links: [],
+          time: [],
         }));
       mut((d) => ({
         ...d,
@@ -384,7 +546,10 @@ export const useStore = create<State>((set, get) => {
       const d = get().data;
       const list = d.lists[listId];
       const siblings = Object.values(d.cards).filter((c) => c.listId === listId);
-      const card = newCard(list.boardId, listId, title, Math.max(-1, ...siblings.map((c) => c.order)) + 1, extra);
+      const card = newCard(list.boardId, listId, title, Math.max(-1, ...siblings.map((c) => c.order)) + 1, {
+        activity: [{ at: Date.now(), kind: "created" }],
+        ...extra,
+      });
       if (card.progress === "completed") card.completedAt = Date.now();
       mut((d) => ({ ...d, cards: { ...d.cards, [card.id]: card } }));
       return card.id;
@@ -410,6 +575,8 @@ export const useStore = create<State>((set, get) => {
         updatedAt: Date.now(),
         checklist: src.checklist.map((i) => ({ ...i, id: uid() })),
         links: [],
+        time: [],
+        activity: [{ at: Date.now(), kind: "created" }],
       };
       mut((d) => ({ ...d, cards: { ...d.cards, [card.id]: card } }));
       return card.id;
@@ -425,7 +592,7 @@ export const useStore = create<State>((set, get) => {
           .map((name) => dstLabels.find((l) => l.name === name)?.id)
           .filter((x): x is ID => !!x);
         const order = Math.max(-1, ...Object.values(d.cards).filter((x) => x.listId === listId).map((x) => x.order)) + 1;
-        return { ...d, cards: { ...d.cards, [id]: { ...c, boardId, listId, labelIds, order, updatedAt: Date.now() } } };
+        return { ...d, cards: patchCard(d.cards, id, { boardId, listId, labelIds, order }) };
       });
     },
     applyCardOrder(ids, movedId, patch) {
@@ -488,8 +655,101 @@ export const useStore = create<State>((set, get) => {
         });
     },
 
+    startTimer(cardId) {
+      const now = Date.now();
+      mut((d) => {
+        const cards = { ...d.cards };
+        // Only one timer runs at a time.
+        for (const c of Object.values(cards))
+          if (c.time.some((t) => t.end === null))
+            cards[c.id] = { ...c, time: c.time.map((t) => (t.end === null ? { ...t, end: now } : t)) };
+        const c = cards[cardId];
+        const starts = c.progress === "notStarted";
+        cards[cardId] = {
+          ...c,
+          time: [...c.time, { id: uid(), start: now, end: null }],
+          progress: starts ? "inProgress" : c.progress,
+          activity: starts ? [...c.activity, { at: now, kind: "progress", from: c.progress, to: "inProgress" }] : c.activity,
+        };
+        return { ...d, cards };
+      });
+    },
+    stopTimer() {
+      const now = Date.now();
+      mut((d) => {
+        const cards = { ...d.cards };
+        for (const c of Object.values(cards))
+          if (c.time.some((t) => t.end === null))
+            cards[c.id] = { ...c, time: c.time.map((t) => (t.end === null ? { ...t, end: now } : t)) };
+        return { ...d, cards };
+      });
+    },
+    addTime(cardId, minutes) {
+      const end = Date.now();
+      const c = get().data.cards[cardId];
+      get().updateCard(cardId, { time: [...c.time, { id: uid(), start: end - minutes * 60_000, end }] });
+    },
+    deleteTimeEntry(cardId, entryId) {
+      const c = get().data.cards[cardId];
+      get().updateCard(cardId, { time: c.time.filter((t) => t.id !== entryId) });
+    },
+
+    saveTemplate(cardId, name) {
+      const d = get().data;
+      const c = d.cards[cardId];
+      const labels = d.boards[c.boardId].labels.filter((l) => c.labelIds.includes(l.id));
+      const t: CardTemplate = {
+        id: uid(),
+        name,
+        createdAt: Date.now(),
+        title: c.title,
+        description: c.description,
+        checklist: c.checklist.map((i) => i.text),
+        labels: labels.map(({ name, color }) => ({ name, color })),
+        priority: c.priority,
+        assignees: c.assignees,
+        recurrence: c.recurrence,
+        cover: c.cover,
+        estimate: c.estimate,
+      };
+      mut((d) => ({ ...d, templates: [...d.templates, t] }));
+    },
+    updateTemplate(id, patch) {
+      mut((d) => ({ ...d, templates: d.templates.map((t) => (t.id === id ? { ...t, ...patch } : t)) }));
+    },
+    deleteTemplate(id) {
+      mut((d) => ({ ...d, templates: d.templates.filter((t) => t.id !== id) }));
+    },
+    createFromTemplate(templateId, listId, extra) {
+      const d = get().data;
+      const t = d.templates.find((x) => x.id === templateId)!;
+      const board = d.boards[d.lists[listId].boardId];
+      // Match labels by name; create any the board doesn't have yet.
+      const labels = [...board.labels];
+      const labelIds = t.labels.map((tl) => {
+        const found = labels.find((l) => l.name.toLowerCase() === tl.name.toLowerCase());
+        if (found) return found.id;
+        const nl = { id: uid(), ...tl };
+        labels.push(nl);
+        return nl.id;
+      });
+      if (labels.length !== board.labels.length) get().updateBoard(board.id, { labels });
+      return get().createCard(listId, t.title, {
+        description: t.description,
+        checklist: t.checklist.map((text) => ({ id: uid(), text, done: false })),
+        labelIds,
+        priority: t.priority,
+        assignees: t.assignees,
+        recurrence: t.recurrence,
+        cover: t.cover,
+        estimate: t.estimate,
+        ...(t.recurrence ? { dueDate: todayISO() } : {}),
+        ...extra,
+      });
+    },
+
     setBoardUi(boardId, patch) {
-      mut((d) => ({ ...d, ui: { ...d.ui, [boardId]: { ...(d.ui[boardId] ?? defaultUi()), ...patch } } }));
+      mut((d) => ({ ...d, ui: { ...d.ui, [boardId]: { ...(d.ui[boardId] ?? defaultUi(d.settings.defaultView)), ...patch } } }));
     },
     setFilter(boardId, patch) {
       const cur = get().data.ui[boardId] ?? defaultUi();
@@ -543,4 +803,17 @@ document.addEventListener("visibilitychange", () => {
 });
 
 // ---- Selectors ----
-export const useBoardUi = (boardId: ID) => useStore((s) => s.data.ui[boardId]) ?? defaultUi();
+export const useBoardUi = (boardId: ID) => {
+  const ui = useStore((s) => s.data.ui[boardId]);
+  const view = useStore((s) => s.data.settings.defaultView);
+  return ui ?? defaultUi(view);
+};
+
+/** The card whose timer is running, if any. */
+export const runningTimer = (cards: Record<ID, Card>) => {
+  for (const c of Object.values(cards)) {
+    const t = c.time.find((e) => e.end === null);
+    if (t) return { card: c, entry: t };
+  }
+  return null;
+};

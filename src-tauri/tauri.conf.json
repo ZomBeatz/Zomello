@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Planwise",
+  "productName": "Zomello",
   "version": "0.1.0",
-  "identifier": "com.zombeatz.planwise",
+  "identifier": "com.zombeatz.zomello",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -10,10 +10,9 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "enableGTKAppId": true,
     "windows": [
       {
-        "title": "Planwise",
+        "title": "Zomello",
         "width": 1400,
         "height": 900,
         "minWidth": 900,
@@ -22,14 +21,24 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$APPDATA/attachments/**"
+        ]
+      }
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["deb", "rpm", "appimage"],
+    "targets": [
+      "deb",
+      "rpm",
+      "appimage"
+    ],
     "category": "Productivity",
-    "shortDescription": "Local-first kanban & planner",
+    "shortDescription": "Zomello: local-first kanban & planner",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -1,5 +1,5 @@
 import type { Card, List } from "../../types";
-import { isLate, PRIORITIES, PROGRESS } from "../../utils";
+import { formatDuration, isLate, PRIORITIES, PROGRESS, trackedMs } from "../../utils";
 
 /** Stacked segments: not started / in progress / completed, with late split out. */
 const SEGMENTS = [
@@ -88,6 +88,8 @@ export function ChartsView({ lists, cards, people }: { lists: List[]; cards: Car
         </div>
       </section>
 
+      <TimePanel lists={lists} cards={cards} />
+
       <div className="panel-grid">
         <Panel title="By bucket" rows={lists.map((l) => ({ label: l.title, cards: cards.filter((c) => c.listId === l.id) }))} />
         <Panel title="By priority" rows={PRIORITIES.map((p) => ({ label: p.name, cards: cards.filter((c) => c.priority === p.id) }))} />
@@ -100,5 +102,48 @@ export function ChartsView({ lists, cards, people }: { lists: List[]; cards: Car
         />
       </div>
     </div>
+  );
+}
+
+function TimePanel({ lists, cards }: { lists: List[]; cards: Card[] }) {
+  const total = cards.reduce((s, c) => s + trackedMs(c), 0);
+  const estimated = cards.reduce((s, c) => s + (c.estimate ?? 0) * 60_000, 0);
+  if (!total && !estimated) return null;
+  const top = [...cards].filter((c) => trackedMs(c) > 0).sort((a, b) => trackedMs(b) - trackedMs(a)).slice(0, 8);
+  const byList = lists
+    .map((l) => ({ label: l.title, ms: cards.filter((c) => c.listId === l.id).reduce((s, c) => s + trackedMs(c), 0) }))
+    .filter((r) => r.ms > 0);
+  const max = Math.max(1, ...top.map(trackedMs), ...byList.map((r) => r.ms));
+  const Bar = ({ label, ms, est }: { label: string; ms: number; est?: number | null }) => (
+    <div className="chart-row">
+      <span className="chart-label" title={label}>{label}</span>
+      <div className="chart-track">
+        <div className="chart-stack" style={{ width: `${(ms / max) * 100}%` }}>
+          <span
+            className="chart-seg"
+            style={{ flexGrow: 1, background: est && ms > est * 60_000 ? "#ef4444" : "var(--accent)" }}
+            title={`${label}: ${formatDuration(ms)}${est ? ` of ${formatDuration(est * 60_000)} estimated` : ""}`}
+          />
+        </div>
+      </div>
+      <span className="chart-value wide">{formatDuration(ms)}</span>
+    </div>
+  );
+  return (
+    <section className="panel">
+      <h3>
+        Time tracked <span className="muted small">{formatDuration(total)} total{estimated ? ` · ${formatDuration(estimated)} estimated` : ""}</span>
+      </h3>
+      <div className="panel-grid">
+        <div>
+          <h4>By bucket</h4>
+          {byList.map((r) => <Bar key={r.label} label={r.label} ms={r.ms} />)}
+        </div>
+        <div>
+          <h4>Top tasks</h4>
+          {top.map((c) => <Bar key={c.id} label={c.title} ms={trackedMs(c)} est={c.estimate} />)}
+        </div>
+      </div>
+    </section>
   );
 }

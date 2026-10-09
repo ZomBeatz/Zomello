@@ -288,3 +288,59 @@ export const linkName = (t: LinkType) => LINK_TYPES.find((l) => l.id === t)!.nam
 /** True when the card is blocked by at least one card that isn't completed yet. */
 export const isBlocked = (c: Card, cards: Record<string, Card>) =>
   c.links.some((l) => l.type === "blockedBy" && cards[l.cardId] && cards[l.cardId].progress !== "completed");
+
+// ---- Time tracking ----
+export const trackedMs = (c: Card, now = Date.now()) =>
+  c.time.reduce((sum, t) => sum + ((t.end ?? now) - t.start), 0);
+
+export function formatDuration(ms: number, withSeconds = false): string {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (withSeconds) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  if (h === 0) return `${m}m`;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+/** Parses "1h30m", "1.5h", "45m", "90" (minutes), "1:30". Returns minutes or null. */
+export function parseDuration(input: string): number | null {
+  const s = input.trim().toLowerCase().replace(/\s+/g, "");
+  if (!s) return null;
+  const colon = s.match(/^(\d+):(\d{1,2})$/);
+  if (colon) return +colon[1] * 60 + +colon[2];
+  if (/^\d+(\.\d+)?$/.test(s)) return Math.round(+s);
+  const m = s.match(/^(?:(\d+(?:\.\d+)?)h)?(?:(\d+)m)?$/);
+  if (!m || (!m[1] && !m[2])) return null;
+  return Math.round((m[1] ? +m[1] * 60 : 0) + (m[2] ? +m[2] : 0));
+}
+
+// ---- Card aging ----
+/** 0 = fresh, 1 = a week untouched, 2 = two weeks, 3 = four weeks+. */
+export function agingLevel(c: Card): 0 | 1 | 2 | 3 {
+  if (c.progress === "completed") return 0;
+  const days = (Date.now() - c.updatedAt) / 86_400_000;
+  return days >= 28 ? 3 : days >= 14 ? 2 : days >= 7 ? 1 : 0;
+}
+
+// ---- Board customization presets ----
+export const GRADIENTS = [
+  "linear-gradient(135deg, #2580c3 0%, #4fb0ec 100%)",
+  "linear-gradient(135deg, #ec6a3f 0%, #f5a35c 100%)",
+  "linear-gradient(135deg, #1f2937 0%, #4b5563 100%)",
+  "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
+  "linear-gradient(135deg, #0f766e 0%, #22c55e 100%)",
+  "linear-gradient(135deg, #be185d 0%, #f97316 100%)",
+  "linear-gradient(135deg, #0ea5e9 0%, #22d3ee 50%, #a7f3d0 100%)",
+  "linear-gradient(160deg, #0b1020 0%, #1e3a8a 60%, #2580c3 100%)",
+];
+export const BOARD_EMOJIS = [
+  "📋", "🚀", "💼", "🏠", "🎧", "🎬", "🎵", "💻", "🛠️", "📈",
+  "🎯", "🧪", "📚", "✈️", "💡", "🔥", "🌱", "🎨", "🖥️", "📦",
+];
+
+export const fileSize = (n?: number) =>
+  n == null ? "" : n < 1024 ? `${n} B` : n < 1024 ** 2 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1024 ** 2).toFixed(1)} MB`;
+
+export const isImage = (name: string, mime?: string) =>
+  (mime ?? "").startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i.test(name);

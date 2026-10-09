@@ -9,6 +9,7 @@ import {
   GanttChart,
   Kanban,
   MoreHorizontal,
+  LayoutTemplate,
   Palette,
   Plus,
   Rows3,
@@ -27,6 +28,7 @@ import { ListView } from "./views/ListView";
 import { CalendarView } from "./views/CalendarView";
 import { TimelineView } from "./views/TimelineView";
 import { ChartsView } from "./views/ChartsView";
+import { boardBackground } from "./BoardCustomize";
 
 const VIEWS: { id: ViewMode; name: string; icon: React.ReactNode }[] = [
   { id: "board", name: "Board", icon: <Kanban size={15} /> },
@@ -65,7 +67,10 @@ export function BoardPage({ boardId }: { boardId: ID }) {
   if (!board) return null;
 
   return (
-    <div className="board-page" style={{ "--board": board.color } as React.CSSProperties}>
+    <div
+      className={`board-page ${board.background.type !== "none" ? "has-bg" : ""} cols-${board.display.columnWidth}`}
+      style={{ "--board": board.color, "--board-bg": boardBackground(board) } as React.CSSProperties}
+    >
       <BoardHeader board={board} view={ui.view} />
       <Toolbar board={board} ui={ui} people={people} count={cards.length} />
       <div className="board-content">
@@ -83,7 +88,7 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
   const { updateBoard, deleteBoard, duplicateBoard, navigate, setBoardUi } = useStore.getState();
   return (
     <header className="board-header">
-      <span className="board-swatch" style={{ background: board.color }} />
+      {board.icon ? <span className="board-icon">{board.icon}</span> : <span className="board-swatch" style={{ background: board.color }} />}
       <InlineEdit className="board-title" value={board.title} onSave={(title) => updateBoard(board.id, { title })} />
       <button
         className={`icon-btn ${board.starred ? "starred" : ""}`}
@@ -102,6 +107,9 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
       </nav>
       <div className="grow" />
       <LabelManager board={board} />
+      <button className="btn ghost sm" onClick={() => useStore.getState().setOverlay({ customizeBoardId: board.id })}>
+        <Palette size={14} /> Customize
+      </button>
       <Popover
         align="right"
         trigger={(_, toggle) => (
@@ -120,6 +128,18 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
             </div>
             <MenuItem icon={<Copy size={14} />} onClick={() => (close(), navigate({ page: "board", boardId: duplicateBoard(board.id) }))}>
               Duplicate board
+            </MenuItem>
+            <MenuItem
+              icon={<LayoutTemplate size={14} />}
+              onClick={() => {
+                close();
+                navigate({
+                  page: "board",
+                  boardId: duplicateBoard(board.id, { title: `New ${board.title}`, withCards: false }),
+                });
+              }}
+            >
+              New board with this layout
             </MenuItem>
             <MenuItem
               icon={<Archive size={14} />}

@@ -1,14 +1,23 @@
 import { useEffect } from "react";
+import { X } from "lucide-react";
 import { useStore } from "./store";
 import { Sidebar } from "./components/Sidebar";
 import { BoardPage } from "./components/BoardPage";
 import { HomePage } from "./components/HomePage";
+import { MyTasksPage } from "./components/MyTasksPage";
 import { ArchivePage } from "./components/ArchivePage";
-import { SettingsPage } from "./components/SettingsPage";
+import { ShortcutList, SettingsPage } from "./components/SettingsPage";
 import { CardModal } from "./components/CardModal";
 import { SearchPalette } from "./components/SearchPalette";
-import { ConfirmHost } from "./components/ui";
+import { QuickAdd } from "./components/QuickAdd";
+import { BoardCustomize } from "./components/BoardCustomize";
+import { ConfirmHost, Modal } from "./components/ui";
 import { ContextMenuHost } from "./components/ContextMenu";
+import { LogoMark } from "./components/Logo";
+import { handleShortcut } from "./shortcuts";
+import { startReminders } from "./reminders";
+
+const DENSITY = { compact: "13px", normal: "14px", comfortable: "15.5px" };
 
 export default function App() {
   const loaded = useStore((s) => s.loaded);
@@ -17,7 +26,10 @@ export default function App() {
   const route = useStore((s) => s.route);
   const openCardId = useStore((s) => s.openCardId);
   const searchOpen = useStore((s) => s.searchOpen);
-  const theme = useStore((s) => s.data.settings.theme);
+  const quickAddOpen = useStore((s) => s.quickAddOpen);
+  const helpOpen = useStore((s) => s.helpOpen);
+  const customizeBoard = useStore((s) => (s.customizeBoardId ? s.data.boards[s.customizeBoardId] : undefined));
+  const settings = useStore((s) => s.data.settings);
   const boardExists = useStore((s) => route.page !== "board" || !!s.data.boards[route.boardId]);
 
   useEffect(() => {
@@ -25,26 +37,29 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (theme === "system") delete document.documentElement.dataset.theme;
-    else document.documentElement.dataset.theme = theme;
-  }, [theme]);
+    if (loaded) return startReminders();
+  }, [loaded]);
+
+  // Theme, accent color and density live on <html> so every component picks them up.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (settings.theme === "system") delete root.dataset.theme;
+    else root.dataset.theme = settings.theme;
+    if (settings.accent) root.style.setProperty("--accent", settings.accent);
+    else root.style.removeProperty("--accent");
+    root.style.fontSize = DENSITY[settings.density];
+  }, [settings.theme, settings.accent, settings.density]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        useStore.getState().setSearchOpen(!useStore.getState().searchOpen);
-      }
-    };
     // Hide the webview's own menu (Reload / Inspect…) except where text can be edited.
     const onCtx = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
       if (!t.closest("input, textarea, [contenteditable]")) e.preventDefault();
     };
-    window.addEventListener("keydown", onKey);
+    window.addEventListener("keydown", handleShortcut);
     window.addEventListener("contextmenu", onCtx);
     return () => {
-      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keydown", handleShortcut);
       window.removeEventListener("contextmenu", onCtx);
     };
   }, []);
@@ -53,11 +68,16 @@ export default function App() {
     return (
       <div className="fatal">
         <h2>Couldn't read your data file</h2>
-        <p>Nothing was overwritten. Fix or move the file, then restart Planwise.</p>
+        <p>Nothing was overwritten. Fix or move the file, then restart Zomello.</p>
         <pre>{loadError}</pre>
       </div>
     );
-  if (!loaded) return <div className="fatal muted">Loading…</div>;
+  if (!loaded)
+    return (
+      <div className="splash">
+        <LogoMark size={72} />
+      </div>
+    );
 
   return (
     <div className="app">
@@ -65,6 +85,7 @@ export default function App() {
       <main className="main">
         {saveError && <div className="save-error">Saving failed: {saveError}</div>}
         {route.page === "home" && <HomePage />}
+        {route.page === "mytasks" && <MyTasksPage />}
         {route.page === "board" && boardExists && <BoardPage key={route.boardId} boardId={route.boardId} />}
         {route.page === "board" && !boardExists && <HomePage />}
         {route.page === "archive" && <ArchivePage />}
@@ -72,8 +93,53 @@ export default function App() {
       </main>
       {openCardId && <CardModal cardId={openCardId} />}
       {searchOpen && <SearchPalette />}
+      {quickAddOpen && <QuickAdd />}
+      {customizeBoard && <BoardCustomize board={customizeBoard} />}
+      {helpOpen && (
+        <Modal onClose={() => useStore.getState().setOverlay({ helpOpen: false })} width={760} className="help">
+          <header className="customize-head">
+            <h2>Keyboard shortcuts</h2>
+            <button className="icon-btn" onClick={() => useStore.getState().setOverlay({ helpOpen: false })}>
+              <X size={18} />
+            </button>
+          </header>
+          <div className="customize-body">
+            <ShortcutList />
+          </div>
+        </Modal>
+      )}
+      <Toasts />
       <ContextMenuHost />
       <ConfirmHost />
+    </div>
+  );
+}
+
+function Toasts() {
+  const toasts = useStore((s) => s.toasts);
+  const { dismissToast, undo } = useStore.getState();
+  if (!toasts.length) return null;
+  return (
+    <div className="toasts">
+      {toasts.map((t) => (
+        <div key={t.id} className="toast">
+          <span className="grow">{t.text}</span>
+          {t.undo && (
+            <button
+              className="btn sm"
+              onClick={() => {
+                undo();
+                dismissToast(t.id);
+              }}
+            >
+              Undo
+            </button>
+          )}
+          <button className="icon-btn tiny" onClick={() => dismissToast(t.id)}>
+            <X size={13} />
+          </button>
+        </div>
+      ))}
     </div>
   );
 }
