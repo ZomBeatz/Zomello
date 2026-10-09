@@ -28,6 +28,8 @@ import {
   Archive,
   ChevronDown,
   ChevronRight,
+  ArrowDownUp,
+  Check,
   ChevronsLeftRight,
   Gauge,
   LayoutTemplate,
@@ -38,7 +40,7 @@ import {
 } from "lucide-react";
 import type { Board, Card, GroupBy, ID, List } from "../../types";
 import { useStore } from "../../store";
-import { buildGroups, type Group } from "../../utils";
+import { buildGroups, SORT_MODES, sortCards, type Group } from "../../utils";
 import { CardTile } from "../CardTile";
 import { ask, InlineEdit, MenuItem, Popover } from "../ui";
 
@@ -61,7 +63,13 @@ export function KanbanView({
   const applyCardOrder = useStore((s) => s.applyCardOrder);
   const reorderLists = useStore((s) => s.reorderLists);
 
-  const groups = useMemo(() => buildGroups(groupBy, board, lists, cards, people), [groupBy, board, lists, cards, people]);
+  const groups = useMemo(
+    () =>
+      buildGroups(groupBy, board, lists, cards, people).map((g) =>
+        g.list && g.list.sort !== "custom" ? { ...g, cards: sortCards(g.cards, g.list.sort, g.list.sortDesc) } : g,
+      ),
+    [groupBy, board, lists, cards, people],
+  );
   const listNames = useMemo(() => Object.fromEntries(lists.map((l) => [l.id, l.title])), [lists]);
 
   // Like Planner/Teams: completed cards are tucked into a collapsible section under each column
@@ -153,9 +161,21 @@ export function KanbanView({
     const overIdx = arr.indexOf(String(over.id));
     if (oldIdx >= 0 && overIdx >= 0 && oldIdx !== overIdx) arr = arrayMove(arr, oldIdx, overIdx);
     const card = allCards[id];
-    const startGroup = groups.find((g) => g.cards.some((c) => c.id === id));
-    const patch = startGroup?.id === to ? {} : group.patch(card);
-    applyCardOrder(arr, id, patch);
+    const sameGroup = groups.find((g) => g.cards.some((c) => c.id === id))?.id === to;
+    const st = useStore.getState();
+    if (groupBy !== "bucket") {
+      // Other groupings only change the field they group by; bucket order is left alone.
+      if (!sameGroup) st.updateCard(id, group.patch(card));
+      return;
+    }
+    const list = group.list!;
+    if (list.sort !== "custom") {
+      // A sorted bucket decides positions itself, so a drop never rewrites anyone's custom order.
+      if (sameGroup) st.toast(`“${list.title}” is sorted by ${SORT_MODES.find((m) => m.id === list.sort)!.name} — switch it to Custom order to arrange cards by hand.`, { key: "sort-hint" });
+      else st.moveCardToList(id, list.id);
+      return;
+    }
+    applyCardOrder(arr, id, sameGroup ? {} : group.patch(card));
   };
 
   const activeCard = activeId && !String(activeId).startsWith(COL_PREFIX) ? allCards[String(activeId)] : null;
@@ -270,10 +290,34 @@ function Column({
         ) : (
           <span className="column-title">{group.title}</span>
         )}
+        {list && list.sort !== "custom" && (
+          <SortMenu list={list} lists={lists}>
+            {(t) => (
+              <button
+                className="sort-chip"
+                onClick={t}
+                onPointerDown={(e) => e.stopPropagation()}
+                title={`Sorted by ${SORT_MODES.find((m) => m.id === list.sort)!.name}${list.sortDesc ? " (reversed)" : ""}`}
+              >
+                <ArrowDownUp size={12} />
+                {SORT_MODES.find((m) => m.id === list.sort)!.name.split(" ")[0]}
+              </button>
+            )}
+          </SortMenu>
+        )}
         <span className={`count ${over ? "danger" : ""}`}>
           {ids.length}
           {list?.wipLimit != null && ` / ${list.wipLimit}`}
         </span>
+        {list && list.sort === "custom" && (
+          <SortMenu list={list} lists={lists}>
+            {(t) => (
+              <button className="icon-btn tiny sort-btn" title="Sort cards" onClick={t} onPointerDown={(e) => e.stopPropagation()}>
+                <ArrowDownUp size={14} />
+              </button>
+            )}
+          </SortMenu>
+        )}
         {list && (
           <Popover
             align="right"
@@ -353,6 +397,55 @@ function Column({
 
 /** Stable empty value: a fresh [] in a selector re-renders forever. */
 const NONE_EXPANDED: string[] = [];
+
+function SortMenu({ list, lists, children }: { list: List; lists: List[]; children: (toggle: () => void) => React.ReactNode }) {
+  const updateList = useStore((s) => s.updateList);
+  return (
+    <Popover align="right" trigger={(_, t) => children(t)}>
+      {(close) => (
+        <div className="menu sort-menu">
+          <span className="menu-heading">Sort cards in “{list.title}”</span>
+          {SORT_MODES.map((m) => (
+            <button
+              key={m.id}
+              className="menu-item"
+              onClick={() => {
+                updateList(list.id, { sort: m.id, sortDesc: false });
+                close();
+              }}
+            >
+              <span className="ctx-icon">{list.sort === m.id && <Check size={14} />}</span>
+              <span className="grow">
+                {m.name}
+                <small className="muted"> · {m.hint}</small>
+              </span>
+            </button>
+          ))}
+          {list.sort !== "custom" && (
+            <label className="menu-item">
+              <input type="checkbox" checked={list.sortDesc} onChange={(e) => updateList(list.id, { sortDesc: e.target.checked })} />
+              <span>Reverse order</span>
+            </label>
+          )}
+          <div className="ctx-sep" />
+          <button
+            className="menu-item"
+            onClick={() => {
+              for (const l of lists) if (l.id !== list.id) updateList(l.id, { sort: list.sort, sortDesc: list.sortDesc });
+              close();
+            }}
+          >
+            <span className="ctx-icon" />
+            <span>Use this sort for every bucket on the board</span>
+          </button>
+          <p className="muted small sort-note">
+            Sorting only changes how cards are shown. Your custom order is kept and comes back when you pick Custom order.
+          </p>
+        </div>
+      )}
+    </Popover>
+  );
+}
 
 function CompletedSection({
   boardId,

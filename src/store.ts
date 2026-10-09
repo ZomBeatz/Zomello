@@ -1,7 +1,10 @@
 import { create } from "zustand";
 import { addDays, differenceInCalendarDays } from "date-fns";
 import { loadRaw, saveRaw } from "./storage";
-import type { Activity, AppData, Board, BoardDisplay, BoardUi, Card, CardTemplate, Filter, ID, LinkType, List, Route, Settings } from "./types";
+import type {
+  Activity, AppData, BadgeMode, Board, BoardDisplay, BoardUi, Card, CardTemplate, Filter, FocusTimer, ID, LinkType, List, Route, Settings,
+} from "./types";
+import type { ImportedBoard } from "./importers";
 import { byOrder, emptyFilter, fromISO, inverseLink, nextRecurrenceDate, PALETTE, toISO, todayISO, uid } from "./utils";
 
 const DEFAULT_LABELS = [
@@ -18,14 +21,15 @@ export const defaultDisplay = (): BoardDisplay => ({
   compact: false,
   labelStyle: "text",
   badges: {
-    dates: true,
-    checklist: true,
-    assignees: true,
-    priority: true,
-    description: true,
-    links: true,
-    time: true,
-    attachments: true,
+    dates: "icon",
+    checklist: "icon",
+    assignees: "icon",
+    priority: "icon",
+    description: "icon",
+    notes: "icon",
+    links: "icon",
+    time: "icon",
+    attachments: "icon",
   },
   aging: false,
 });
@@ -41,6 +45,8 @@ export const defaultSettings = (): Settings => ({
   sidebarCollapsed: false,
   reminders: { enabled: true, digest: true, digestTime: "09:00" },
   zoom: 1,
+  focusMinutes: 25,
+  focusSound: true,
   a11y: {
     reduceMotion: false,
     highContrast: false,
@@ -59,6 +65,8 @@ export const newBoard = (title: string, color: string, order: number): Board => 
   icon: null,
   background: { type: "none" },
   display: defaultDisplay(),
+  fields: [],
+  hiddenSections: [],
   labels: DEFAULT_LABELS.map((l) => ({ id: uid(), ...l })),
   archived: false,
   starred: false,
@@ -74,6 +82,8 @@ const newList = (boardId: ID, title: string, order: number): List => ({
   archived: false,
   wipLimit: null,
   collapsed: false,
+  sort: "custom",
+  sortDesc: false,
 });
 
 const newCard = (boardId: ID, listId: ID, title: string, order: number, extra: Partial<Card> = {}): Card => ({
@@ -100,6 +110,7 @@ const newCard = (boardId: ID, listId: ID, title: string, order: number, extra: P
   time: [],
   estimate: null,
   reminder: null,
+  fields: {},
   order,
   archived: false,
   createdAt: Date.now(),
@@ -152,7 +163,11 @@ export function normalize(raw: unknown): AppData {
   const boards: AppData["boards"] = {};
   for (const b of Object.values(d.boards)) {
     const display = { ...defaultDisplay(), ...b.display };
-    display.badges = { ...defaultDisplay().badges, ...b.display?.badges };
+    // Older files stored badges as on/off booleans.
+    const badges = { ...defaultDisplay().badges };
+    for (const [k, v] of Object.entries(b.display?.badges ?? {}) as [string, unknown][])
+      badges[k as keyof typeof badges] = v === true ? "icon" : v === false ? "off" : (v as BadgeMode);
+    display.badges = badges;
     boards[b.id] = { ...newBoard("", PALETTE[6], 0), ...b, id: b.id, display };
   }
   const lists: AppData["lists"] = {};
@@ -214,6 +229,8 @@ interface State {
   helpOpen: boolean;
   customizeBoardId: ID | null;
   toasts: Toast[];
+  focus: FocusTimer | null;
+  importOpen: boolean;
 
   load(): Promise<void>;
   undo(): boolean;
@@ -221,7 +238,14 @@ interface State {
   /** `key`: a new toast with the same key replaces the old one (e.g. zoom level). */
   toast(text: string, opts?: { undo?: boolean; key?: string }): void;
   dismissToast(id: ID): void;
-  setOverlay(patch: Partial<Pick<State, "quickAddOpen" | "helpOpen" | "customizeBoardId" | "searchOpen">>): void;
+  setOverlay(patch: Partial<Pick<State, "quickAddOpen" | "helpOpen" | "customizeBoardId" | "searchOpen" | "importOpen">>): void;
+
+  startFocus(minutes: number, cardId?: ID | null, label?: string): void;
+  pauseFocus(): void;
+  resumeFocus(): void;
+  extendFocus(minutes: number): void;
+  /** Ends the countdown; `completed` = it ran out (vs. cancelled). */
+  endFocus(completed: boolean): void;
   replaceData(data: AppData): void;
   navigate(route: Route): void;
   /**
@@ -249,6 +273,10 @@ interface State {
   deleteCard(id: ID): void;
   duplicateCard(id: ID): ID;
   moveCardToBoard(id: ID, boardId: ID, listId: ID): void;
+  /** Move to another bucket, appended to the end of its custom order. */
+  moveCardToList(id: ID, listId: ID): void;
+  resetTime(cardId: ID): void;
+  importBoard(b: ImportedBoard, opts: { addPeople: boolean }): ID;
   /** Set `order` by position for `ids` and apply `patch` to the moved card. */
   applyCardOrder(ids: ID[], movedId: ID, patch: Partial<Card>): void;
   linkCards(a: ID, b: ID, type: LinkType): void;
@@ -375,6 +403,16 @@ function pruneRefs(cards: Record<ID, Card>): Record<ID, Card> {
   return out;
 }
 
+// ---- Focus timer survives reloads (per device) ----
+const FOCUS_KEY = "zomello-focus";
+function loadFocus(): FocusTimer | null {
+  try {
+    return JSON.parse(localStorage.getItem(FOCUS_KEY) ?? "null");
+  } catch {
+    return null;
+  }
+}
+
 // ---- Undo / redo: snapshots of `data` (view state like filters is not undoable) ----
 const HISTORY_LIMIT = 150;
 /** Changes closer together than this are merged into one undo step (e.g. typing). */
@@ -424,6 +462,8 @@ export const useStore = create<State>((set, get) => {
     helpOpen: false,
     customizeBoardId: null,
     toasts: [],
+    focus: loadFocus(),
+    importOpen: false,
 
     undo() {
       const prev = past.pop();
@@ -640,8 +680,101 @@ export const useStore = create<State>((set, get) => {
           .map((name) => dstLabels.find((l) => l.name === name)?.id)
           .filter((x): x is ID => !!x);
         const order = Math.max(-1, ...Object.values(d.cards).filter((x) => x.listId === listId).map((x) => x.order)) + 1;
-        return { ...d, cards: patchCard(d.cards, id, { boardId, listId, labelIds, order }) };
+        // Custom fields carry over when the target board has a field with the same name and type.
+        const fields: Card["fields"] = {};
+        for (const f of d.boards[c.boardId].fields) {
+          const match = d.boards[boardId].fields.find((g) => g.name === f.name && g.type === f.type);
+          if (!match || c.fields[f.id] == null) continue;
+          let v = c.fields[f.id];
+          if (f.type === "select") v = match.options.find((o) => o.label === f.options.find((x) => x.id === v)?.label)?.id ?? null;
+          fields[match.id] = v;
+        }
+        return { ...d, cards: patchCard(d.cards, id, { boardId, listId, labelIds, order, fields }) };
       });
+    },
+    moveCardToList(id, listId) {
+      const d = get().data;
+      if (d.cards[id].listId === listId) return;
+      const order = Math.max(-1, ...Object.values(d.cards).filter((x) => x.listId === listId).map((x) => x.order)) + 1;
+      get().updateCard(id, { listId, order });
+    },
+    resetTime(cardId) {
+      get().updateCard(cardId, { time: [] });
+    },
+    importBoard(b, opts) {
+      const st = get();
+      const order = Math.max(-1, ...Object.values(st.data.boards).map((x) => x.order)) + 1;
+      const board = newBoard(b.title, b.color ?? PALETTE[order % PALETTE.length], order);
+      board.labels = b.labels.map((l) => ({ id: uid(), name: l.name, color: l.color }));
+      const labelId = (name: string) => board.labels.find((l) => l.name === name)?.id;
+      const lists = b.lists.map((l, i) => ({ ...newList(board.id, l.name, i), archived: !!l.archived }));
+      const cards: Card[] = [];
+      b.lists.forEach((l, li) =>
+        l.cards.forEach((c, ci) => {
+          const card = newCard(board.id, lists[li].id, c.title, ci, {
+            description: c.description ?? "",
+            labelIds: (c.labels ?? []).map(labelId).filter((x): x is ID => !!x),
+            priority: c.priority ?? "medium",
+            progress: c.progress ?? "notStarted",
+            startDate: c.startDate ?? null,
+            dueDate: c.dueDate ?? null,
+            assignees: c.assignees ?? [],
+            archived: !!c.archived,
+            checklist: (c.checklist ?? []).map((i) => ({ id: uid(), text: i.text, done: i.done })),
+            comments: (c.comments ?? []).map((n) => ({ id: uid(), text: n.text, createdAt: n.at })),
+            attachments: (c.links ?? []).map((a) => ({ id: uid(), name: a.name, url: a.url, addedAt: Date.now() })),
+            cover: c.cover ?? null,
+            activity: [{ at: Date.now(), kind: "created" }],
+          });
+          if (card.progress === "completed") card.completedAt = c.completedAt ?? Date.now();
+          cards.push(card);
+        }),
+      );
+      const people = opts.addPeople
+        ? [...st.data.settings.people, ...b.people.filter((p) => !st.data.settings.people.includes(p))]
+        : st.data.settings.people;
+      mut((d) => ({
+        ...d,
+        boards: { ...d.boards, [board.id]: board },
+        lists: { ...d.lists, ...Object.fromEntries(lists.map((l) => [l.id, l])) },
+        cards: { ...d.cards, ...Object.fromEntries(cards.map((c) => [c.id, c])) },
+        settings: { ...d.settings, people },
+      }));
+      return board.id;
+    },
+
+    startFocus(minutes, cardId = null, label) {
+      const durationMs = Math.round(minutes * 60_000);
+      const card = cardId ? get().data.cards[cardId] : undefined;
+      set({ focus: { cardId, label: label ?? card?.title ?? "Focus", durationMs, endsAt: Date.now() + durationMs, remainingMs: durationMs } });
+      if (cardId && !card?.time.some((t) => t.end === null)) get().startTimer(cardId);
+    },
+    pauseFocus() {
+      const f = get().focus;
+      if (!f?.endsAt) return;
+      set({ focus: { ...f, endsAt: null, remainingMs: Math.max(0, f.endsAt - Date.now()) } });
+      if (f.cardId) get().stopTimer();
+    },
+    resumeFocus() {
+      const f = get().focus;
+      if (!f || f.endsAt) return;
+      set({ focus: { ...f, endsAt: Date.now() + f.remainingMs } });
+      if (f.cardId && get().data.cards[f.cardId]) get().startTimer(f.cardId);
+    },
+    extendFocus(minutes) {
+      const f = get().focus;
+      if (!f) return;
+      const add = minutes * 60_000;
+      set({
+        focus: { ...f, durationMs: f.durationMs + add, ...(f.endsAt ? { endsAt: f.endsAt + add } : { remainingMs: f.remainingMs + add }) },
+      });
+    },
+    endFocus(completed) {
+      const f = get().focus;
+      if (!f) return;
+      set({ focus: null });
+      if (f.cardId && get().data.cards[f.cardId]?.time.some((t) => t.end === null)) get().stopTimer();
+      if (completed) get().toast(`⏰ Time's up — ${f.label}`);
     },
     applyCardOrder(ids, movedId, patch) {
       mut((d) => {
@@ -865,3 +998,13 @@ export const runningTimer = (cards: Record<ID, Card>) => {
   }
   return null;
 };
+
+useStore.subscribe((s, prev) => {
+  if (s.focus === prev.focus) return;
+  try {
+    if (s.focus) localStorage.setItem(FOCUS_KEY, JSON.stringify(s.focus));
+    else localStorage.removeItem(FOCUS_KEY);
+  } catch {
+    /* not critical */
+  }
+});

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity as ActivityIcon,
   AlignLeft,
@@ -11,7 +11,11 @@ import {
   ImageIcon,
   Pause,
   Play,
+  SlidersHorizontal,
+  Hourglass,
+  RotateCcw,
   Timer,
+  Users,
   Upload,
   ArchiveRestore,
   CheckSquare,
@@ -26,7 +30,8 @@ import {
   Unlink,
   X,
 } from "lucide-react";
-import type { Activity, Attachment, Card, ID, LinkType, Priority, Progress, Recurrence, RecurrenceFreq } from "../types";
+import type { Activity, Attachment, Card, CardSection, FieldDef, ID, LinkType, Priority, Progress, Recurrence, RecurrenceFreq } from "../types";
+import { setCardDropHandler } from "../fileDrop";
 import { useStore } from "../store";
 import {
   byOrder, checklistStats, describeRecurrence, fileSize, formatDuration, isImage, LINK_TYPES, parseDuration,
@@ -34,9 +39,9 @@ import {
 } from "../utils";
 import { format } from "date-fns";
 import { openExternal, openStored, storedSrc, storeFile } from "../storage";
-import { ask, AutoTextarea, Avatar, ColorPicker, InlineEdit, Modal, Popover, ProgressIcon } from "./ui";
+import { ask, Avatar, ColorPicker, InlineEdit, Modal, Popover, ProgressIcon } from "./ui";
 import { BucketPicker, CardPicker, LabelPicker } from "./pickers";
-import { Markdown, MarkdownField } from "./Markdown";
+import { Markdown, MarkdownEditor, MarkdownField } from "./Markdown";
 import { useNow } from "./useNow";
 
 export function CardModal({ cardId }: { cardId: ID }) {
@@ -78,7 +83,6 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
   const set = (patch: Partial<Card>) => updateCard(card.id, patch);
   const [newItem, setNewItem] = useState("");
   const [comment, setComment] = useState("");
-  const [dragOver, setDragOver] = useState(false);
   const cl = checklistStats(card);
   const coverImg = card.coverImage ? card.attachments.find((a) => a.id === card.coverImage) : undefined;
 
@@ -103,30 +107,20 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
   };
 
   const toggleIn = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
+  const show = (s: CardSection) => !board.hiddenSections.includes(s);
+  // While this card is open, files dropped anywhere in the window attach to it.
+  const attachRef = useRef(attachFiles);
+  attachRef.current = attachFiles;
+  useEffect(() => setCardDropHandler((files) => void attachRef.current(files)), []);
 
   return (
-    <div
-      className={`card-detail ${dragOver ? "drop" : ""}`}
-      onDragOver={(e) => {
-        if (e.dataTransfer.types.includes("Files")) {
-          e.preventDefault();
-          setDragOver(true);
-        }
-      }}
-      onDragLeave={(e) => e.currentTarget === e.target && setDragOver(false)}
-      onDrop={(e) => {
-        if (!e.dataTransfer.files.length) return;
-        e.preventDefault();
-        setDragOver(false);
-        void attachFiles(e.dataTransfer.files);
-      }}
-    >
+    <div className="card-detail">
       {coverImg ? (
         <img className="detail-cover image" src={storedSrc(coverImg.url)} alt="" />
       ) : (
         card.cover && <div className="detail-cover" style={{ background: card.cover }} />
       )}
-      {dragOver && <div className="drop-hint">Drop files to attach</div>}
+      <div className="drop-hint">Drop to attach to “{card.title}”</div>
       <button className="icon-btn close" onClick={onClose} title="Close (Esc)">
         <X size={18} />
       </button>
@@ -153,7 +147,53 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
             </div>
           )}
 
+          {show("assignees") && (
+            <section>
+              <h4>
+                <Users size={15} /> Assigned to
+              </h4>
+                <div className="row wrap gap-sm">
+                  {card.assignees.map((a) => (
+                    <span key={a} className="chip">
+                      <Avatar name={a} size={18} /> {a}
+                      <button className="icon-btn tiny" onClick={() => set({ assignees: card.assignees.filter((x) => x !== a) })}>
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                  <Popover
+                    trigger={(_, toggle) => (
+                      <button className="chip add" onClick={toggle}>
+                        <Plus size={13} /> Assign
+                      </button>
+                    )}
+                  >
+                    {(closePop) => (
+                      <div className="menu">
+                        {people.length === 0 && <p className="muted small pad">Add people in Settings.</p>}
+                        {people.map((p) => (
+                          <label key={p} className="menu-item">
+                            <input
+                              type="checkbox"
+                              checked={card.assignees.includes(p)}
+                              onChange={() => set({ assignees: toggleIn(card.assignees, p) })}
+                            />
+                            <Avatar name={p} size={18} />
+                            <span>{p}</span>
+                          </label>
+                        ))}
+                        <button className="menu-item muted" onClick={closePop}>
+                          Done
+                        </button>
+                      </div>
+                    )}
+                  </Popover>
+                </div>
+            </section>
+          )}
+
           {/* Labels */}
+          {show("labels") && (
           <section>
             <h4>
               <Tag size={15} /> Labels
@@ -189,8 +229,19 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
               </Popover>
             </div>
           </section>
+          )}
+
+          {show("fields") && board.fields.length > 0 && (
+            <section>
+              <h4>
+                <SlidersHorizontal size={15} /> Fields
+              </h4>
+              <CustomFields card={card} />
+            </section>
+          )}
 
           {/* Description */}
+          {show("description") && (
           <section>
             <h4>
               <AlignLeft size={15} /> Description
@@ -201,8 +252,10 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
               onSave={(description) => set({ description })}
             />
           </section>
+          )}
 
           {/* Checklist */}
+          {show("checklist") && (
           <section>
             <h4>
               <CheckSquare size={15} /> Checklist
@@ -314,8 +367,10 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
               }}
             />
           </section>
+          )}
 
           {/* Linked tasks */}
+          {show("links") && (
           <section>
             <h4>
               <Link2 size={15} /> Linked tasks
@@ -391,20 +446,21 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
               )}
             </Popover>
           </section>
+          )}
 
           {/* Files & links */}
-          <AttachmentsSection card={card} onFiles={attachFiles} />
+          {show("files") && <AttachmentsSection card={card} onFiles={attachFiles} />}
 
           {/* Notes / comments */}
+          {show("notes") && (
           <section>
             <h4>
               <MessageSquare size={15} /> Notes
             </h4>
-            <AutoTextarea
-              className="desc"
+            <MarkdownEditor
               placeholder="Write a note… (Ctrl+Enter to save)"
               value={comment}
-              onChange={(e) => setComment(e.target.value)}
+              onChange={setComment}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && comment.trim()) {
                   set({ comments: [{ id: uid(), text: comment.trim(), createdAt: Date.now() }, ...card.comments] });
@@ -440,8 +496,9 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
               ))}
             </ul>
           </section>
+          )}
 
-          <ActivitySection card={card} />
+          {show("activity") && <ActivitySection card={card} />}
         </div>
 
         <aside className="detail-side">
@@ -454,7 +511,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
               ))}
             </select>
           </Field>
-          <Field label="Progress">
+          <Field label="Progress" hidden={!show("progress")}>
             <select value={card.progress} onChange={(e) => set({ progress: e.target.value as Progress })}>
               {PROGRESS.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -463,7 +520,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
               ))}
             </select>
           </Field>
-          <Field label="Priority">
+          <Field label="Priority" hidden={!show("priority")}>
             <select value={card.priority} onChange={(e) => set({ priority: e.target.value as Priority })}>
               {PRIORITIES.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -472,13 +529,13 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
               ))}
             </select>
           </Field>
-          <Field label="Start date">
+          <Field label="Start date" hidden={!show("startDate")}>
             <DateInput value={card.startDate} onChange={(startDate) => set({ startDate })} />
           </Field>
-          <Field label="Due date">
+          <Field label="Due date" hidden={!show("dueDate")}>
             <DateInput value={card.dueDate} onChange={(dueDate) => set({ dueDate })} />
           </Field>
-          <Field label="Reminder">
+          <Field label="Reminder" hidden={!show("reminder")}>
             <div className="row gap-sm">
               <input
                 type="datetime-local"
@@ -492,55 +549,16 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
               )}
             </div>
           </Field>
-          <Field label="Repeat">
+          <Field label="Repeat" hidden={!show("repeat")}>
             <RecurrenceEditor card={card} onChange={(recurrence) => set({ recurrence, ...(recurrence && !card.dueDate ? { dueDate: todayISO() } : {}) })} />
           </Field>
-          <Field label="Assigned to">
-            <div className="row wrap gap-sm">
-              {card.assignees.map((a) => (
-                <span key={a} className="chip">
-                  <Avatar name={a} size={18} /> {a}
-                  <button className="icon-btn tiny" onClick={() => set({ assignees: card.assignees.filter((x) => x !== a) })}>
-                    <X size={12} />
-                  </button>
-                </span>
-              ))}
-              <Popover
-                trigger={(_, toggle) => (
-                  <button className="chip add" onClick={toggle}>
-                    <Plus size={13} /> Assign
-                  </button>
-                )}
-              >
-                {(closePop) => (
-                  <div className="menu">
-                    {people.length === 0 && <p className="muted small pad">Add people in Settings.</p>}
-                    {people.map((p) => (
-                      <label key={p} className="menu-item">
-                        <input
-                          type="checkbox"
-                          checked={card.assignees.includes(p)}
-                          onChange={() => set({ assignees: toggleIn(card.assignees, p) })}
-                        />
-                        <Avatar name={p} size={18} />
-                        <span>{p}</span>
-                      </label>
-                    ))}
-                    <button className="menu-item muted" onClick={closePop}>
-                      Done
-                    </button>
-                  </div>
-                )}
-              </Popover>
-            </div>
-          </Field>
-          <Field label="Time">
+          <Field label="Time" hidden={!show("time")}>
             <TimeTracker card={card} />
           </Field>
-          <Field label="Cover">
+          <Field label="Cover" hidden={!show("cover")}>
             <CoverEditor card={card} />
           </Field>
-          <Field label="Move to board">
+          <Field label="Move to board" hidden={!show("moveBoard")}>
             <select
               value={card.boardId}
               onChange={(e) => {
@@ -627,7 +645,8 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, hidden }: { label: string; children: React.ReactNode; hidden?: boolean }) {
+  if (hidden) return null;
   return (
     <div className="field">
       <label>{label}</label>
@@ -875,26 +894,32 @@ function ActivitySection({ card }: { card: Card }) {
 
 function TimeTracker({ card }: { card: Card }) {
   const running = card.time.some((t) => t.end === null);
-  const now = useNow(running ? 1000 : 60_000);
+  const now = useNow(1000);
   const total = trackedMs(card, now);
-  const { startTimer, stopTimer, addTime, deleteTimeEntry, updateCard } = useStore.getState();
+  const focus = useStore((s) => s.focus);
+  const focusMinutes = useStore((s) => s.data.settings.focusMinutes);
+  const { startTimer, stopTimer, addTime, deleteTimeEntry, updateCard, resetTime, startFocus } = useStore.getState();
   const [manual, setManual] = useState("");
   const [showLog, setShowLog] = useState(false);
+  const [custom, setCustom] = useState("");
   const pct = card.estimate ? Math.min(100, (total / (card.estimate * 60_000)) * 100) : 0;
+  const focusHere = focus?.cardId === card.id;
 
   return (
     <div className="time-tracker">
       <div className="row gap-sm">
-        <span className={`time-total ${running ? "running" : ""}`}>{formatDuration(total, running)}</span>
+        <span className={`time-total ${running ? "running" : ""}`} title="Total time tracked on this task">
+          {formatDuration(total, true)}
+        </span>
         {card.estimate ? <span className="muted small">/ {formatDuration(card.estimate * 60_000)}</span> : null}
         <span className="grow" />
         {running ? (
-          <button className="btn sm danger" onClick={stopTimer}>
-            <Pause size={13} /> Stop
+          <button className="btn sm" onClick={stopTimer} title="Pause — the time so far is kept">
+            <Pause size={13} /> Pause
           </button>
         ) : (
           <button className="btn sm primary" onClick={() => startTimer(card.id)}>
-            <Play size={13} /> Start
+            <Play size={13} /> {total > 0 ? "Resume" : "Start"}
           </button>
         )}
       </div>
@@ -903,6 +928,38 @@ function TimeTracker({ card }: { card: Card }) {
           <span style={{ width: `${pct}%` }} />
         </div>
       ) : null}
+
+      <div className="focus-row">
+        <span className="small muted">
+          <Hourglass size={12} /> Focus
+        </span>
+        {focusHere ? (
+          <span className="small">running in the sidebar</span>
+        ) : (
+          <>
+            {[10, 15, 25, 30].map((m) => (
+              <button key={m} className={`chip-btn ${m === focusMinutes ? "default" : ""}`} onClick={() => startFocus(m, card.id)}>
+                {m}m
+              </button>
+            ))}
+            <input
+              className="focus-custom"
+              placeholder="min"
+              value={custom}
+              onChange={(e) => setCustom(e.target.value)}
+              onKeyDown={(e) => {
+                const m = parseDuration(custom);
+                if (e.key === "Enter" && m) {
+                  startFocus(m, card.id);
+                  setCustom("");
+                }
+              }}
+              title="Custom length, e.g. 45 or 1h — Enter to start"
+            />
+          </>
+        )}
+      </div>
+
       <form
         className="row gap-sm"
         onSubmit={(e) => {
@@ -925,9 +982,23 @@ function TimeTracker({ card }: { card: Card }) {
         />
       </div>
       {card.time.length > 0 && (
-        <button className="btn ghost sm" onClick={() => setShowLog(!showLog)}>
-          {showLog ? "Hide" : "Show"} log ({card.time.length})
-        </button>
+        <div className="row gap-sm">
+          <button className="btn ghost sm" onClick={() => setShowLog(!showLog)}>
+            {showLog ? "Hide" : "Show"} log ({card.time.length})
+          </button>
+          <span className="grow" />
+          <button
+            className="btn ghost sm"
+            title="Clear all tracked time on this task"
+            onClick={() => {
+              if (running) stopTimer();
+              resetTime(card.id);
+              useStore.getState().toast("Time reset", { undo: true });
+            }}
+          >
+            <RotateCcw size={12} /> Reset
+          </button>
+        </div>
       )}
       {showLog && (
         <ul className="time-log">
@@ -1014,6 +1085,66 @@ function TrailBar({ cardId }: { cardId: ID }) {
       </div>
       <span className="grow" />
       {from && <span className="muted small hide-narrow">Alt+← to go back</span>}
+    </div>
+  );
+}
+
+function CustomFields({ card }: { card: Card }) {
+  const board = useStore((s) => s.data.boards[card.boardId]);
+  const updateCard = useStore((s) => s.updateCard);
+  const setValue = (f: FieldDef, v: Card["fields"][string]) => updateCard(card.id, { fields: { ...card.fields, [f.id]: v } });
+  return (
+    <div className="custom-fields">
+      {board.fields.map((f) => {
+        const v = card.fields[f.id] ?? null;
+        return (
+          <label key={f.id} className="custom-field">
+            <span className="cf-name">{f.name}</span>
+            {f.type === "checkbox" ? (
+              <input type="checkbox" checked={!!v} onChange={(e) => setValue(f, e.target.checked)} />
+            ) : f.type === "select" ? (
+              <select
+                value={(v as string) ?? ""}
+                onChange={(e) => setValue(f, e.target.value || null)}
+                style={{ borderColor: f.options.find((o) => o.id === v)?.color }}
+              >
+                <option value="">—</option>
+                {f.options.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            ) : f.type === "date" ? (
+              <input type="date" value={(v as string) ?? ""} onChange={(e) => setValue(f, e.target.value || null)} />
+            ) : (
+              <span className="row gap-sm">
+                <input
+                  key={`${f.id}-${String(v)}`}
+                  className="grow"
+                  type={f.type === "number" ? "number" : f.type === "url" ? "url" : "text"}
+                  defaultValue={v == null ? "" : String(v)}
+                  placeholder={f.type === "url" ? "https://…" : "—"}
+                  onBlur={(e) => {
+                    const raw = e.target.value.trim();
+                    const next = raw === "" ? null : f.type === "number" ? Number(raw) : raw;
+                    if (next !== v) setValue(f, next);
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                />
+                {f.type === "url" && v && (
+                  <button type="button" className="icon-btn tiny" title="Open link" onClick={() => openExternal(String(v))}>
+                    <ExternalLink size={13} />
+                  </button>
+                )}
+              </span>
+            )}
+          </label>
+        );
+      })}
+      <button className="btn sm ghost" onClick={() => useStore.getState().setOverlay({ customizeBoardId: card.boardId })}>
+        <SlidersHorizontal size={13} /> Manage fields
+      </button>
     </div>
   );
 }

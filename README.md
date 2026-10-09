@@ -6,15 +6,21 @@ React and TypeScript. Everything stays on your machine.
 ## Features
 - **Boards → buckets → cards** with drag-and-drop, WIP limits, collapsible buckets, Planner-style
   "Completed" section under each bucket
-- **Rich cards**: Markdown description and notes, checklist (items can link to / spin off into tasks on any
+- **Rich cards**: Markdown description and notes with a formatting toolbar (code blocks get a Copy button), checklist (items can link to / spin off into tasks on any
   board), labels, priority, progress, start/due dates, assignees, reminders, cover color or image
   (strip or full card), duplicate, move to another board
 - **Files**: attach files (button or drag-and-drop) — they are copied into Zomello's own storage; images get
   thumbnails and can be card covers. Links and local paths work too
 - **Linked tasks** across boards (related / blocks / blocked by) with a Blocked badge
 - **Recurring tasks** (daily / weekly on chosen days / monthly / yearly, every N, until a date)
-- **Time tracking**: start/stop timer (one at a time, shown in the sidebar), manual logging, estimates,
+- **Time tracking**: start / pause / resume (one at a time, shown in the sidebar), manual logging, estimates,
   time charts
+- **Focus countdown**: 5–60 min or custom, from the sidebar or a card (also tracks time on it), with a chime
+  and desktop notification
+- **Bucket sorting** (due, priority, name, progress, newest, recently updated) that never touches the custom order
+- **Custom fields** per board (text, number, dropdown, checkbox, date, link), optionally shown on cards
+- **Card display**: each detail can be hidden, an icon, or the full information; card window sections can be hidden
+- **Import** boards from Trello (.json) or Microsoft Planner (.xlsx / .csv)
 - **Activity history** on every card (moves, progress, dates, priority, assignment, renames, archive)
 - **Card templates** (save from any card; use from "+ Add card", Quick add) and "new board with this layout"
 - **Views**: Board · List · Calendar · Timeline · Charts; group the board by bucket, progress, priority,

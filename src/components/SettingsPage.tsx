@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
-import { Accessibility, Bell, Download, Minus, Plus, Eraser, LayoutTemplate, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
+import { Accessibility, Bell, Download, FileUp, Minus, Plus, Eraser, LayoutTemplate, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
 import type { Settings, ViewMode } from "../types";
 import { normalize, useStore } from "../store";
 import {
@@ -301,7 +301,10 @@ export function SettingsPage() {
             <Download size={14} /> Export JSON
           </button>
           <button className="btn" onClick={() => fileRef.current?.click()}>
-            <Upload size={14} /> Import JSON
+            <Upload size={14} /> Restore from Zomello JSON
+          </button>
+          <button className="btn" onClick={() => useStore.getState().setOverlay({ importOpen: true })}>
+            <FileUp size={14} /> Import from Trello / Planner
           </button>
           {inTauri && (
             <button className="btn" onClick={cleanup} title="Delete stored files no card or board uses any more">

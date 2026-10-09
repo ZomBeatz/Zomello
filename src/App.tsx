@@ -18,6 +18,9 @@ import { handleShortcut } from "./shortcuts";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { startReminders } from "./reminders";
 import { applyZoom, installZoomControls } from "./zoom";
+import { startFocusWatcher } from "./focus";
+import { installFileDropPolicy } from "./fileDrop";
+import { ImportDialog } from "./components/ImportDialog";
 
 const DENSITY = { compact: "13px", normal: "14px", comfortable: "15.5px" };
 
@@ -30,6 +33,7 @@ export default function App() {
   const searchOpen = useStore((s) => s.searchOpen);
   const quickAddOpen = useStore((s) => s.quickAddOpen);
   const helpOpen = useStore((s) => s.helpOpen);
+  const importOpen = useStore((s) => s.importOpen);
   const customizeBoard = useStore((s) => (s.customizeBoardId ? s.data.boards[s.customizeBoardId] : undefined));
   const settings = useStore((s) => s.data.settings);
   const boardExists = useStore((s) => route.page !== "board" || !!s.data.boards[route.boardId]);
@@ -39,8 +43,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (loaded) return startReminders();
+    if (!loaded) return;
+    const a = startReminders();
+    const b = startFocusWatcher();
+    return () => (a(), b());
   }, [loaded]);
+
+  useEffect(() => installFileDropPolicy(), []);
 
   // Theme, accent color and density live on <html> so every component picks them up.
   useEffect(() => {
@@ -110,6 +119,7 @@ export default function App() {
       )}
       {searchOpen && <SearchPalette />}
       {quickAddOpen && <QuickAdd />}
+      {importOpen && <ImportDialog />}
       {customizeBoard && <BoardCustomize board={customizeBoard} />}
       {helpOpen && (
         <Modal onClose={() => useStore.getState().setOverlay({ helpOpen: false })} width={760} className="help">

@@ -6,6 +6,7 @@ import {
   ArrowRightLeft,
   Bell,
   BookmarkPlus,
+  Hourglass,
   Pause,
   Play,
   Calendar,
@@ -274,9 +275,14 @@ function cardMenu(cardId: ID): MenuEntry[] {
       ],
     },
     {
-      label: running ? "Stop timer" : "Start timer",
+      label: running ? "Pause timer" : "Start timer",
       icon: running ? <Pause size={14} /> : <Play size={14} />,
       onClick: () => (running ? st.stopTimer() : st.startTimer(cardId)),
+    },
+    {
+      label: "Focus countdown",
+      icon: <Hourglass size={14} />,
+      submenu: [10, 15, 25, 30, 45, 60].map((m) => ({ label: `${m} minutes`, onClick: () => st.startFocus(m, cardId) })),
     },
     { separator: true },
     {
