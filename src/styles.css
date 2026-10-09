@@ -957,3 +957,33 @@ body[data-filedrag="card"] .drop-hint { display: flex; }
 .slider-row { display: flex; align-items: center; gap: 10px; }
 .slider-row input[type="range"] { width: 220px; accent-color: var(--accent); }
 .slider-value { min-width: 42px; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--text-2); }
+
+/* ---------- narrow board header: keep the right-hand buttons on screen ---------- */
+.board-header { container: board-header / inline-size; }
+.board-header > * { flex-shrink: 0; }
+.board-title-wrap { flex: 0 1 auto; min-width: 60px; max-width: 320px; overflow: hidden; }
+.board-title-wrap .board-title { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.board-header > .grow { flex: 1 1 0; min-width: 0; }
+.view-tabs { margin-left: 8px; }
+/* Below this width (≈ the minimum window size with the sidebar open) only the active view keeps its name. */
+@container board-header (max-width: 1080px) {
+  .view-tabs button:not(.active) .tab-label { display: none; }
+  .view-tabs button:not(.active) { padding: 6px 8px; }
+  .board-header .btn-label { display: none; }
+  .board-header .btn.sm { padding: 5px 8px; }
+  .board-title-wrap { max-width: 220px; }
+}
+/* Very narrow (e.g. zoomed way in): icons only, and wrap rather than push anything off-screen. */
+@container board-header (max-width: 520px) {
+  .view-tabs .tab-label { display: none; }
+  .view-tabs button.active { padding: 6px 8px; }
+}
+@media (max-width: 700px) { .board-header { flex-wrap: wrap; row-gap: 6px; } }
+
+/* toolbar row: the search box gives way first */
+.toolbar { container: board-toolbar / inline-size; }
+.toolbar .search-box { flex: 0 1 240px; min-width: 120px; width: auto; }
+@container board-toolbar (max-width: 640px) {
+  .toolbar .btn .btn-label { display: none; }
+  .group-by .gb-label { display: none; }
+}

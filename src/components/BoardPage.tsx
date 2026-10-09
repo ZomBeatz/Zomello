@@ -103,7 +103,9 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
   return (
     <header className="board-header">
       {board.icon ? <span className="board-icon">{board.icon}</span> : <span className="board-swatch" style={{ background: board.color }} />}
-      <InlineEdit className="board-title" value={board.title} onSave={(title) => updateBoard(board.id, { title })} />
+      <span className="board-title-wrap" title={board.title}>
+        <InlineEdit className="board-title" value={board.title} onSave={(title) => updateBoard(board.id, { title })} />
+      </span>
       <button
         className={`icon-btn ${board.starred ? "starred" : ""}`}
         title={board.starred ? "Unstar" : "Star"}
@@ -111,18 +113,25 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
       >
         <Star size={17} fill={board.starred ? "currentColor" : "none"} />
       </button>
-      <nav className="view-tabs">
-        {VIEWS.map((v) => (
-          <button key={v.id} className={view === v.id ? "active" : ""} onClick={() => setBoardUi(board.id, { view: v.id })}>
+      <nav className="view-tabs" aria-label="Board views">
+        {VIEWS.map((v, i) => (
+          <button
+            key={v.id}
+            className={view === v.id ? "active" : ""}
+            onClick={() => setBoardUi(board.id, { view: v.id })}
+            title={`${v.name} (${i + 1})`}
+            aria-label={v.name}
+            aria-pressed={view === v.id}
+          >
             {v.icon}
-            {v.name}
+            <span className="tab-label">{v.name}</span>
           </button>
         ))}
       </nav>
       <div className="grow" />
       <LabelManager board={board} />
-      <button className="btn ghost sm" onClick={() => useStore.getState().setOverlay({ customizeBoardId: board.id })}>
-        <Palette size={14} /> Customize
+      <button className="btn ghost sm" title="Customize (B)" aria-label="Customize" onClick={() => useStore.getState().setOverlay({ customizeBoardId: board.id })}>
+        <Palette size={14} /> <span className="btn-label">Customize</span>
       </button>
       <Popover
         align="right"
@@ -190,8 +199,8 @@ function LabelManager({ board }: { board: Board }) {
     <Popover
       align="right"
       trigger={(_, toggle) => (
-        <button className="btn ghost sm" onClick={toggle}>
-          <Tag size={14} /> Labels
+        <button className="btn ghost sm" onClick={toggle} title="Labels" aria-label="Labels">
+          <Tag size={14} /> <span className="btn-label">Labels</span>
         </button>
       )}
     >
@@ -292,7 +301,7 @@ function Toolbar({
       <Popover
         trigger={(_, t) => (
           <button className={`btn sm ${nActive ? "accent" : "ghost"}`} onClick={t}>
-            <FilterIcon size={14} /> Filter{nActive ? ` (${nActive})` : ""}
+            <FilterIcon size={14} /> <span className="btn-label">Filter</span>{nActive ? ` (${nActive})` : ""}
           </button>
         )}
       >
@@ -358,7 +367,7 @@ function Toolbar({
       <Popover
         trigger={(_, t) => (
           <button className="btn ghost sm" onClick={t}>
-            <Bookmark size={14} /> Saved
+            <Bookmark size={14} /> <span className="btn-label">Saved</span>
           </button>
         )}
       >
@@ -417,7 +426,7 @@ function Toolbar({
       <div className="grow" />
       {ui.view === "board" && (
         <label className="group-by">
-          Group by
+          <span className="gb-label">Group by</span>
           <select value={ui.groupBy} onChange={(e) => setBoardUi(board.id, { groupBy: e.target.value as GroupBy })}>
             {GROUPS.map((g) => (
               <option key={g.id} value={g.id}>
