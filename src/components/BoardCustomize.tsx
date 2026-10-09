@@ -7,7 +7,7 @@ import { storedSrc, storeFile, storeFromPath } from "../storage";
 import { registerDropZone } from "../fileDrop";
 import { ask, ColorPicker, Modal } from "./ui";
 
-const BADGES: { key: BadgeKey; name: string; icon: string; full: string }[] = [
+export const BADGES: { key: BadgeKey; name: string; icon: string; full: string }[] = [
   { key: "dates", name: "Dates", icon: "Due date", full: "Dates + “in 3 days / 2 days late” + repeat rule" },
   { key: "priority", name: "Priority", icon: "Colored flag", full: "Named badge (Urgent, Important…)" },
   { key: "checklist", name: "Checklist", icon: "Count (2/5)", full: "The items, tickable right on the card" },

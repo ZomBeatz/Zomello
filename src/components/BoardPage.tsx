@@ -9,6 +9,7 @@ import {
   GanttChart,
   Kanban,
   MoreHorizontal,
+  Bot,
   LayoutTemplate,
   Palette,
   Plus,
@@ -151,6 +152,15 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
             </div>
             <MenuItem icon={<Copy size={14} />} onClick={() => (close(), navigate({ page: "board", boardId: duplicateBoard(board.id) }))}>
               Duplicate board
+            </MenuItem>
+            <MenuItem
+              icon={<Bot size={14} />}
+              onClick={() => {
+                close();
+                useStore.getState().setOverlay({ aiDialog: { tab: "ask", mode: "cards", boardId: board.id } });
+              }}
+            >
+              AI tools (prompts & export)…
             </MenuItem>
             <MenuItem
               icon={<LayoutTemplate size={14} />}

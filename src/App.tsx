@@ -22,6 +22,7 @@ import { startFocusWatcher } from "./focus";
 import { installFileDropPolicy } from "./fileDrop";
 import { ImportDialog } from "./components/ImportDialog";
 import { DropOverlay } from "./components/DropOverlay";
+import { AiDialog } from "./components/AiDialog";
 
 const DENSITY = { compact: "13px", normal: "14px", comfortable: "15.5px" };
 
@@ -35,6 +36,7 @@ export default function App() {
   const quickAddOpen = useStore((s) => s.quickAddOpen);
   const helpOpen = useStore((s) => s.helpOpen);
   const importOpen = useStore((s) => s.importOpen);
+  const aiDialog = useStore((s) => s.aiDialog);
   const customizeBoard = useStore((s) => (s.customizeBoardId ? s.data.boards[s.customizeBoardId] : undefined));
   const settings = useStore((s) => s.data.settings);
   const boardExists = useStore((s) => route.page !== "board" || !!s.data.boards[route.boardId]);
@@ -122,6 +124,7 @@ export default function App() {
       {searchOpen && <SearchPalette />}
       {quickAddOpen && <QuickAdd />}
       {importOpen && <ImportDialog />}
+      {aiDialog && <AiDialog init={aiDialog} />}
       {customizeBoard && <BoardCustomize board={customizeBoard} />}
       {helpOpen && (
         <Modal onClose={() => useStore.getState().setOverlay({ helpOpen: false })} width={760} className="help">

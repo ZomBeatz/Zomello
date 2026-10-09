@@ -194,10 +194,13 @@ export function LabelPicker({
 /** Choose a board + bucket (used for spin-offs and moves). */
 export function BucketPicker({
   defaultBoardId,
+  defaultListId,
   action,
   onPick,
 }: {
   defaultBoardId: ID;
+  /** Bucket selected at first (if it belongs to the chosen board). */
+  defaultListId?: ID;
   action: string;
   onPick: (listId: ID) => void;
 }) {
@@ -207,7 +210,7 @@ export function BucketPicker({
   const boardLists = Object.values(lists)
     .filter((l) => l.boardId === boardId && !l.archived)
     .sort(byOrder);
-  const [listId, setListId] = useState<ID>(boardLists[0]?.id ?? "");
+  const [listId, setListId] = useState<ID>(defaultListId ?? boardLists[0]?.id ?? "");
   const effectiveList = boardLists.some((l) => l.id === listId) ? listId : boardLists[0]?.id;
   return (
     <div className="bucket-picker">

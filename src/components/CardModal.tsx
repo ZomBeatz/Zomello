@@ -4,6 +4,7 @@ import {
   AlignLeft,
   ArrowLeft,
   ChevronLeft,
+  CornerDownRight,
   ChevronRight,
   Download,
   HardDrive,
@@ -34,7 +35,7 @@ import type { Activity, Attachment, Card, CardSection, FieldDef, ID, LinkType, P
 import { attachToCard, isLocalPath, storeLinkedFile } from "../attachments";
 import { useStore } from "../store";
 import {
-  blockLoopReason, byOrder, describeRecurrence, fileSize, formatDuration, isImage, LINK_TYPES, parseDuration,
+  blockLoopReason, byOrder, subtaskLoopReason, describeRecurrence, fileSize, formatDuration, isImage, LINK_TYPES, parseDuration,
   prettyDate, priorityMeta, PRIORITIES, PROGRESS, progressMeta, timeAgo, todayISO, trackedMs, uid, WEEKDAYS,
 } from "../utils";
 import { format } from "date-fns";
@@ -273,13 +274,22 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
               })}
               {parents.map((p) => (
                 <li key={`parent-${p.id}`}>
-                  <span className="link-type static">Checklist item in</span>
+                  <span className="link-type static parent-tag">
+                    <CornerDownRight size={12} /> Sub-task of
+                  </span>
                   <ProgressIcon progress={p.progress} size={14} />
                   <button className="linked-item grow" onClick={() => openCard(p.id, { via: "parent" })}>
                     <span className="ellipsis">{p.title}</span>
                     <span className="muted small ellipsis">
                       {allBoards[p.boardId]?.title} › {allLists[p.listId]?.title}
                     </span>
+                  </button>
+                  <button
+                    className="icon-btn tiny"
+                    title="Stop being a sub-task of this (removes it from that checklist)"
+                    onClick={() => useStore.getState().removeFromParent(p.id, card.id)}
+                  >
+                    <X size={13} />
                   </button>
                 </li>
               ))}
@@ -305,6 +315,27 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
                     disabledReason={(id) => blockLoopReason(card.id, id, newLinkType, useStore.getState().data.cards)}
                     onPick={(id) => {
                       linkCards(card.id, id, newLinkType);
+                      close();
+                    }}
+                  />
+                </div>
+              )}
+            </Popover>
+            <Popover
+              trigger={(_, t) => (
+                <button className="btn sm ghost" onClick={t} title="Make this card a sub-task of another card">
+                  <CornerDownRight size={14} /> Add to a parent task
+                </button>
+              )}
+            >
+              {(close) => (
+                <div>
+                  <span className="menu-heading">This card becomes a checklist item of…</span>
+                  <CardPicker
+                    exclude={[card.id, ...parents.map((p) => p.id)]}
+                    disabledReason={(id) => subtaskLoopReason(id, card.id, useStore.getState().data.cards)}
+                    onPick={(id) => {
+                      useStore.getState().addToParent(id, card.id);
                       close();
                     }}
                   />
