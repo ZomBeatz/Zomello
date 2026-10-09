@@ -3,7 +3,10 @@ import {
   Activity as ActivityIcon,
   AlignLeft,
   ArrowLeft,
+  ChevronLeft,
   ChevronRight,
+  Download,
+  HardDrive,
   Archive,
   Ban,
   BookmarkPlus,
@@ -31,14 +34,15 @@ import {
   X,
 } from "lucide-react";
 import type { Activity, Attachment, Card, CardSection, FieldDef, ID, LinkType, Priority, Progress, Recurrence, RecurrenceFreq } from "../types";
-import { setCardDropHandler } from "../fileDrop";
+import { attachToCard, isLocalPath, storeLinkedFile } from "../attachments";
 import { useStore } from "../store";
 import {
   byOrder, checklistStats, describeRecurrence, fileSize, formatDuration, isImage, LINK_TYPES, parseDuration,
   prettyDate, priorityMeta, PRIORITIES, PROGRESS, progressMeta, timeAgo, todayISO, trackedMs, uid, WEEKDAYS,
 } from "../utils";
 import { format } from "date-fns";
-import { openExternal, openStored, storedSrc, storeFile } from "../storage";
+import { fileUrlToPath, inTauri, openExternal, openStored, storedSrc } from "../storage";
+import { createPortal } from "react-dom";
 import { ask, Avatar, ColorPicker, InlineEdit, Modal, Popover, ProgressIcon } from "./ui";
 import { BucketPicker, CardPicker, LabelPicker } from "./pickers";
 import { Markdown, MarkdownEditor, MarkdownField } from "./Markdown";
@@ -86,32 +90,10 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
   const cl = checklistStats(card);
   const coverImg = card.coverImage ? card.attachments.find((a) => a.id === card.coverImage) : undefined;
 
-  const attachFiles = async (files: FileList | File[]) => {
-    const added: Attachment[] = [];
-    for (const f of Array.from(files)) {
-      try {
-        const url = await storeFile(f);
-        added.push({ id: uid(), name: f.name, url, addedAt: Date.now(), stored: true, size: f.size, mime: f.type });
-      } catch (e) {
-        useStore.getState().toast(`Couldn't attach ${f.name}: ${e}`);
-      }
-    }
-    if (!added.length) return;
-    const cur = useStore.getState().data.cards[card.id];
-    const firstImage = added.find((a) => isImage(a.name, a.mime));
-    updateCard(card.id, {
-      attachments: [...cur.attachments, ...added],
-      // First image becomes the cover if the card has none yet.
-      ...(firstImage && !cur.coverImage ? { coverImage: firstImage.id } : {}),
-    });
-  };
+  const attachFiles = (files: FileList | File[]) => attachToCard(card.id, { files: Array.from(files), paths: [], links: [] });
 
   const toggleIn = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
   const show = (s: CardSection) => !board.hiddenSections.includes(s);
-  // While this card is open, files dropped anywhere in the window attach to it.
-  const attachRef = useRef(attachFiles);
-  attachRef.current = attachFiles;
-  useEffect(() => setCardDropHandler((files) => void attachRef.current(files)), []);
 
   return (
     <div className="card-detail">
@@ -120,7 +102,6 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
       ) : (
         card.cover && <div className="detail-cover" style={{ background: card.cover }} />
       )}
-      <div className="drop-hint">Drop to attach to “{card.title}”</div>
       <button className="icon-btn close" onClick={onClose} title="Close (Esc)">
         <X size={18} />
       </button>
@@ -732,10 +713,11 @@ function RecurrenceEditor({ card, onChange }: { card: Card; onChange: (r: Recurr
   );
 }
 
-function AttachmentsSection({ card, onFiles }: { card: Card; onFiles: (f: FileList) => Promise<void> }) {
+function AttachmentsSection({ card, onFiles }: { card: Card; onFiles: (f: FileList) => Promise<unknown> }) {
   const updateCard = useStore((s) => s.updateCard);
   const [link, setLink] = useState({ name: "", url: "" });
   const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState<ID | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const images = card.attachments.filter((a) => a.stored && isImage(a.name, a.mime));
   const others = card.attachments.filter((a) => !images.includes(a));
@@ -745,6 +727,7 @@ function AttachmentsSection({ card, onFiles }: { card: Card; onFiles: (f: FileLi
       ...(card.coverImage === a.id ? { coverImage: null } : {}),
     });
   const open = (a: Attachment) => (a.stored ? openStored(a.url) : openExternal(a.url));
+  const display = (a: Attachment) => (isLocalPath(a.url) && !a.stored ? fileUrlToPath(a.url) : a.url);
 
   return (
     <section>
@@ -773,9 +756,9 @@ function AttachmentsSection({ card, onFiles }: { card: Card; onFiles: (f: FileLi
         <div className="thumbs">
           {images.map((a) => (
             <figure key={a.id} className={card.coverImage === a.id ? "is-cover" : ""}>
-              <img src={storedSrc(a.url)} alt={a.name} onClick={() => open(a)} title="Open" />
+              <img src={storedSrc(a.url)} alt={a.name} onClick={() => setPreview(a.id)} title="Preview" />
               <figcaption>
-                <span className="ellipsis">{a.name}</span>
+                <span className="ellipsis" title={a.name}>{a.name}</span>
                 <button
                   className="icon-btn tiny"
                   title={card.coverImage === a.id ? "Remove as cover" : "Use as cover"}
@@ -792,17 +775,26 @@ function AttachmentsSection({ card, onFiles }: { card: Card; onFiles: (f: FileLi
         </div>
       )}
       <ul className="attachments">
-        {others.map((a) => (
-          <li key={a.id}>
-            <button className="link" onClick={() => open(a)} title={a.stored ? "Open file" : a.url}>
-              {a.stored ? <FileText size={13} /> : <ExternalLink size={13} />} {a.name}
-            </button>
-            <span className="muted small ellipsis">{a.stored ? `${fileSize(a.size)} · stored` : a.url}</span>
-            <button className="icon-btn tiny" title="Remove" onClick={() => remove(a)}>
-              <X size={13} />
-            </button>
-          </li>
-        ))}
+        {others.map((a) => {
+          const local = !a.stored && isLocalPath(a.url);
+          return (
+            <li key={a.id}>
+              <button className="link" onClick={() => open(a)} title={a.stored ? "Open file" : display(a)}>
+                {a.stored ? <FileText size={13} /> : local ? <HardDrive size={13} /> : <ExternalLink size={13} />}{" "}
+                {local || a.name.includes("%") ? decodeURIComponent(a.name) : a.name}
+              </button>
+              <span className="muted small ellipsis grow">{a.stored ? `${fileSize(a.size)} · stored in Zomello` : display(a)}</span>
+              {local && inTauri && (
+                <button className="btn sm ghost" title="Copy the file into Zomello so it keeps working if the original moves" onClick={() => storeLinkedFile(card.id, a.id)}>
+                  <Download size={12} /> Copy in
+                </button>
+              )}
+              <button className="icon-btn tiny" title="Remove" onClick={() => remove(a)}>
+                <X size={13} />
+              </button>
+            </li>
+          );
+        })}
       </ul>
       <form
         className="row gap-sm"
@@ -810,14 +802,14 @@ function AttachmentsSection({ card, onFiles }: { card: Card; onFiles: (f: FileLi
           e.preventDefault();
           const url = link.url.trim();
           if (!url) return;
-          const name = link.name.trim() || url.split(/[\\/]/).filter(Boolean).pop() || url;
+          const name = link.name.trim() || decodeURIComponent(url.split(/[\\/]/).filter(Boolean).pop() || url);
           updateCard(card.id, { attachments: [...card.attachments, { id: uid(), name, url, addedAt: Date.now() }] });
           setLink({ name: "", url: "" });
         }}
       >
         <input
           className="add-input grow"
-          placeholder="Paste a link (https://…) or a file path — or drop files anywhere on this card"
+          placeholder="Paste a link (https://…) or a file path"
           value={link.url}
           onChange={(e) => setLink({ ...link, url: e.target.value })}
         />
@@ -832,7 +824,81 @@ function AttachmentsSection({ card, onFiles }: { card: Card; onFiles: (f: FileLi
           Add
         </button>
       </form>
+      <p className="muted small drop-tip">
+        <Upload size={11} /> Tip: drag files from your file manager anywhere onto this card.
+      </p>
+      {preview && (
+        <Lightbox
+          images={images}
+          startId={preview}
+          coverId={card.coverImage}
+          onCover={(id) => updateCard(card.id, { coverImage: card.coverImage === id ? null : id })}
+          onClose={() => setPreview(null)}
+        />
+      )}
     </section>
+  );
+}
+
+/** In-app image preview with arrow-key navigation. */
+function Lightbox({
+  images,
+  startId,
+  coverId,
+  onCover,
+  onClose,
+}: {
+  images: Attachment[];
+  startId: ID;
+  coverId: ID | null;
+  onCover: (id: ID) => void;
+  onClose: () => void;
+}) {
+  const [i, setI] = useState(Math.max(0, images.findIndex((a) => a.id === startId)));
+  const a = images[i];
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") setI((x) => (x + 1) % images.length);
+      else if (e.key === "ArrowLeft") setI((x) => (x - 1 + images.length) % images.length);
+      else if (e.key === "Escape") {
+        e.stopImmediatePropagation(); // close only the preview, not the card
+        onClose();
+      } else return;
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [images.length, onClose]);
+  if (!a) return null;
+  return createPortal(
+    <div className="lightbox" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <img src={storedSrc(a.url)} alt={a.name} />
+      <div className="lightbox-bar">
+        <span className="ellipsis grow">
+          {a.name} <span className="muted">· {fileSize(a.size)}{images.length > 1 ? ` · ${i + 1} of ${images.length}` : ""}</span>
+        </span>
+        <button className="btn sm" onClick={() => onCover(a.id)}>
+          <ImageIcon size={13} /> {coverId === a.id ? "Remove as cover" : "Use as cover"}
+        </button>
+        <button className="btn sm" onClick={() => openStored(a.url)}>
+          <ExternalLink size={13} /> Open in app
+        </button>
+        <button className="icon-btn" onClick={onClose} title="Close (Esc)">
+          <X size={18} />
+        </button>
+      </div>
+      {images.length > 1 && (
+        <>
+          <button className="lightbox-nav prev" onClick={() => setI((i - 1 + images.length) % images.length)} title="Previous (←)">
+            <ChevronLeft size={28} />
+          </button>
+          <button className="lightbox-nav next" onClick={() => setI((i + 1) % images.length)} title="Next (→)">
+            <ChevronRight size={28} />
+          </button>
+        </>
+      )}
+    </div>,
+    document.body,
   );
 }
 

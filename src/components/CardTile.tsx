@@ -72,6 +72,7 @@ export const CardTile = memo(function CardTile({
         .filter(Boolean)
         .join(" ")}
       style={full && !coverImg ? { background: card.cover! } : undefined}
+      data-card-id={card.id}
       onClick={() => openCard(card.id)}
       onContextMenu={(e) => openCardMenu(e, card.id)}
       onMouseEnter={() => (hoveredCardId = card.id)}

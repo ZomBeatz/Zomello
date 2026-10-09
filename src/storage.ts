@@ -55,7 +55,14 @@ export async function dataLocation(): Promise<string> {
   return inTauri ? invoke<string>("data_location") : "Browser localStorage (dev mode)";
 }
 
+/** file:///home/me/My%20File.jpg → /home/me/My File.jpg (Windows: file:///C:/x → C:/x). */
+export function fileUrlToPath(u: string): string {
+  const p = decodeURIComponent(u.replace(/^file:\/\/(localhost)?/i, ""));
+  return /^\/[A-Za-z]:\//.test(p) ? p.slice(1) : p;
+}
+
 export async function openExternal(target: string): Promise<void> {
+  if (/^file:/i.test(target)) target = fileUrlToPath(target);
   if (inTauri) {
     const { openUrl, openPath } = await import("@tauri-apps/plugin-opener");
     if (/^[a-z][a-z0-9+.-]*:/i.test(target)) return openUrl(target);
@@ -80,6 +87,17 @@ export async function storeFile(file: File): Promise<string> {
     r.onerror = () => reject(r.error);
     r.readAsDataURL(file);
   });
+}
+
+/** Copy a file into storage by its path (drops from a file manager only give us the path). */
+export async function storeFromPath(path: string): Promise<{ rel: string; name: string; size: number }> {
+  return invoke("store_file_from_path", { path });
+}
+
+/** Turn a dropped file path into a File (desktop app only). */
+export async function fileFromPath(path: string): Promise<File> {
+  const buf = await invoke<ArrayBuffer>("read_dropped_file", { path });
+  return new File([buf], path.split(/[\\/]/).pop() || "file");
 }
 
 /** URL the webview can display for a stored file (images, previews). */

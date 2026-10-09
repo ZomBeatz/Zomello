@@ -3,7 +3,8 @@ import { ArrowDown, ArrowUp, ImagePlus, Plus, Trash2, X } from "lucide-react";
 import type { BadgeKey, BadgeMode, Board, BoardDisplay, CardSection, FieldDef, FieldType } from "../types";
 import { useStore } from "../store";
 import { BOARD_EMOJIS, GRADIENTS, isImage, PALETTE, uid } from "../utils";
-import { storedSrc, storeFile } from "../storage";
+import { inTauri, storedSrc, storeFile, storeFromPath } from "../storage";
+import { readDrop } from "../attachments";
 import { ask, ColorPicker, Modal } from "./ui";
 
 const BADGES: { key: BadgeKey; name: string; icon: string; full: string }[] = [
@@ -115,7 +116,7 @@ export function BoardCustomize({ board }: { board: Board }) {
           data-file-drop
           className={dropBg ? "drop-target" : ""}
           onDragOver={(e) => {
-            if (!e.dataTransfer.types.includes("Files")) return;
+            if (!e.dataTransfer.types.includes("Files") && !e.dataTransfer.types.includes("text/uri-list")) return;
             e.preventDefault();
             setDropBg(true);
           }}
@@ -123,8 +124,15 @@ export function BoardCustomize({ board }: { board: Board }) {
           onDrop={(e) => {
             e.preventDefault();
             setDropBg(false);
-            const f = e.dataTransfer.files[0];
-            if (f) void useImage(f);
+            const d = readDrop(e.dataTransfer);
+            if (d.files[0]) void useImage(d.files[0]);
+            else if (d.paths[0] && inTauri) {
+              if (!isImage(d.paths[0])) return useStore.getState().toast("That isn't an image.");
+              storeFromPath(d.paths[0]).then(
+                (s) => set({ background: { type: "image", value: s.rel } }),
+                (err) => useStore.getState().toast(`Couldn't use that image: ${err}`),
+              );
+            }
           }}
         >
           <h4>Background</h4>

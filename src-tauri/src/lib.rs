@@ -163,6 +163,45 @@ fn data_location(app: AppHandle) -> Result<String, String> {
     Ok(data_dir(&app)?.join(DATA_FILE).to_string_lossy().to_string())
 }
 
+/// Unique folder for one stored file: `attachments/<id>/`.
+fn new_attachment_rel(name: &str) -> PathBuf {
+    let id = format!(
+        "{:x}{:x}",
+        now_secs(),
+        SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.subsec_nanos()).unwrap_or(0)
+    );
+    PathBuf::from(ATTACH_DIR).join(id).join(safe_name(name))
+}
+
+#[derive(Serialize)]
+struct StoredFile {
+    rel: String,
+    name: String,
+    size: u64,
+}
+
+/// Copy a file the user dropped (we only get its path from the file manager) into storage.
+#[tauri::command]
+fn store_file_from_path(app: AppHandle, path: String) -> Result<StoredFile, String> {
+    let src = PathBuf::from(&path);
+    let meta = fs::metadata(&src).map_err(|e| format!("{path}: {e}"))?;
+    if !meta.is_file() {
+        return Err(format!("{path} is a folder, not a file"));
+    }
+    let name = src.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "file".into());
+    let rel = new_attachment_rel(&name);
+    let abs = data_dir(&app)?.join(&rel);
+    fs::create_dir_all(abs.parent().unwrap()).map_err(|e| e.to_string())?;
+    fs::copy(&src, &abs).map_err(|e| e.to_string())?;
+    Ok(StoredFile { rel: rel.to_string_lossy().replace('\\', "/"), name, size: meta.len() })
+}
+
+/// Read a file the user dropped (by path), e.g. a Trello/Planner export, as raw bytes.
+#[tauri::command]
+fn read_dropped_file(path: String) -> Result<tauri::ipc::Response, String> {
+    fs::read(&path).map(tauri::ipc::Response::new).map_err(|e| format!("{path}: {e}"))
+}
+
 /// Store an uploaded file (raw request body; name in the `x-name` header, URI-encoded).
 /// Returns the path relative to the data dir, e.g. `attachments/<id>/<name>`.
 #[tauri::command]
@@ -176,8 +215,7 @@ fn save_attachment(app: AppHandle, request: tauri::ipc::Request) -> Result<Strin
         .and_then(|v| v.to_str().ok())
         .map(|v| percent_decode(v))
         .unwrap_or_else(|| "file".into());
-    let id = format!("{:x}{:x}", now_secs(), SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.subsec_nanos()).unwrap_or(0));
-    let rel = PathBuf::from(ATTACH_DIR).join(id).join(safe_name(&name));
+    let rel = new_attachment_rel(&name);
     let abs = data_dir(&app)?.join(&rel);
     fs::create_dir_all(abs.parent().unwrap()).map_err(|e| e.to_string())?;
     fs::write(&abs, bytes).map_err(|e| e.to_string())?;
@@ -253,6 +291,16 @@ pub fn run() {
                 let _ = w.set_focus();
             }
         }))
+        // Safety net: the app window only ever shows the app itself. Links open in the browser
+        // instead, and a stray dropped file can never replace the UI.
+        .plugin(
+            tauri::plugin::Builder::<tauri::Wry, ()>::new("nav-guard")
+                .on_navigation(|_, url| {
+                    matches!(url.scheme(), "tauri" | "asset")
+                        || matches!(url.host_str(), Some("localhost") | Some("tauri.localhost") | Some("asset.localhost"))
+                })
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -264,6 +312,8 @@ pub fn run() {
             read_backup,
             data_location,
             save_attachment,
+            store_file_from_path,
+            read_dropped_file,
             attachment_abs_path,
             list_attachments,
             delete_attachment
