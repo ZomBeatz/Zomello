@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { useStore } from "./store";
 import { attachToCard, dropIsEmpty, readDrop } from "./attachments";
 import type { ID } from "./types";
+import { debugLog } from "./storage";
 
 /**
  * App-wide handling of things dragged in from outside (files, file paths, web links):
@@ -25,7 +26,17 @@ const isExternal = (e: DragEvent) => {
   return types.includes("Files") || types.includes("text/uri-list");
 };
 
+/** The browser cancels a drop whose dropEffect the source doesn't allow, so match what's offered. */
+function effectFor(dt: DataTransfer): DataTransfer["dropEffect"] {
+  const allowed = dt.effectAllowed;
+  if (allowed === "none") return "none";
+  if (["all", "uninitialized", "copy", "copyMove", "copyLink"].includes(allowed)) return "copy";
+  if (allowed.includes("ink")) return "link";
+  return "move";
+}
+
 let highlighted: Element | null = null;
+let loggedOver = false;
 const highlight = (el: Element | null) => {
   if (highlighted === el) return;
   highlighted?.classList.remove("file-drop-target");
@@ -34,6 +45,7 @@ const highlight = (el: Element | null) => {
 };
 
 function reset() {
+  loggedOver = false;
   highlight(null);
   useDrop.setState({ active: false, mode: "none", cardId: null });
 }
@@ -58,14 +70,25 @@ export function installFileDropPolicy() {
     highlight(tile);
     const s = useDrop.getState();
     if (!s.active || s.mode !== mode || s.cardId !== cardId) useDrop.setState({ active: true, mode, cardId });
+    if (!loggedOver) {
+      loggedOver = true;
+      debugLog("dragover", { types: [...e.dataTransfer!.types], effectAllowed: e.dataTransfer!.effectAllowed, mode, cardId });
+    }
     if (mode === "zone") return; // the zone's own handlers accept it
     e.preventDefault();
-    e.dataTransfer!.dropEffect = mode === "none" ? "none" : "copy";
+    e.dataTransfer!.dropEffect = mode === "none" ? "none" : effectFor(e.dataTransfer!);
   };
 
   const onDrop = (e: DragEvent) => {
     if (!isExternal(e)) return;
     const { mode, cardId } = modeFor(e);
+    loggedOver = false;
+    const dt = e.dataTransfer;
+    debugLog("drop", {
+      mode, cardId, types: dt ? [...dt.types] : null,
+      files: dt ? Array.from(dt.files).map((f) => [f.name, f.size, f.type]) : null,
+      uris: dt?.getData("text/uri-list"), plain: dt?.getData("text/plain"),
+    });
     reset();
     if (mode === "zone") return;
     e.preventDefault();

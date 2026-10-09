@@ -49,7 +49,7 @@ Zomello runs on Windows 10/11 too (it uses the built-in Edge WebView2). Ways to 
   rustup target add x86_64-pc-windows-msvc
   cargo install --locked cargo-xwin      # downloads Microsoft's CRT/SDK headers on first use (their license applies)
   paru -S nsis                           # NSIS installer builder (AUR)
-  npm run tauri -- build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis
+  npm run bundle:windows
   ```
   → `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/Zomello_*_x64-setup.exe`
 - **On a Windows PC**: install Node.js LTS, Rust (rustup) and the "Desktop development with C++" build tools, then
