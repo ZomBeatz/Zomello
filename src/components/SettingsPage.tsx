@@ -28,6 +28,8 @@ export function SettingsPage() {
   const templates = useStore((s) => s.data.templates);
   const { updateSettings, replaceData, updateTemplate, deleteTemplate } = useStore.getState();
   const [person, setPerson] = useState("");
+  /** Value shown while the zoom slider is being dragged (applied on release). */
+  const [zoomDraft, setZoomDraft] = useState<number | null>(null);
   const [location, setLocation] = useState("");
   const [backups, setBackups] = useState<BackupInfo[]>([]);
   const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
@@ -163,19 +165,11 @@ export function SettingsPage() {
             <button className="icon-btn" title="Zoom out (Ctrl −)" onClick={() => setZoom(settings.zoom - 0.1)}>
               <Minus size={15} />
             </button>
-            <input
-              type="range"
-              min={ZOOM_MIN * 100}
-              max={ZOOM_MAX * 100}
-              step={10}
-              value={Math.round(settings.zoom * 100)}
-              aria-label="Zoom level"
-              onChange={(e) => setZoom(+e.target.value / 100)}
-            />
+            <ZoomSlider zoom={settings.zoom} onPreview={setZoomDraft} />
             <button className="icon-btn" title="Zoom in (Ctrl +)" onClick={() => setZoom(settings.zoom + 0.1)}>
               <Plus size={15} />
             </button>
-            <span className="zoom-value">{Math.round(settings.zoom * 100)}%</span>
+            <span className="zoom-value">{Math.round((zoomDraft ?? settings.zoom) * 100)}%</span>
             {settings.zoom !== 1 && (
               <button className="btn sm ghost" onClick={() => setZoom(1)}>
                 Reset
@@ -382,5 +376,37 @@ export function ShortcutList() {
         </div>
       ))}
     </div>
+  );
+}
+
+/**
+ * Zoom slider that only applies on release: dragging just previews the number (zooming the whole
+ * window mid-drag would move the slider out from under the pointer). Arrow keys apply on key-up.
+ */
+function ZoomSlider({ zoom, onPreview }: { zoom: number; onPreview: (z: number | null) => void }) {
+  const [draft, setDraft] = useState<number | null>(null);
+  const value = draft ?? Math.round(zoom * 100);
+  const commit = () => {
+    if (draft !== null && draft / 100 !== zoom) setZoom(draft / 100);
+    setDraft(null);
+    onPreview(null);
+  };
+  return (
+    <input
+      type="range"
+      min={ZOOM_MIN * 100}
+      max={ZOOM_MAX * 100}
+      step={10}
+      value={value}
+      aria-label="Zoom level"
+      aria-valuetext={`${value}%`}
+      onChange={(e) => {
+        setDraft(+e.target.value);
+        onPreview(+e.target.value / 100);
+      }}
+      onPointerUp={commit}
+      onKeyUp={commit}
+      onBlur={commit}
+    />
   );
 }
