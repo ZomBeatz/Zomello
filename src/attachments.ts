@@ -1,5 +1,5 @@
 import { useStore } from "./store";
-import { fileUrlToPath, inTauri, storeFile, storeFromPath } from "./storage";
+import { debugLog, fileUrlToPath, inTauri, storeFile, storeFromPath } from "./storage";
 import type { Attachment, ID } from "./types";
 import { isImage, uid } from "./utils";
 
@@ -22,7 +22,9 @@ export function readDrop(dt: DataTransfer): DropPayload {
   if (!uris.length && /^(https?|file):\/\//i.test(plain)) uris.push(plain);
   const paths = uris.filter((u) => /^file:/i.test(u)).map(fileUrlToPath);
   const links = uris.filter((u) => /^https?:/i.test(u));
-  // When we have real File objects, don't also import the same files by path.
+  // In the desktop app, copying by path (done natively) is the most reliable route — WebKitGTK can
+  // hand over File objects for desktop drags that can't actually be read. Otherwise use the Files.
+  if (inTauri && paths.length) return { files: [], paths, links };
   return { files, paths: files.length ? [] : paths, links: files.length ? [] : links };
 }
 
@@ -32,7 +34,11 @@ export const dropIsEmpty = (p: DropPayload) => !p.files.length && !p.paths.lengt
 export async function attachToCard(cardId: ID, p: DropPayload): Promise<number> {
   const st = useStore.getState();
   const added: Attachment[] = [];
-  const fail = (name: string, e: unknown) => st.toast(`Couldn't attach ${name}: ${e}`);
+  const fail = (name: string, e: unknown) => {
+    debugLog("attach failed", name, String(e));
+    st.toast(`Couldn't attach ${name}: ${e}`);
+  };
+  debugLog("attachToCard", cardId, { files: p.files.map((f) => [f.name, f.size, f.type]), paths: p.paths, links: p.links });
   for (const f of p.files) {
     try {
       added.push({ id: uid(), name: f.name, url: await storeFile(f), addedAt: Date.now(), stored: true, size: f.size, mime: f.type });
