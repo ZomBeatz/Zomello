@@ -987,3 +987,57 @@ body[data-filedrag="card"] .drop-hint { display: flex; }
   .toolbar .btn .btn-label { display: none; }
   .group-by .gb-label { display: none; }
 }
+
+/* ---------- checklist: reorder, insert, labels ---------- */
+.checklist li { position: relative; }
+.checklist li.dragging { z-index: 2; background: var(--surface-2); box-shadow: var(--shadow); opacity: .95; }
+.cl-grip { display: inline-flex; color: var(--muted); cursor: grab; padding: 2px 0; opacity: 0; touch-action: none; }
+.checklist li:hover .cl-grip, .cl-grip:focus-visible { opacity: 1; }
+.cl-grip:active { cursor: grabbing; }
+.cl-actions { display: inline-flex; gap: 1px; opacity: 0; }
+.checklist li:hover .cl-actions, .checklist li:focus-within .cl-actions { opacity: 1; }
+.cl-labels { display: inline-flex; gap: 3px; flex-wrap: wrap; flex-shrink: 0; max-width: 45%; }
+.label-pill.sm { font-size: 10px; padding: 0 6px; line-height: 16px; }
+.checklist li.cl-gap { height: 4px; padding: 0; margin: -2px 0; display: flex; align-items: center; justify-content: center; }
+.checklist li.cl-gap:hover { background: none; }
+.cl-gap button {
+  opacity: 0; display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 12px; position: relative;
+  color: var(--accent);
+}
+.cl-gap button::before { content: ""; position: absolute; left: 26px; right: 0; top: 50%; border-top: 2px solid var(--accent); }
+.cl-gap button svg { position: relative; background: var(--surface); border-radius: 50%; border: 1.5px solid var(--accent); }
+.cl-gap:hover button { opacity: 1; }
+.checklist li.cl-insert { background: var(--accent-soft); }
+.cl-insert input { flex: 1; border: none; background: transparent; box-shadow: none; padding: 3px 0; }
+.item-dots { display: inline-flex; gap: 2px; flex-shrink: 0; }
+.item-dots span { width: 7px; height: 7px; border-radius: 50%; }
+.picker-list li.disabled { opacity: .5; cursor: not-allowed; }
+.picker-why { color: var(--warn); }
+
+/* ---------- task relations on the board ---------- */
+:root { --rel-parent: #ec6a3f; --rel-child: #3b82f6; --rel-blocker: #ef4444; --rel-blocked: #f59e0b; --rel-related: #a855f7; }
+.badge.rel { font-weight: 600; max-width: 100%; }
+.badge.rel .rel-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
+.badge.rel-parent { color: var(--rel-parent); border-color: color-mix(in srgb, var(--rel-parent) 55%, transparent); background: color-mix(in srgb, var(--rel-parent) 10%, transparent); }
+.badge.rel-child { color: var(--rel-child); border-color: color-mix(in srgb, var(--rel-child) 55%, transparent); background: color-mix(in srgb, var(--rel-child) 10%, transparent); }
+.badge.rel-blocked { color: var(--rel-blocked); border-color: color-mix(in srgb, var(--rel-blocked) 55%, transparent); }
+.badge.rel-related { color: var(--rel-related); border-color: color-mix(in srgb, var(--rel-related) 55%, transparent); }
+.badge.blocked { color: var(--rel-blocker); border-color: var(--rel-blocker); }
+/* Hovering a card outlines everything connected to it, in the same colors as the badges. */
+.card-tile.link-source { box-shadow: 0 0 0 2px var(--text-2), var(--shadow); }
+.card-tile.link-role { transition: box-shadow .12s; }
+.card-tile.link-parent { box-shadow: 0 0 0 2px var(--rel-parent), var(--shadow); }
+.card-tile.link-child { box-shadow: 0 0 0 2px var(--rel-child), var(--shadow); }
+.card-tile.link-blocker { box-shadow: 0 0 0 2px var(--rel-blocker), var(--shadow); }
+.card-tile.link-blocked { box-shadow: 0 0 0 2px var(--rel-blocked), var(--shadow); }
+.card-tile.link-related { box-shadow: 0 0 0 2px var(--rel-related), var(--shadow); }
+.card-tile.link-role::after {
+  content: attr(data-rel-label); position: absolute; top: 5px; right: 6px; font-size: 10px; font-weight: 700;
+  padding: 0 6px; border-radius: 6px; color: #fff; line-height: 16px; pointer-events: none; z-index: 1;
+}
+.card-tile.link-parent::after { background: var(--rel-parent); }
+.card-tile.link-child::after { background: var(--rel-child); }
+.card-tile.link-blocker::after { background: var(--rel-blocker); }
+.card-tile.link-blocked::after { background: var(--rel-blocked); }
+.card-tile.link-related::after { background: var(--rel-related); }
+.card-tile { position: relative; }

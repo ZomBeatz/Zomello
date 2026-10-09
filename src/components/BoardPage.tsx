@@ -287,7 +287,7 @@ function Toolbar({
       <div className="search-box">
         <Search size={15} />
         <input
-          placeholder="Filter cards…"
+          placeholder="Filter cards…" spellCheck={false}
           value={f.text}
           onChange={(e) => setFilter(board.id, { text: e.target.value })}
         />

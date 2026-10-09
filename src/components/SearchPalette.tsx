@@ -59,7 +59,7 @@ export function SearchPalette() {
         <Search size={18} />
         <input
           autoFocus
-          placeholder="Search boards, cards, checklists, notes…"
+          placeholder="Search boards, cards, checklists, notes…" spellCheck={false}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {

@@ -1,17 +1,27 @@
 import { memo } from "react";
 import { differenceInCalendarDays } from "date-fns";
 import {
-  AlignLeft, Ban, Calendar, CheckSquare, Flag, Link2, MessageSquare, Paperclip, Repeat, Timer,
+  AlignLeft, Ban, Calendar, CheckSquare, CornerDownRight, Flag, Link2, ListTree, MessageSquare, Octagon, Paperclip, Repeat, Timer,
 } from "lucide-react";
 import type { Board, Card, ID } from "../types";
 import { useStore } from "../store";
 import {
   agingLevel, checklistStats, describeRecurrence, dueStatus, formatDuration, formatFieldValue, fromISO, isBlocked,
-  plainText, prettyDate, priorityMeta, timeAgo, trackedMs,
+  parentIndex, plainText, prettyDate, priorityMeta, subtaskIds, timeAgo, trackedMs,
 } from "../utils";
 import { storedSrc } from "../storage";
 import { Avatar, PriorityBadge, ProgressIcon } from "./ui";
 import { openCardMenu } from "./ContextMenu";
+import { clearHoverLinks, hoverLinks, useLinkHover } from "../linkHover";
+
+/** Tag shown on a card while a connected card is hovered: how it relates to the hovered card. */
+const REL_LABEL = {
+  parent: "Parent",
+  child: "Sub-task",
+  blocker: "Blocks it",
+  blocked: "Blocked by it",
+  related: "Related",
+} as const;
 
 /** The card under the mouse, for hover keyboard shortcuts (see shortcuts.ts). */
 export let hoveredCardId: ID | null = null;
@@ -43,8 +53,20 @@ export const CardTile = memo(function CardTile({
   const toggleChecklistItem = useStore((s) => s.toggleChecklistItem);
   const blocked = useStore((s) => card.progress !== "completed" && isBlocked(card, s.data.cards));
   const linkedTitles = useStore((s) =>
-    board.display.badges.links === "full" ? card.links.map((l) => s.data.cards[l.cardId]?.title).filter(Boolean).join("\n") : "",
+    board.display.badges.links === "full"
+      ? card.links
+          .map((l) => s.data.cards[l.cardId] && `${l.type === "blocks" ? "Blocks" : l.type === "blockedBy" ? "Blocked by" : "Related"}: ${s.data.cards[l.cardId].title}`)
+          .filter(Boolean)
+          .join("\n")
+      : "",
   );
+  // Cards that have this one as a sub-task (newline-joined titles, so the selector stays cheap to compare).
+  const parentTitles = useStore((s) => (parentIndex(s.data.cards).get(card.id) ?? []).map((p) => p.title).join("\n"));
+  const linkRole = useLinkHover((s) => s.roles[card.id]);
+  const isLinkSource = useLinkHover((s) => s.source === card.id);
+  const subIds = subtaskIds(card);
+  const subDone = card.checklist.filter((i) => i.cardId && i.done).length;
+  const relCount = (t: string) => card.links.filter((l) => l.type === t).length;
   const mode = board.display.badges;
   const labels = board.labels.filter((l) => card.labelIds.includes(l.id));
   const cl = checklistStats(card);
@@ -68,15 +90,24 @@ export const CardTile = memo(function CardTile({
         full && "full-cover",
         full && coverImg && "full-image",
         age && `aged-${age}`,
+        linkRole && `link-role link-${linkRole}`,
+        isLinkSource && "link-source",
       ]
         .filter(Boolean)
         .join(" ")}
       style={full && !coverImg ? { background: card.cover! } : undefined}
       data-card-id={card.id}
+      data-rel-label={linkRole ? REL_LABEL[linkRole] : undefined}
       onClick={() => openCard(card.id)}
       onContextMenu={(e) => openCardMenu(e, card.id)}
-      onMouseEnter={() => (hoveredCardId = card.id)}
-      onMouseLeave={() => hoveredCardId === card.id && (hoveredCardId = null)}
+      onMouseEnter={() => {
+        hoveredCardId = card.id;
+        if (mode.links !== "off") hoverLinks(card, useStore.getState().data.cards);
+      }}
+      onMouseLeave={() => {
+        if (hoveredCardId === card.id) hoveredCardId = null;
+        clearHoverLinks(card.id);
+      }}
       onKeyDown={(e) => e.key === "Enter" && openCard(card.id)}
       tabIndex={0}
     >
@@ -136,7 +167,8 @@ export const CardTile = memo(function CardTile({
           {card.checklist.slice(0, 6).map((i) => (
             <li key={i.id} className={i.done ? "done" : ""}>
               <input type="checkbox" checked={i.done} onChange={() => toggleChecklistItem(card.id, i.id)} />
-              <span>{i.text}</span>
+              <span className="grow">{i.cardId && <CornerDownRight size={10} className="muted" />} {i.text}</span>
+              <ItemLabelDots boardId={card.boardId} item={i} />
             </li>
           ))}
           {cl.total > 6 && <li className="muted small">+{cl.total - 6} more</li>}
@@ -207,10 +239,28 @@ export const CardTile = memo(function CardTile({
             {mode.time === "full" && card.estimate ? ` / ${formatDuration(card.estimate * 60_000)}` : ""}
           </span>
         )}
-        {mode.links === "icon" && card.links.length > 0 && (
-          <span className="badge" title="Linked tasks">
+        {mode.links !== "off" && parentTitles && (
+          <span className="badge rel rel-parent" title={`Sub-task of:\n${parentTitles}`}>
+            <CornerDownRight size={12} />
+            <span className="rel-text">{parentTitles.includes("\n") ? `${parentTitles.split("\n").length} parents` : parentTitles}</span>
+          </span>
+        )}
+        {mode.links !== "off" && subIds.length > 0 && (
+          <span className="badge rel rel-child" title={`${subIds.length} sub-task${subIds.length === 1 ? "" : "s"}, ${subDone} done`}>
+            <ListTree size={12} />
+            {subDone}/{subIds.length}
+          </span>
+        )}
+        {mode.links === "icon" && relCount("blocks") > 0 && (
+          <span className="badge rel rel-blocked" title="Blocks other tasks">
+            <Octagon size={12} />
+            Blocks {relCount("blocks")}
+          </span>
+        )}
+        {mode.links === "icon" && relCount("relates") > 0 && (
+          <span className="badge rel rel-related" title="Related tasks">
             <Link2 size={12} />
-            {card.links.length}
+            {relCount("relates")}
           </span>
         )}
         {mode.description === "icon" && card.description && (
@@ -253,3 +303,22 @@ export const CardTile = memo(function CardTile({
     </div>
   );
 });
+
+/** Small colored dots for a checklist item's labels (a linked item shows its task's labels). */
+function ItemLabelDots({ boardId, item }: { boardId: ID; item: Card["checklist"][number] }) {
+  const colors = useStore((s) => {
+    const linked = item.cardId ? s.data.cards[item.cardId] : undefined;
+    const b = s.data.boards[linked ? linked.boardId : boardId];
+    const ids = linked ? linked.labelIds : item.labelIds ?? [];
+    return b ? b.labels.filter((l) => ids.includes(l.id)).map((l) => `${l.color}\u0001${l.name}`).join("\u0002") : "";
+  });
+  if (!colors) return null;
+  return (
+    <span className="item-dots">
+      {colors.split("\u0002").map((c) => {
+        const [color, name] = c.split("\u0001");
+        return <span key={c} style={{ background: color }} title={name} />;
+      })}
+    </span>
+  );
+}

@@ -25,3 +25,7 @@ codegen-units = 1
 lto = true
 opt-level = "s"
 strip = true
+
+# Linux only: turn on WebKitGTK's spell checker (Windows' WebView2 has it built in).
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = "2.0"

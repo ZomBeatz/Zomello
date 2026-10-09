@@ -5,7 +5,9 @@ import type {
   Activity, AppData, BadgeMode, Board, BoardDisplay, BoardUi, Card, CardTemplate, Filter, FocusTimer, ID, LinkType, List, Route, Settings,
 } from "./types";
 import type { ImportedBoard } from "./importers";
-import { byOrder, emptyFilter, fromISO, inverseLink, nextRecurrenceDate, PALETTE, toISO, todayISO, uid } from "./utils";
+import {
+  blockLoopReason, byOrder, emptyFilter, fromISO, inverseLink, nextRecurrenceDate, PALETTE, subtaskLoopReason, toISO, todayISO, uid,
+} from "./utils";
 
 const DEFAULT_LABELS = [
   { name: "Bug", color: "#ef4444" },
@@ -788,6 +790,8 @@ export const useStore = create<State>((set, get) => {
     },
     linkCards(a, b, type) {
       if (a === b) return;
+      const loop = blockLoopReason(a, b, type, get().data.cards);
+      if (loop) return get().toast(`Can't link: ${loop}.`);
       mut((d) => {
         const ca = d.cards[a], cb = d.cards[b];
         if (!ca || !cb) return d;
@@ -811,6 +815,10 @@ export const useStore = create<State>((set, get) => {
     },
     linkChecklistItem(cardId, itemId, target) {
       const c = get().data.cards[cardId];
+      if (target) {
+        const loop = subtaskLoopReason(cardId, target, get().data.cards);
+        if (loop) return get().toast(`Can't link: ${loop}.`);
+      }
       const t = target ? get().data.cards[target] : null;
       get().updateCard(cardId, {
         checklist: c.checklist.map((i) =>
@@ -821,7 +829,15 @@ export const useStore = create<State>((set, get) => {
     spinOffChecklistItem(cardId, itemId, listId) {
       const c = get().data.cards[cardId];
       const item = c.checklist.find((i) => i.id === itemId)!;
-      const newId = get().createCard(listId, item.text, item.done ? { progress: "completed" } : {});
+      // Carry the item's labels over (matched by name if the new task is on another board).
+      const d = get().data;
+      const srcLabels = d.boards[c.boardId].labels;
+      const dst = d.boards[d.lists[listId].boardId];
+      const labelIds = (item.labelIds ?? [])
+        .map((id) => srcLabels.find((l) => l.id === id)?.name)
+        .map((name) => dst.labels.find((l) => l.name === name)?.id)
+        .filter((x): x is ID => !!x);
+      const newId = get().createCard(listId, item.text, { labelIds, ...(item.done ? { progress: "completed" } : {}) });
       get().linkChecklistItem(cardId, itemId, newId);
       return newId;
     },
