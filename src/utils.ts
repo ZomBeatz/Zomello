@@ -483,3 +483,11 @@ export function relatedSet(id: string, cards: Record<string, Card>, deep: boolea
   }
   return out;
 }
+
+/** "1 card", "3 cards". */
+export const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
+
+/** Category names in use by these boards, A–Z. */
+export function boardCategories(boards: { category?: string | null }[]): string[] {
+  return [...new Set(boards.map((b) => b.category).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b));
+}

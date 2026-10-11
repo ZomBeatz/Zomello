@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { archiveCard, deleteCard } from "../actions";
 import { createPortal } from "react-dom";
 import { addDays, addHours, format, nextMonday, setHours, setMinutes } from "date-fns";
 import {
@@ -29,7 +30,7 @@ import {
 import type { ID } from "../types";
 import { useStore } from "../store";
 import { byOrder, describeRecurrence, PRIORITIES, PROGRESS, RECURRENCE_PRESETS, relatedSet, toISO } from "../utils";
-import { ask, Avatar } from "./ui";
+import { Avatar } from "./ui";
 import { CardPicker, LabelPicker } from "./pickers";
 
 export interface MenuEntry {
@@ -361,21 +362,13 @@ function cardMenu(cardId: ID): MenuEntry[] {
     {
       label: "Archive",
       icon: <Archive size={14} />,
-      onClick: () => {
-        set({ archived: true });
-        st.toast(`Archived "${card.title}"`, { undo: true });
-      },
+      onClick: () => archiveCard(card),
     },
     {
       label: "Delete",
       icon: <Trash2 size={14} />,
       danger: true,
-      onClick: async () => {
-        if (await ask(`Delete "${card.title}"?`, { okText: "Delete", danger: true })) {
-          st.deleteCard(cardId);
-          st.toast(`Deleted "${card.title}"`, { undo: true });
-        }
-      },
+      onClick: () => void deleteCard(card),
     },
   ];
 }

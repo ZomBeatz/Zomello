@@ -137,7 +137,7 @@ export function DevicesPanel() {
   const fw = st.firewall;
 
   return (
-    <section className="panel">
+    <section className="panel" id="set-devices">
       <h3>
         <Smartphone size={16} /> Phones &amp; tablets
       </h3>
@@ -334,7 +334,7 @@ export function DevicesPanel() {
         <Modal onClose={() => setCertQr(null)} width={440} className="pairing">
           <header className="customize-head">
             <h2>Put the certificate on a device</h2>
-            <button className="icon-btn" onClick={() => setCertQr(null)}>
+            <button className="icon-btn" title="Close" aria-label="Close" onClick={() => setCertQr(null)}>
               <X size={18} />
             </button>
           </header>
@@ -362,7 +362,7 @@ function PairingWindow({ info, setupUrl, onClose }: { info: PairingInfo; setupUr
     <Modal onClose={onClose} width={440} className="pairing">
       <header className="customize-head">
         <h2>Pair a device</h2>
-        <button className="icon-btn" onClick={onClose}>
+        <button className="icon-btn" title="Close" aria-label="Close" onClick={onClose}>
           <X size={18} />
         </button>
       </header>

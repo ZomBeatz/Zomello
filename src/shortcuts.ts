@@ -1,4 +1,5 @@
 import { addDays } from "date-fns";
+import { archiveCard } from "./actions";
 import { useStore } from "./store";
 import { hoveredCardId } from "./components/CardTile";
 import { toISO } from "./utils";
@@ -18,7 +19,7 @@ export const SHORTCUTS: { group: string; items: [string, string][] }[] = [
       ["Ctrl Scroll", "Zoom in / out"],
       ["Ctrl +  or  Ctrl −", "Zoom in / out"],
       ["Ctrl 0", "Reset zoom"],
-      ["?", "Show these shortcuts"],
+      ["?", "Help and these shortcuts"],
       ["Esc", "Close dialogs and menus"],
     ],
   },
@@ -49,7 +50,7 @@ export const SHORTCUTS: { group: string; items: [string, string][] }[] = [
     group: "In a card",
     items: [
       ["Alt ←", "Back to the card you came from"],
-      ["Ctrl Enter", "Save note"],
+      ["Ctrl Enter", "Add the note you typed"],
       ["Esc", "Close"],
     ],
   },
@@ -118,8 +119,7 @@ export function handleShortcut(e: KeyboardEvent) {
         return st.updateCard(card.id, { dueDate: card.dueDate === today ? toISO(addDays(new Date(), 1)) : today });
       }
       case "a":
-        st.updateCard(card.id, { archived: true });
-        return st.toast(`Archived "${card.title}"`, { undo: true });
+        return archiveCard(card);
       case "D":
         st.duplicateCard(card.id);
         return st.toast("Duplicated card", { undo: true });

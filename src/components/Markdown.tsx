@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { inTauri, openExternal } from "../storage";
 import { useStore } from "../store";
-import { AutoTextarea } from "./ui";
+import { AutoTextarea, useSaveOnUnmount } from "./ui";
 
 marked.setOptions({ gfm: true, breaks: true });
 
@@ -294,6 +294,9 @@ export function MarkdownField({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
+  useSaveOnUnmount(() => {
+    if (editing && draft !== value) onSave(draft);
+  });
   const start = () => {
     setDraft(value);
     setEditing(true);

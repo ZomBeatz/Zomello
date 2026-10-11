@@ -89,8 +89,24 @@ export function SettingsPage() {
   return (
     <div className="page settings">
       <h1>Settings</h1>
+      <nav className="settings-nav" aria-label="Settings sections">
+        {[
+          ["appearance", "Appearance"],
+          ["accessibility", "Accessibility"],
+          ["people", "People"],
+          ["reminders", "Reminders"],
+          ["templates", "Templates"],
+          ...(inTauri ? [["devices", "Phones & tablets"]] : []),
+          ["data", "Data & backups"],
+          ["shortcuts", "Shortcuts"],
+        ].map(([id, name]) => (
+          <button key={id} onClick={() => document.getElementById(`set-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+            {name}
+          </button>
+        ))}
+      </nav>
 
-      <section className="panel">
+      <section className="panel" id="set-appearance">
         <h3>Appearance</h3>
         <div className="field-row">
           <label>Theme</label>
@@ -102,13 +118,28 @@ export function SettingsPage() {
             ))}
           </div>
         </div>
+        {settings.unlockedStyles.length > 0 && (
+          <div className="field-row">
+            <label>Style</label>
+            <div className="seg">
+              <button className={settings.style === "classic" ? "active" : ""} onClick={() => updateSettings({ style: "classic" })}>
+                Classic
+              </button>
+              {settings.unlockedStyles.includes("bassdrop") && (
+                <button className={settings.style === "bassdrop" ? "active" : ""} onClick={() => updateSettings({ style: "bassdrop" })}>
+                  🎧 Bass Drop
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         <div className="field-row">
           <label>Accent</label>
           <div className="swatches">
             <button
               className={`swatch none ${settings.accent === null ? "sel" : ""}`}
-              title="Zomello blue (default)"
-              style={{ background: "linear-gradient(135deg, #2580c3, #4fb0ec)" }}
+              title={settings.style === "bassdrop" ? "Bass Drop pink (default)" : "Zomello blue (default)"}
+              style={{ background: settings.style === "bassdrop" ? "linear-gradient(135deg, #ff3fa4, #22e1ff)" : "linear-gradient(135deg, #2580c3, #4fb0ec)" }}
               onClick={() => updateSettings({ accent: null })}
             />
             {ACCENTS.map((c) => (
@@ -157,7 +188,7 @@ export function SettingsPage() {
         <p className="muted small">Each board also has its own look — open a board and press Customize (or B).</p>
       </section>
 
-      <section className="panel">
+      <section className="panel" id="set-accessibility">
         <h3>
           <Accessibility size={15} /> Accessibility
         </h3>
@@ -201,9 +232,9 @@ export function SettingsPage() {
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel" id="set-people">
         <h3>People</h3>
-        <p className="muted small">People you can assign tasks to. "Me" drives My Tasks, Home and reminders.</p>
+        <p className="muted small">People you can assign tasks to. Click a name to rename it everywhere. "Me" is you: it drives My Tasks, Home and reminders.</p>
         <div className="field-row">
           <label>Me</label>
           <select value={settings.me} onChange={(e) => updateSettings({ me: e.target.value })}>
@@ -216,7 +247,8 @@ export function SettingsPage() {
         <div className="row wrap gap-sm">
           {settings.people.map((p) => (
             <span key={p} className="chip">
-              <Avatar name={p} size={18} /> {p}
+              <Avatar name={p} size={18} />
+              <InlineEdit value={p} onSave={(name) => useStore.getState().renamePerson(p, name)} />
               <button
                 className="icon-btn tiny"
                 onClick={() => updateSettings({ people: settings.people.filter((x) => x !== p), me: settings.me === p ? "" : settings.me })}
@@ -234,7 +266,7 @@ export function SettingsPage() {
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel" id="set-reminders">
         <h3>
           <Bell size={15} /> Reminders
         </h3>
@@ -266,7 +298,7 @@ export function SettingsPage() {
         </button>
       </section>
 
-      <section className="panel">
+      <section className="panel" id="set-templates">
         <h3>
           <LayoutTemplate size={15} /> Card templates
         </h3>
@@ -292,7 +324,7 @@ export function SettingsPage() {
 
       {inTauri && <DevicesPanel />}
 
-      <section className="panel">
+      <section className="panel" id="set-data">
         <h3>Data</h3>
         <p className="muted small">
           Everything is stored locally at <code>{location}</code>. Attached files live in an <code>attachments</code>{" "}
@@ -329,7 +361,7 @@ export function SettingsPage() {
       </section>
 
       {inTauri && (
-        <section className="panel">
+        <section className="panel" id="set-backups">
           <h3>Automatic backups</h3>
           <p className="muted small">A snapshot is kept every 30 minutes while you work (last 30 kept).</p>
           {backups.length === 0 && <p className="muted small">No backups yet.</p>}
@@ -350,7 +382,7 @@ export function SettingsPage() {
         </section>
       )}
 
-      <section className="panel">
+      <section className="panel" id="set-shortcuts">
         <h3>Keyboard shortcuts</h3>
         <ShortcutList />
       </section>

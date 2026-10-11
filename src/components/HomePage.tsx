@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { addDays } from "date-fns";
-import { AlertTriangle, AppWindow, CalendarClock, CheckCircle2, ExternalLink, FileUp, Plus, Sparkles, Sun, Timer } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, FileUp, FolderOpen, Plus, Sparkles, Sun, Timer } from "lucide-react";
 import { openBoardWindow } from "../windows";
 import type { Card } from "../types";
 import { useStore } from "../store";
-import { byOrder, dueStatus, isLate, PALETTE, prettyDate, toISO, todayISO } from "../utils";
+import { boardCategories, byOrder, dueStatus, isLate, PALETTE, prettyDate, toISO, todayISO } from "../utils";
 import { ColorPicker, Empty, ProgressIcon } from "./ui";
 import { openCardMenu, openContextMenu } from "./ContextMenu";
+import { boardMenu } from "./boardMenu";
 
 export function HomePage() {
   const data = useStore((s) => s.data);
@@ -64,6 +65,32 @@ export function HomePage() {
     </li>
   );
 
+  const categories = boardCategories(boards);
+  const tile = (b: (typeof boards)[number]) => {
+    const cs = liveCards.filter((c) => c.boardId === b.id);
+    const done = cs.filter((c) => c.progress === "completed").length;
+    const late = cs.filter(isLate).length;
+    return (
+      <button
+        key={b.id}
+        className="board-tile"
+        onClick={() => navigate({ page: "board", boardId: b.id })}
+        onMouseDown={(e) => e.button === 1 && e.preventDefault()}
+        onAuxClick={(e) => e.button === 1 && void openBoardWindow(b.id, b.title)}
+        onContextMenu={(e) => openContextMenu(e, () => boardMenu(b))}
+        title="Middle-click to open in a new window; right-click for more"
+      >
+        <span className="tile-band" style={{ background: b.color }} />
+        <span className="tile-title">{b.title}</span>
+        <span className="muted small">
+          {done}/{cs.length} done{late ? ` · ${late} late` : ""}
+        </span>
+        <span className="progress-bar">
+          <span style={{ width: cs.length ? `${(done / cs.length) * 100}%` : 0, background: b.color }} />
+        </span>
+      </button>
+    );
+  };
   const hour = new Date().getHours();
   const greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
@@ -97,37 +124,21 @@ export function HomePage() {
       </div>
 
       <h2>Boards</h2>
+      {categories.map((cat) => (
+        <section key={cat}>
+          <h3 className="home-category">
+            <FolderOpen size={14} /> {cat}
+          </h3>
+          <div className="board-tiles">{boards.filter((b) => b.category === cat).map(tile)}</div>
+        </section>
+      ))}
+      {categories.length > 0 && (
+        <h3 className="home-category">
+          <FolderOpen size={14} /> Other boards
+        </h3>
+      )}
       <div className="board-tiles">
-        {boards.map((b) => {
-          const cs = liveCards.filter((c) => c.boardId === b.id);
-          const done = cs.filter((c) => c.progress === "completed").length;
-          const late = cs.filter(isLate).length;
-          return (
-            <button
-              key={b.id}
-              className="board-tile"
-              onClick={() => navigate({ page: "board", boardId: b.id })}
-              onMouseDown={(e) => e.button === 1 && e.preventDefault()}
-              onAuxClick={(e) => e.button === 1 && void openBoardWindow(b.id, b.title)}
-              onContextMenu={(e) =>
-                openContextMenu(e, () => [
-                  { label: "Open", icon: <ExternalLink size={14} />, onClick: () => navigate({ page: "board", boardId: b.id }) },
-                  { label: "Open in new window", icon: <AppWindow size={14} />, onClick: () => void openBoardWindow(b.id, b.title) },
-                ])
-              }
-              title="Middle-click or right-click to open in a new window"
-            >
-              <span className="tile-band" style={{ background: b.color }} />
-              <span className="tile-title">{b.title}</span>
-              <span className="muted small">
-                {done}/{cs.length} done{late ? ` · ${late} late` : ""}
-              </span>
-              <span className="progress-bar">
-                <span style={{ width: cs.length ? `${(done / cs.length) * 100}%` : 0, background: b.color }} />
-              </span>
-            </button>
-          );
-        })}
+        {boards.filter((b) => !categories.length || !b.category).map(tile)}
         <div className="board-tile new">
           <input
             placeholder="New board name…"

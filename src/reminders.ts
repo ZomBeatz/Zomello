@@ -1,6 +1,6 @@
 import { useStore } from "./store";
 import { notify } from "./storage";
-import { isLate, todayISO } from "./utils";
+import { isLate, prettyDate, todayISO } from "./utils";
 
 /**
  * Desktop notifications:
@@ -51,7 +51,7 @@ export function checkReminders() {
     if (sent.has(key)) continue;
     sent.add(key);
     const board = data.boards[c.boardId].title;
-    void notify(`⏰ ${c.title}`, c.dueDate ? `${board} · due ${c.dueDate}` : board);
+    void notify(`⏰ ${c.title}`, c.dueDate ? `${board} · due ${prettyDate(c.dueDate)}` : board);
   }
 
   const r = data.settings.reminders;

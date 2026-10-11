@@ -59,6 +59,10 @@ export const defaultSettings = (): Settings => ({
     strongFocus: false,
     largerTargets: false,
   },
+  style: "classic",
+  unlockedStyles: [],
+  onboarded: false,
+  collapsedCategories: [],
 });
 
 export const newBoard = (title: string, color: string, order: number): Board => ({
@@ -90,6 +94,24 @@ const newList = (boardId: ID, title: string, order: number): List => ({
   sort: "custom",
   sortDesc: false,
 });
+
+/** New boards: To do → In progress → Done, where the last two set progress when cards arrive. */
+const defaultBuckets = (boardId: ID): List[] => [
+  newList(boardId, "To do", 0),
+  { ...newList(boardId, "In progress", 1), autoProgress: "inProgress" },
+  { ...newList(boardId, "Done", 2), autoProgress: "completed" },
+];
+
+/** A card arriving in a bucket that sets progress (e.g. "Done") takes on that progress. */
+function arrive(d: AppData, id: ID, patch: Partial<Card>): Partial<Card> {
+  const card = d.cards[id];
+  if (!card || !patch.listId || patch.listId === card.listId || patch.progress !== undefined) return patch;
+  const p = d.lists[patch.listId]?.autoProgress;
+  if (p) return p !== card.progress ? { ...patch, progress: p } : patch;
+  // Dragged back out of a "Done" bucket: it's open again (instead of vanishing under "Show completed").
+  if (card.progress === "completed" && d.lists[card.listId]?.autoProgress === "completed") return { ...patch, progress: "notStarted" };
+  return patch;
+}
 
 const newCard = (boardId: ID, listId: ID, title: string, order: number, extra: Partial<Card> = {}): Card => ({
   id: uid(),
@@ -125,29 +147,52 @@ const newCard = (boardId: ID, listId: ID, title: string, order: number, extra: P
 });
 
 function sampleData(): AppData {
+  // The tutorial board: each card shows one thing worth knowing.
   const board = newBoard("Getting started", PALETTE[6], 0);
-  const lists = ["To do", "Doing", "Done"].map((t, i) => newList(board.id, t, i));
+  board.description = "A tour of Zomello. Each card shows one feature; delete this board when you're done with it.";
+  const lists = defaultBuckets(board.id);
+  const [todo, doing, done] = lists;
   const d = (n: number) => toISO(addDays(new Date(), n));
-  const [, feature, design] = board.labels;
+  const [, feature, design, research] = board.labels;
   const cards = [
-    newCard(board.id, lists[0].id, "Click a card to open its details", 0, {
-      description: "Cards have descriptions, checklists, labels, dates, priority, assignees, links and notes.",
+    newCard(board.id, todo.id, "👋 Open me: how cards work", 0, {
+      description:
+        "A card is one task. Everything on it saves as you type.\n\n- **Mark complete** is at the top\n- Checklists, dates, people, labels, files and notes are below\n- Close with **Esc** or by clicking outside",
       labelIds: [feature.id],
       checklist: [
         { id: uid(), text: "Open this card", done: true },
-        { id: uid(), text: "Tick an item", done: false },
-        { id: uid(), text: "Add a due date", done: false },
+        { id: uid(), text: "Tick this item", done: false },
+        { id: uid(), text: "Add a due date on the right", done: false },
       ],
     }),
-    newCard(board.id, lists[0].id, "Drag cards between buckets", 1, { dueDate: d(2), priority: "important" }),
-    newCard(board.id, lists[0].id, "Try Group by: Progress / Priority / Due", 2, { labelIds: [design.id] }),
-    newCard(board.id, lists[1].id, "Check the Calendar and Timeline views", 0, {
+    newCard(board.id, todo.id, "Drag me to In progress", 1, {
+      description:
+        "Drag cards between buckets (and buckets by their title). Dropping a card in **In progress** or **Done** updates its progress for you. Each bucket's ⋯ menu decides what it does.",
+      dueDate: d(2),
+      priority: "important",
+    }),
+    newCard(board.id, todo.id, "Right-click me", 2, {
+      description:
+        "Cards, buckets and boards all have a right-click menu with their options. On a phone or tablet, press and hold instead.",
+      labelIds: [design.id],
+    }),
+    newCard(board.id, todo.id, "Press N to add a task from anywhere", 3, {
+      description: "Quick add puts a task on any board without leaving what you're doing. **Ctrl+Z** undoes anything, even a delete.",
+      labelIds: [research.id],
+    }),
+    newCard(board.id, doing.id, "Try the Calendar and Timeline views", 0, {
+      description: "The view tabs at the top show this board as a list, a calendar, a timeline or charts. Nothing changes but the view.",
       progress: "inProgress",
       startDate: d(-2),
       dueDate: d(4),
     }),
-    newCard(board.id, lists[1].id, "Press Ctrl+K to search everything", 1, { progress: "inProgress", dueDate: d(-1), priority: "urgent" }),
-    newCard(board.id, lists[2].id, "Install Zomello", 0, { progress: "completed", completedAt: Date.now() }),
+    newCard(board.id, doing.id, "Press Ctrl+K to search everything", 1, {
+      description: "Search finds cards on every board, including their checklists and notes. This card is late on purpose: see how it shows up on Home.",
+      progress: "inProgress",
+      dueDate: d(-1),
+      priority: "urgent",
+    }),
+    newCard(board.id, done.id, "Install Zomello", 0, { progress: "completed", completedAt: Date.now() }),
   ];
   return {
     version: 1,
@@ -176,9 +221,24 @@ export function normalize(raw: unknown): AppData {
     boards[b.id] = { ...newBoard("", PALETTE[6], 0), ...b, id: b.id, display };
   }
   const lists: AppData["lists"] = {};
-  for (const l of Object.values(d.lists)) lists[l.id] = { ...newList(l.boardId, "", 0), ...l };
+  // Buckets without their board can't be shown anywhere: drop them.
+  for (const l of Object.values(d.lists)) if (boards[l.boardId]) lists[l.id] = { ...newList(l.boardId, "", 0), ...l };
   const cards: AppData["cards"] = {};
-  for (const c of Object.values(d.cards)) cards[c.id] = { ...newCard(c.boardId, c.listId, "", 0), ...c };
+  for (const c of Object.values(d.cards)) {
+    if (!boards[c.boardId]) continue;
+    let listId = c.listId;
+    // A card whose bucket is gone goes to its board's first bucket (a new "Recovered" one if it has none).
+    if (!lists[listId] || lists[listId].boardId !== c.boardId) {
+      const first = Object.values(lists).filter((l) => l.boardId === c.boardId).sort(byOrder)[0];
+      if (first) listId = first.id;
+      else {
+        const rescue = newList(c.boardId, "Recovered", 0);
+        lists[rescue.id] = rescue;
+        listId = rescue.id;
+      }
+    }
+    cards[c.id] = { ...newCard(c.boardId, listId, "", 0), ...c, listId };
+  }
   // Repair linked checklist items whose copied title went stale (before renames were synced).
   for (const c of Object.values(cards))
     if (c.checklist.some((i) => i.cardId && cards[i.cardId] && cards[i.cardId].title !== i.text))
@@ -198,6 +258,9 @@ export function normalize(raw: unknown): AppData {
       ...d.settings,
       reminders: { ...defaultSettings().reminders, ...d.settings?.reminders },
       a11y: { ...defaultSettings().a11y, ...d.settings?.a11y },
+      // Files from before the welcome guide existed belong to people who are already set up.
+      onboarded: d.settings?.onboarded ?? true,
+      unlockedStyles: d.settings?.unlockedStyles ?? [],
     },
   };
 }
@@ -247,6 +310,7 @@ interface State {
   searchOpen: boolean;
   quickAddOpen: boolean;
   helpOpen: boolean;
+  welcomeOpen: boolean;
   customizeBoardId: ID | null;
   toasts: Toast[];
   focus: FocusTimer | null;
@@ -264,7 +328,7 @@ interface State {
   toast(text: string, opts?: { undo?: boolean; key?: string }): void;
   dismissToast(id: ID): void;
   setOverlay(
-    patch: Partial<Pick<State, "quickAddOpen" | "helpOpen" | "customizeBoardId" | "searchOpen" | "importOpen" | "aiDialog">>,
+    patch: Partial<Pick<State, "quickAddOpen" | "helpOpen" | "welcomeOpen" | "customizeBoardId" | "searchOpen" | "importOpen" | "aiDialog">>,
   ): void;
 
   startFocus(minutes: number, cardId?: ID | null, label?: string): void;
@@ -337,6 +401,15 @@ interface State {
   saveFilter(boardId: ID, name: string, filter: Filter): void;
   deleteSavedFilter(id: ID): void;
   updateSettings(patch: Partial<Settings>): void;
+  /** Rename someone everywhere: the people list, "Me", and every card they're assigned to. */
+  renamePerson(from: string, to: string): void;
+  /** Put a board in a category (null = none). */
+  setBoardCategory(boardId: ID, category: string | null): void;
+  /** Rename a category on every board in it (merges into an existing one of that name). */
+  renameCategory(from: string, to: string): void;
+  /** Take every board out of a category; the boards themselves stay. */
+  removeCategory(name: string): void;
+  toggleCategoryCollapsed(name: string): void;
 }
 
 const progressPatch = (prev: Card, patch: Partial<Card>): Partial<Card> => {
@@ -464,7 +537,7 @@ let applyingRemote = false;
 let future: AppData[] = [];
 let lastChange = 0;
 /** View preferences (zoom, sidebar) change too often to be worth an undo step. */
-const VIEW_PREFS = ["zoom", "sidebarCollapsed"] as const;
+const VIEW_PREFS = ["zoom", "sidebarCollapsed", "collapsedCategories"] as const;
 const settingsChanged = (a: Settings, b: Settings) =>
   a !== b &&
   (Object.keys(a) as (keyof Settings)[]).some(
@@ -503,6 +576,7 @@ export const useStore = create<State>((set, get) => {
     searchOpen: false,
     quickAddOpen: false,
     helpOpen: false,
+    welcomeOpen: false,
     customizeBoardId: null,
     toasts: [],
     focus: loadFocus(),
@@ -618,7 +692,7 @@ export const useStore = create<State>((set, get) => {
     createBoard(title, color) {
       const order = Math.max(-1, ...Object.values(get().data.boards).map((b) => b.order)) + 1;
       const board = newBoard(title, color ?? PALETTE[order % PALETTE.length], order);
-      const lists = ["To do", "In progress", "Done"].map((t, i) => newList(board.id, t, i));
+      const lists = defaultBuckets(board.id);
       mut((d) => ({
         ...d,
         boards: { ...d.boards, [board.id]: board },
@@ -678,17 +752,23 @@ export const useStore = create<State>((set, get) => {
           listMap.set(l.id, nl.id);
           return nl;
         });
-      const cards = Object.values(d.cards)
-        .filter((c) => opts?.withCards !== false && c.boardId === id && listMap.has(c.listId))
-        .map((c) => ({
-          ...structuredClone(c),
-          id: uid(),
-          boardId: board.id,
-          listId: listMap.get(c.listId)!,
-          labelIds: c.labelIds.map((l) => labelMap.get(l)).filter((x): x is ID => !!x),
-          links: [],
-          time: [],
-        }));
+      const srcCards = Object.values(d.cards).filter((c) => opts?.withCards !== false && c.boardId === id && listMap.has(c.listId));
+      const cardMap = new Map(srcCards.map((c) => [c.id, uid()]));
+      // Sub-tasks and links between cards of this board point at the copies; links to other boards stay.
+      const remap = (cid: ID) => cardMap.get(cid) ?? cid;
+      const cards = srcCards.map((c) => ({
+        ...structuredClone(c),
+        id: cardMap.get(c.id)!,
+        boardId: board.id,
+        listId: listMap.get(c.listId)!,
+        labelIds: c.labelIds.map((l) => labelMap.get(l)).filter((x): x is ID => !!x),
+        checklist: c.checklist.map((i) => ({ ...i, id: uid(), cardId: i.cardId ? remap(i.cardId) : i.cardId })),
+        links: c.links.filter((l) => cardMap.has(l.cardId)).map((l) => ({ ...l, cardId: remap(l.cardId) })),
+        time: [],
+        reminder: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }));
       mut((d) => ({
         ...d,
         boards: { ...d.boards, [board.id]: board },
@@ -727,6 +807,7 @@ export const useStore = create<State>((set, get) => {
       const siblings = Object.values(d.cards).filter((c) => c.listId === listId);
       const card = newCard(list.boardId, listId, title, Math.max(-1, ...siblings.map((c) => c.order)) + 1, {
         activity: [{ at: Date.now(), kind: "created" }],
+        ...(list.autoProgress ? { progress: list.autoProgress } : {}),
         ...extra,
       });
       if (card.progress === "completed") card.completedAt = Date.now();
@@ -734,7 +815,7 @@ export const useStore = create<State>((set, get) => {
       return card.id;
     },
     updateCard(id, patch) {
-      mut((d) => ({ ...d, cards: patchCard(d.cards, id, patch) }));
+      mut((d) => ({ ...d, cards: patchCard(d.cards, id, arrive(d, id, patch)) }));
     },
     deleteCard(id) {
       mut((d) => {
@@ -755,6 +836,7 @@ export const useStore = create<State>((set, get) => {
         checklist: src.checklist.map((i) => ({ ...i, id: uid() })),
         links: [],
         time: [],
+        reminder: null,
         activity: [{ at: Date.now(), kind: "created" }],
       };
       mut((d) => ({ ...d, cards: { ...d.cards, [card.id]: card } }));
@@ -780,7 +862,7 @@ export const useStore = create<State>((set, get) => {
           if (f.type === "select") v = match.options.find((o) => o.label === f.options.find((x) => x.id === v)?.label)?.id ?? null;
           fields[match.id] = v;
         }
-        return { ...d, cards: patchCard(d.cards, id, { boardId, listId, labelIds, order, fields }) };
+        return { ...d, cards: patchCard(d.cards, id, arrive(d, id, { boardId, listId, labelIds, order, fields })) };
       });
     },
     moveCardToList(id, listId) {
@@ -873,7 +955,7 @@ export const useStore = create<State>((set, get) => {
         ids.forEach((id, i) => {
           if (cards[id].order !== i) cards[id] = { ...cards[id], order: i };
         });
-        return { ...d, cards: patchCard(cards, movedId, patch) };
+        return { ...d, cards: patchCard(cards, movedId, arrive(d, movedId, patch)) };
       });
     },
     linkCards(a, b, type) {
@@ -1065,6 +1147,43 @@ export const useStore = create<State>((set, get) => {
     },
     updateSettings(patch) {
       mut((d) => ({ ...d, settings: { ...d.settings, ...patch } }));
+    },
+    setBoardCategory(boardId, category) {
+      const c = category?.trim() || null;
+      mut((d) => (d.boards[boardId] ? { ...d, boards: { ...d.boards, [boardId]: { ...d.boards[boardId], category: c } } } : d));
+    },
+    renameCategory(from, to) {
+      to = to.trim();
+      if (!to || to === from) return;
+      mut((d) => {
+        const boards = { ...d.boards };
+        for (const b of Object.values(boards)) if (b.category === from) boards[b.id] = { ...b, category: to };
+        const collapsed = d.settings.collapsedCategories.map((x) => (x === from ? to : x));
+        return { ...d, boards, settings: { ...d.settings, collapsedCategories: [...new Set(collapsed)] } };
+      });
+    },
+    removeCategory(name) {
+      mut((d) => {
+        const boards = { ...d.boards };
+        for (const b of Object.values(boards)) if (b.category === name) boards[b.id] = { ...b, category: null };
+        return { ...d, boards, settings: { ...d.settings, collapsedCategories: d.settings.collapsedCategories.filter((x) => x !== name) } };
+      });
+    },
+    toggleCategoryCollapsed(name) {
+      const cur = get().data.settings.collapsedCategories;
+      get().updateSettings({ collapsedCategories: cur.includes(name) ? cur.filter((x) => x !== name) : [...cur, name] });
+    },
+    renamePerson(from, to) {
+      to = to.trim();
+      if (!to || to === from) return;
+      mut((d) => {
+        const cards = { ...d.cards };
+        for (const c of Object.values(cards))
+          if (c.assignees.includes(from))
+            cards[c.id] = { ...c, assignees: [...new Set(c.assignees.map((a) => (a === from ? to : a)))] };
+        const people = [...new Set(d.settings.people.map((p) => (p === from ? to : p)))];
+        return { ...d, cards, settings: { ...d.settings, people, me: d.settings.me === from ? to : d.settings.me } };
+      });
     },
   };
 });

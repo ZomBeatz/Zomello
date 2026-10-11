@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { archiveCard, deleteCard as deleteCardAction } from "../actions";
 import {
   Activity as ActivityIcon,
   AlignLeft,
@@ -30,6 +31,7 @@ import {
   Tag,
   Trash2,
   X,
+  CircleCheck,
 } from "lucide-react";
 import type { Activity, Attachment, Card, CardSection, FieldDef, ID, LinkType, Priority, Progress, Recurrence, RecurrenceFreq } from "../types";
 import { attachToCard, isLocalPath, storeLinkedFile } from "../attachments";
@@ -41,7 +43,7 @@ import {
 import { format } from "date-fns";
 import { fileUrlToPath, inTauri, openExternal, openStored, storedSrc } from "../storage";
 import { createPortal } from "react-dom";
-import { ask, Avatar, ColorPicker, InlineEdit, Modal, Popover, ProgressIcon } from "./ui";
+import { Avatar, ColorPicker, CommitInput, InlineEdit, Modal, Popover, ProgressIcon, useSaveOnUnmount } from "./ui";
 import { CardPicker, LabelPicker } from "./pickers";
 import { Markdown, MarkdownEditor, MarkdownField } from "./Markdown";
 import { ChecklistSection } from "./Checklist";
@@ -70,7 +72,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
   const people = useStore((s) => s.data.settings.people);
   const allCards = useStore((s) => s.data.cards);
   const {
-    updateCard, deleteCard, duplicateCard, moveCardToBoard, openCard,
+    updateCard, duplicateCard, moveCardToBoard, openCard,
     linkCards, unlinkCards,
   } = useStore.getState();
   const [newLinkType, setNewLinkType] = useState<LinkType>("relates");
@@ -85,6 +87,12 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
   );
   const set = (patch: Partial<Card>) => updateCard(card.id, patch);
   const [comment, setComment] = useState("");
+  // A note that was typed but not saved yet is kept when the card closes or another card opens.
+  useSaveOnUnmount(() => {
+    const text = comment.trim();
+    const cur = useStore.getState().data.cards[card.id];
+    if (text && cur) updateCard(card.id, { comments: [{ id: uid(), text, createdAt: Date.now() }, ...cur.comments] });
+  });
   const coverImg = card.coverImage ? card.attachments.find((a) => a.id === card.coverImage) : undefined;
 
   const attachFiles = (files: FileList | File[]) => attachToCard(card.id, { files: Array.from(files), paths: [], links: [] });
@@ -112,9 +120,18 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
       )}
       <header className="detail-head">
         <InlineEdit className="detail-title" value={card.title} onSave={(title) => set({ title })} multiline />
-        <span className="muted small">
-          in <b>{board.title}</b> · created {timeAgo(card.createdAt)} · updated {timeAgo(card.updatedAt)}
-        </span>
+        <div className="detail-meta">
+          <button
+            className={`btn sm complete-btn ${card.progress === "completed" ? "on" : ""}`}
+            onClick={() => set({ progress: card.progress === "completed" ? "notStarted" : "completed" })}
+            title={card.progress === "completed" ? "Mark as not done" : "Mark complete"}
+          >
+            <CircleCheck size={14} /> {card.progress === "completed" ? "Completed" : "Mark complete"}
+          </button>
+          <span className="muted small">
+            in <b>{board.title}</b> · created {timeAgo(card.createdAt)} · updated {timeAgo(card.updatedAt)}
+          </span>
+        </div>
       </header>
 
       <div className="detail-grid">
@@ -134,7 +151,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
                   {card.assignees.map((a) => (
                     <span key={a} className="chip">
                       <Avatar name={a} size={18} /> {a}
-                      <button className="icon-btn tiny" onClick={() => set({ assignees: card.assignees.filter((x) => x !== a) })}>
+                      <button className="icon-btn tiny" title="Unassign" aria-label="Unassign" onClick={() => set({ assignees: card.assignees.filter((x) => x !== a) })}>
                         <X size={12} />
                       </button>
                     </span>
@@ -355,7 +372,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
               <MessageSquare size={15} /> Notes
             </h4>
             <MarkdownEditor
-              placeholder="Write a note… (Ctrl+Enter to save)"
+              placeholder="Write a note… (Ctrl+Enter to add; it's also kept if you close the card)"
               value={comment}
               onChange={setComment}
               onKeyDown={(e) => {
@@ -516,9 +533,8 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
               <button
                 className="btn"
                 onClick={() => {
-                  set({ archived: true });
                   onClose();
-                  useStore.getState().toast(`Archived "${card.title}"`, { undo: true });
+                  archiveCard(card);
                 }}
               >
                 <Archive size={14} /> Archive
@@ -526,12 +542,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
             )}
             <button
               className="btn danger"
-              onClick={async () => {
-                if (await ask(`Delete "${card.title}"?`, { okText: "Delete", danger: true })) {
-                  deleteCard(card.id);
-                  useStore.getState().toast(`Deleted "${card.title}"`, { undo: true });
-                }
-              }}
+              onClick={() => void deleteCardAction(card)}
             >
               <Trash2 size={14} /> Delete
             </button>
@@ -956,11 +967,11 @@ function TimeTracker({ card }: { card: Card }) {
       <div className="row gap-sm">
         <Timer size={13} className="muted" />
         <span className="small muted">Estimate</span>
-        <input
+        <CommitInput
           className="grow"
           placeholder="e.g. 3h"
-          defaultValue={card.estimate ? formatDuration(card.estimate * 60_000).replace(" ", "") : ""}
-          onBlur={(e) => updateCard(card.id, { estimate: parseDuration(e.target.value) })}
+          value={card.estimate ? formatDuration(card.estimate * 60_000).replace(" ", "") : ""}
+          onCommit={(v) => updateCard(card.id, { estimate: parseDuration(v) })}
         />
       </div>
       {card.time.length > 0 && (
@@ -988,7 +999,7 @@ function TimeTracker({ card }: { card: Card }) {
             <li key={t.id}>
               <span className="grow small">{format(t.start, "MMM d, HH:mm")}</span>
               <span className="small">{t.end ? formatDuration(t.end - t.start) : "running"}</span>
-              <button className="icon-btn tiny" onClick={() => deleteTimeEntry(card.id, t.id)}>
+              <button className="icon-btn tiny" title="Delete this time entry" aria-label="Delete this time entry" onClick={() => deleteTimeEntry(card.id, t.id)}>
                 <X size={12} />
               </button>
             </li>
@@ -1101,18 +1112,17 @@ function CustomFields({ card }: { card: Card }) {
               <input type="date" value={(v as string) ?? ""} onChange={(e) => setValue(f, e.target.value || null)} />
             ) : (
               <span className="row gap-sm">
-                <input
-                  key={`${f.id}-${String(v)}`}
+                <CommitInput
                   className="grow"
                   type={f.type === "number" ? "number" : f.type === "url" ? "url" : "text"}
-                  defaultValue={v == null ? "" : String(v)}
-                  placeholder={f.type === "url" ? "https://…" : "—"} spellCheck={false}
-                  onBlur={(e) => {
-                    const raw = e.target.value.trim();
+                  value={v == null ? "" : String(v)}
+                  placeholder={f.type === "url" ? "https://…" : "—"}
+                  spellCheck={false}
+                  onCommit={(text) => {
+                    const raw = text.trim();
                     const next = raw === "" ? null : f.type === "number" ? Number(raw) : raw;
                     if (next !== v) setValue(f, next);
                   }}
-                  onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
                 />
                 {f.type === "url" && v && (
                   <button type="button" className="icon-btn tiny" title="Open link" onClick={() => openExternal(String(v))}>
