@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { invoke } from "@tauri-apps/api/core";
-import { Smartphone, Unlink, X } from "lucide-react";
+import { ShieldCheck, Smartphone, Unlink, X } from "lucide-react";
 import { useStore } from "../store";
 import { ask, InlineEdit, Modal } from "./ui";
+import { copyText } from "./Markdown";
 
 interface DeviceInfo {
   id: string;
@@ -20,6 +21,7 @@ interface RemoteStatus {
   setup_url: string | null;
   error: string | null;
   devices: DeviceInfo[];
+  firewall: { kind: "ufw" | "firewalld" | "windows" | "none"; allowed: boolean; command: string | null };
 }
 interface PairingInfo {
   code: string;
@@ -33,6 +35,7 @@ export function DevicesPanel() {
   const [st, setSt] = useState<RemoteStatus | null>(null);
   const [pairing, setPairing] = useState<PairingInfo | null>(null);
   const [port, setPort] = useState("");
+  const [fwBusy, setFwBusy] = useState(false);
 
   useEffect(() => {
     const refresh = () => void invoke<RemoteStatus>("remote_status").then(setSt);
@@ -75,68 +78,105 @@ export function DevicesPanel() {
     setSt(await invoke<RemoteStatus>("remote_unlink", { id: d.id }));
   };
 
+  const openFirewall = async () => {
+    setFwBusy(true);
+    try {
+      setSt(await invoke<RemoteStatus>("remote_open_firewall"));
+      useStore.getState().toast("Firewall now lets phones and tablets reach Zomello");
+    } catch (e) {
+      useStore.getState().toast(`Firewall not changed: ${e}`);
+    } finally {
+      setFwBusy(false);
+    }
+  };
+
+  const on = st.enabled && st.running;
+  const fw = st.firewall;
+  const fwDone = fw.kind === "none" || fw.kind === "windows" || fw.allowed;
+
   return (
     <section className="panel">
       <h3>
         <Smartphone size={16} /> Phones &amp; tablets
       </h3>
       <p className="muted small">
-        Use Zomello from your phone or iPad on your home Wi‑Fi. It works while this PC is on and Zomello is open; your data
-        stays here. Only devices you pair can connect.
+        Use Zomello from phones and tablets on your home Wi‑Fi, and install it on them as an app. It works while this PC
+        is on and Zomello is open; your data stays on this PC, and only devices you pair can connect.
       </p>
-      <label className="row gap-sm">
-        <input type="checkbox" checked={st.enabled} onChange={(e) => void setEnabled(e.target.checked)} />
-        Allow access from phones and tablets on this network
-      </label>
-      {st.enabled && st.running && st.url && (
-        <p className="small">
-          Running at <code>{st.secure_url}</code> (secure) and <code>{st.url}</code>
-        </p>
-      )}
-      {st.error && <p className="small danger-text">{st.error}</p>}
-      {st.enabled && st.running && (
-        <p className="muted small">
-          Device can't connect? Your firewall may be blocking port {st.port}. On Linux with ufw:{" "}
-          <code>sudo ufw allow from 192.168.0.0/16 to any port {st.port} proto tcp</code>
-        </p>
-      )}
-      <div className="row gap-sm wrap">
-        {st.enabled && st.running && (
-          <button className="btn primary" onClick={startPairing}>
+
+      <ol className="setup-steps">
+        <li className={on ? "done" : "current"}>
+          <div className="step-title">Turn it on</div>
+          <label className="row gap-sm">
+            <input type="checkbox" checked={st.enabled} onChange={(e) => void setEnabled(e.target.checked)} />
+            Allow access from phones and tablets on this network
+          </label>
+          {st.error && <p className="small danger-text">{st.error}</p>}
+          <details className="small muted">
+            <summary>Port ({st.port})</summary>
+            <label className="row gap-sm">
+              Use port
+              <input
+                className="port-input"
+                inputMode="numeric"
+                placeholder={String(st.port)}
+                value={port}
+                onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))}
+                onKeyDown={(e) => e.key === "Enter" && st.enabled && void setEnabled(true)}
+              />
+              <span>(only if something else uses {st.port}; press Enter)</span>
+            </label>
+          </details>
+        </li>
+
+        <li className={!on ? "" : fwDone ? "done" : "current"}>
+          <div className="step-title">Let it through this PC's firewall</div>
+          {fw.kind === "none" && <p className="small muted">No firewall is blocking it. Nothing to do.</p>}
+          {fw.kind === "windows" && (
+            <p className="small muted">
+              Windows asks the first time it's turned on. Choose <b>Allow</b> (with <b>Private networks</b> ticked). If you
+              missed it, set your Wi‑Fi to <b>Private</b> in Windows Settings → Network.
+            </p>
+          )}
+          {(fw.kind === "ufw" || fw.kind === "firewalld") &&
+            (fw.allowed ? (
+              <p className="small ok-text">Allowed through the firewall ({fw.kind}).</p>
+            ) : (
+              <>
+                <p className="small muted">
+                  This PC's firewall ({fw.kind}) blocks phones until you allow Zomello. You'll be asked for your password.
+                </p>
+                <button className="btn" disabled={!on || fwBusy} onClick={() => void openFirewall()}>
+                  <ShieldCheck size={14} /> {fwBusy ? "Waiting for your password…" : "Allow through firewall"}
+                </button>
+                {fw.command && (
+                  <details className="small muted">
+                    <summary>Or run it yourself</summary>
+                    <code className="copyable" onClick={() => void copyText(fw.command!)} title="Copy">
+                      {fw.command}
+                    </code>
+                  </details>
+                )}
+              </>
+            ))}
+        </li>
+
+        <li className={on && fwDone ? (st.devices.length ? "done" : "current") : ""}>
+          <div className="step-title">Pair a phone or tablet</div>
+          <p className="small muted">
+            Scan the QR code with the device. It opens a short setup page there: install this PC's security certificate
+            (once per device), then <b>Install app</b> in Chrome or <b>Add to Home Screen</b> on iPhone/iPad.
+          </p>
+          <button className="btn primary" disabled={!on} onClick={startPairing}>
             <Smartphone size={14} /> Pair a device
           </button>
-        )}
-        <label className="row gap-sm small muted">
-          Port
-          <input
-            className="port-input"
-            inputMode="numeric"
-            placeholder={String(st.port)}
-            value={port}
-            onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))}
-            onKeyDown={(e) => e.key === "Enter" && st.enabled && void setEnabled(true)}
-            title="Change only if 7311 is taken. Press Enter to apply."
-          />
-        </label>
-      </div>
-
-      {st.enabled && st.running && st.setup_url && (
-        <details className="install-help small">
-          <summary>Install it as an app on the phone</summary>
-          <p>
-            Choose <b>Pair a device</b> and scan the QR code. It opens a setup page that walks the phone through
-            trusting this PC's secure connection (a one-time certificate install). After that, Chrome offers{" "}
-            <b>⋮ → Install app</b>.
-          </p>
-          <p>
-            Already paired? Open <code>{st.setup_url}</code> on the phone.
-          </p>
-          <p className="muted">
-            Tip: give this PC a fixed address in your router (a “DHCP reservation”) so the address above never changes.
-            If it does change, switch access off and on here.
-          </p>
-        </details>
-      )}
+          {on && st.setup_url && (
+            <p className="small muted">
+              Already paired, but it says “Not secure” or won't install? Open <code>{st.setup_url}</code> on it.
+            </p>
+          )}
+        </li>
+      </ol>
 
       {st.devices.length > 0 && (
         <ul className="archive-list devices">

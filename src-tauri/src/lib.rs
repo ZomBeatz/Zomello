@@ -441,7 +441,8 @@ pub fn run() {
             remote::remote_start_pairing,
             remote::remote_cancel_pairing,
             remote::remote_unlink,
-            remote::remote_rename
+            remote::remote_rename,
+            remote::remote_open_firewall
         ])
         .manage(remote::Remote::new())
         .setup(|app| {

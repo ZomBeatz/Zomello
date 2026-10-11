@@ -46,11 +46,14 @@ struct Config {
     enabled: bool,
     port: u16,
     devices: Vec<Device>,
+    /// The port this PC's firewall was opened for (via "Allow through firewall").
+    #[serde(default)]
+    firewall_port: Option<u16>,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Config { enabled: false, port: DEFAULT_PORT, devices: vec![] }
+        Config { enabled: false, port: DEFAULT_PORT, devices: vec![], firewall_port: None }
     }
 }
 
@@ -157,7 +160,7 @@ fn start(app: &AppHandle) {
             return;
         }
     };
-    let tls = match tls_config(app) {
+    let (tls, slot, ip) = match tls_config(app) {
         Ok(t) => t,
         Err(e) => {
             r.inner.lock().unwrap().error = Some(format!("Couldn't set up the secure connection: {e}"));
@@ -182,11 +185,34 @@ fn start(app: &AppHandle) {
         .fallback(get(asset))
         .layer(DefaultBodyLimit::max(512 * 1024 * 1024))
         .with_state(app.clone());
+    let app2 = app.clone();
+    let watch_stop = rx.clone();
     tauri::async_runtime::spawn(async move {
         if let Ok(l) = tokio::net::TcpListener::from_std(listener) {
             serve(l, router, tls, rx).await;
         }
     });
+    tauri::async_runtime::spawn(follow_address(app2, slot, ip, watch_stop));
+}
+
+/// The PC's address can change (new router, no DHCP reservation). Check now and then and renew the
+/// certificate in place, so phones keep working without anyone touching anything.
+async fn follow_address(app: AppHandle, slot: Arc<CertSlot>, mut ip: Option<String>, mut stop: watch::Receiver<bool>) {
+    loop {
+        tokio::select! {
+            _ = stop.changed() => return,
+            _ = tokio::time::sleep(Duration::from_secs(30)) => {}
+        }
+        let now = lan_ip();
+        if now == ip || now.is_none() {
+            continue;
+        }
+        if let Ok((key, new_ip)) = make_leaf(&app) {
+            *slot.0.write().unwrap() = Arc::new(key);
+            ip = new_ip;
+            let _ = app.emit("zomello://remote-changed", ());
+        }
+    }
 }
 
 /// One port for both: https (what Chrome needs to install the app) and plain http (setup page,
@@ -288,15 +314,23 @@ fn load_or_create_ca(app: &AppHandle) -> Result<(String, rcgen::KeyPair), String
     Ok((cert, key))
 }
 
-/// A fresh server certificate for this PC's current address, signed by the CA (made at every start,
-/// so a new address after a router change just works once access is switched off and on).
-fn tls_config(app: &AppHandle) -> Result<Arc<rustls::ServerConfig>, String> {
+/// Hands TLS the current server certificate; swapped in place when the PC's address changes.
+#[derive(Debug)]
+struct CertSlot(std::sync::RwLock<Arc<rustls::sign::CertifiedKey>>);
+
+impl rustls::server::ResolvesServerCert for CertSlot {
+    fn resolve(&self, _: rustls::server::ClientHello<'_>) -> Option<Arc<rustls::sign::CertifiedKey>> {
+        Some(self.0.read().unwrap().clone())
+    }
+}
+
+/// A fresh server certificate for this PC's current address, signed by the CA.
+fn make_leaf(app: &AppHandle) -> Result<(rustls::sign::CertifiedKey, Option<String>), String> {
     let (ca_pem, ca_key) = load_or_create_ca(app)?;
     let issuer = rcgen::Issuer::from_ca_cert_pem(&ca_pem, ca_key).map_err(|e| e.to_string())?;
     let leaf_key = rcgen::KeyPair::generate().map_err(|e| e.to_string())?;
-    let mut sans: Vec<String> = lan_ip().into_iter().collect();
-    sans.retain(|ip| ip.parse::<std::net::Ipv4Addr>().is_ok_and(|a| a.is_private()));
-    let mut p = rcgen::CertificateParams::new(sans).map_err(|e| e.to_string())?;
+    let ip = lan_ip().filter(|ip| ip.parse::<std::net::Ipv4Addr>().is_ok_and(|a| a.is_private()));
+    let mut p = rcgen::CertificateParams::new(ip.clone().into_iter().collect::<Vec<_>>()).map_err(|e| e.to_string())?;
     p.distinguished_name.push(rcgen::DnType::CommonName, "Zomello");
     p.key_usages = vec![rcgen::KeyUsagePurpose::DigitalSignature];
     p.extended_key_usages = vec![rcgen::ExtendedKeyUsagePurpose::ServerAuth];
@@ -305,16 +339,21 @@ fn tls_config(app: &AppHandle) -> Result<Arc<rustls::ServerConfig>, String> {
     let (y, m, d) = day(390);
     p.not_after = rcgen::date_time_ymd(y, m, d);
     let leaf = p.signed_by(&leaf_key, &issuer).map_err(|e| e.to_string())?;
-
     let key_der = rustls::pki_types::PrivateKeyDer::try_from(leaf_key.serialize_der()).map_err(|e| e.to_string())?;
+    let signer = rustls::crypto::ring::sign::any_supported_type(&key_der).map_err(|e| e.to_string())?;
+    app.state::<Remote>().inner.lock().unwrap().ca_pem = Some(ca_pem);
+    Ok((rustls::sign::CertifiedKey::new(vec![leaf.der().clone()], signer), ip))
+}
+
+fn tls_config(app: &AppHandle) -> Result<(Arc<rustls::ServerConfig>, Arc<CertSlot>, Option<String>), String> {
+    let (key, ip) = make_leaf(app)?;
+    let slot = Arc::new(CertSlot(std::sync::RwLock::new(Arc::new(key))));
     let config = rustls::ServerConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
         .with_safe_default_protocol_versions()
         .map_err(|e| e.to_string())?
         .with_no_client_auth()
-        .with_single_cert(vec![leaf.der().clone()], key_der)
-        .map_err(|e| e.to_string())?;
-    app.state::<Remote>().inner.lock().unwrap().ca_pem = Some(ca_pem);
-    Ok(Arc::new(config))
+        .with_cert_resolver(slot.clone());
+    Ok((Arc::new(config), slot, ip))
 }
 
 /// The CA certificate (public part only), for installing on a phone. PEM, served like HaRM's,
@@ -515,6 +554,90 @@ pub struct DeviceInfo {
     last_seen: u64,
 }
 
+// ---- Firewall ----
+
+#[derive(Serialize)]
+pub struct Firewall {
+    /// "ufw", "firewalld", "windows" (asks by itself the first time), or "none".
+    kind: &'static str,
+    /// Already opened for the current port from here.
+    allowed: bool,
+    /// The same thing as a command, for people who'd rather run it themselves.
+    command: Option<String>,
+}
+
+#[cfg(target_os = "linux")]
+fn service_active(name: &str) -> bool {
+    std::process::Command::new("systemctl")
+        .args(["is-active", "--quiet", name])
+        .status()
+        .is_ok_and(|s| s.success())
+}
+
+/// The home-network range this PC is on (what the firewall rule allows), e.g. 192.168.0.0/16.
+fn home_range() -> &'static str {
+    match lan_ip().and_then(|ip| ip.parse::<std::net::Ipv4Addr>().ok()).map(|a| a.octets()) {
+        Some([10, ..]) => "10.0.0.0/8",
+        Some([172, b, ..]) if (16..32).contains(&b) => "172.16.0.0/12",
+        _ => "192.168.0.0/16",
+    }
+}
+
+fn firewall_command(kind: &str, port: u16) -> Option<String> {
+    match kind {
+        "ufw" => Some(format!("ufw allow proto tcp from {} to any port {port} comment Zomello", home_range())),
+        "firewalld" => Some(format!("firewall-cmd --permanent --add-port={port}/tcp && firewall-cmd --reload")),
+        _ => None,
+    }
+}
+
+fn firewall_kind() -> &'static str {
+    #[cfg(target_os = "linux")]
+    {
+        if service_active("ufw") {
+            return "ufw";
+        }
+        if service_active("firewalld") {
+            return "firewalld";
+        }
+        "none"
+    }
+    #[cfg(windows)]
+    {
+        "windows"
+    }
+    #[cfg(not(any(target_os = "linux", windows)))]
+    {
+        "none"
+    }
+}
+
+/// Open the firewall for Zomello's port. Shows the system's own password prompt (polkit), no terminal.
+#[tauri::command]
+pub async fn remote_open_firewall(app: AppHandle) -> Result<Status, String> {
+    let port = app.state::<Remote>().inner.lock().unwrap().config.port;
+    let kind = firewall_kind();
+    let cmd = firewall_command(kind, port).ok_or("There's no firewall here to change")?;
+    let out = tauri::async_runtime::spawn_blocking(move || {
+        std::process::Command::new("pkexec").args(["sh", "-c", &cmd]).output()
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|_| "Couldn't ask for your password (pkexec is missing). Run the command shown instead.".to_string())?;
+    match out.status.code() {
+        Some(0) => {}
+        Some(126) | Some(127) => return Err("Cancelled.".into()),
+        _ => return Err(String::from_utf8_lossy(&out.stderr).trim().to_string()),
+    }
+    {
+        let r = app.state::<Remote>();
+        let mut inner = r.inner.lock().unwrap();
+        inner.config.firewall_port = Some(port);
+        save_config(&app, &inner.config);
+    }
+    Ok(status_of(&app))
+}
+
 #[derive(Serialize)]
 pub struct Status {
     enabled: bool,
@@ -528,6 +651,7 @@ pub struct Status {
     setup_url: Option<String>,
     error: Option<String>,
     devices: Vec<DeviceInfo>,
+    firewall: Firewall,
 }
 
 fn status_of(app: &AppHandle) -> Status {
@@ -543,6 +667,14 @@ fn status_of(app: &AppHandle) -> Status {
         secure_url: ip.as_ref().map(|ip| format!("https://{ip}:{port}/")),
         setup_url: ip.as_ref().map(|ip| format!("http://{ip}:{port}/setup")),
         error: inner.error.clone(),
+        firewall: {
+            let kind = firewall_kind();
+            Firewall {
+                kind,
+                allowed: inner.config.firewall_port == Some(port),
+                command: firewall_command(kind, port).map(|c| format!("sudo sh -c '{c}'")),
+            }
+        },
         devices: inner
             .config
             .devices
