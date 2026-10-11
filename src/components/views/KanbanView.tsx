@@ -1,14 +1,13 @@
 import { useMemo, useState } from "react";
+import { useDragSensors } from "../../mobile";
 import {
   closestCenter,
   closestCorners,
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
   useDroppable,
   useSensor,
-  useSensors,
   type CollisionDetection,
   type DragEndEvent,
   type DragOverEvent,
@@ -131,10 +130,7 @@ export function KanbanView({
   );
   const canDrag = DRAGGABLE.includes(groupBy);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(DeliberateKeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  const sensors = useDragSensors(6, useSensor(DeliberateKeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
   const findContainer = (id: UniqueIdentifier, cols = columns): string | undefined => {
     const s = String(id);

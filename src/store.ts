@@ -6,6 +6,7 @@ import type {
 } from "./types";
 import type { ImportedBoard } from "./importers";
 import { broadcastData, isBoardWindow, windowBoardId } from "./windows";
+import { isRemote } from "./remote";
 import {
   blockLoopReason, byOrder, emptyFilter, fromISO, inverseLink, nextRecurrenceDate, PALETTE, subtaskLoopReason, toISO, todayISO, uid,
 } from "./utils";
@@ -546,6 +547,7 @@ export const useStore = create<State>((set, get) => {
     async load() {
       try {
         const raw = await loadRaw();
+        lastJson = raw;
         const data = raw ? normalize(JSON.parse(raw)) : sampleData();
         const first = Object.values(data.boards).filter((b) => !b.archived).sort(byOrder)[0];
         const route: Route =
@@ -564,6 +566,9 @@ export const useStore = create<State>((set, get) => {
     },
 
     applyRemoteData(json) {
+      // Nothing new, or we have edits of our own on the way out (they win; everyone gets them next).
+      if (json === lastJson || pending || saving) return;
+      lastJson = json;
       let data: AppData;
       try {
         data = normalize(JSON.parse(json));
@@ -1067,18 +1072,35 @@ export const useStore = create<State>((set, get) => {
 // ---- Autosave: debounce writes whenever `data` changes after the initial load ----
 let timer: ReturnType<typeof setTimeout> | undefined;
 let pending: AppData | null = null;
+let saving = false;
+/** The data as last loaded, saved or adopted from elsewhere. */
+let lastJson: string | null = null;
 
 async function flush() {
   if (!pending) return;
+  if (saving) {
+    // A save is in flight: go again once it's done.
+    clearTimeout(timer);
+    timer = setTimeout(flush, 200);
+    return;
+  }
   const snapshot = pending;
   pending = null;
+  saving = true;
   try {
     const json = JSON.stringify(snapshot);
     await saveRaw(json);
+    lastJson = json;
     void broadcastData(json);
     if (useStore.getState().saveError) useStore.setState({ saveError: null });
   } catch (e) {
     useStore.setState({ saveError: String(e) });
+    // Keep it and try again (e.g. a phone that briefly lost Wi‑Fi), unless something newer is queued.
+    pending ??= snapshot;
+    clearTimeout(timer);
+    timer = setTimeout(flush, 3000);
+  } finally {
+    saving = false;
   }
 }
 
@@ -1086,7 +1108,7 @@ useStore.subscribe((s, prev) => {
   if (applyingRemote) return;
   if (!s.loaded || s.data === prev.data || !prev.loaded) {
     // The very first load also counts as a change worth saving (writes the sample board).
-    if (s.loaded && !prev.loaded && !isBoardWindow) {
+    if (s.loaded && !prev.loaded && !isBoardWindow && !isRemote) {
       pending = s.data;
       void flush();
     }

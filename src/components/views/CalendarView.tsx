@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useDragSensors } from "../../mobile";
 import {
   addDays,
   addMonths,
@@ -12,7 +13,7 @@ import {
   startOfWeek,
 } from "date-fns";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { DndContext, DragOverlay, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, DragOverlay, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { Board, Card, List } from "../../types";
 import { useStore } from "../../store";
 import { fromISO, progressMeta, toISO } from "../../utils";
@@ -54,7 +55,7 @@ export function CalendarView({ board, lists, cards }: { board: Board; lists: Lis
   const createCard = useStore((s) => s.createCard);
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [dragging, setDragging] = useState<Card | null>(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useDragSensors(5);
   const weekStartsOn = useStore((s) => s.data.settings.weekStartsOn);
 
   const days = useMemo(() => {

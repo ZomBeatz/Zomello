@@ -11,6 +11,8 @@ import { SHORTCUTS } from "../shortcuts";
 import { setZoom, ZOOM_MAX, ZOOM_MIN } from "../zoom";
 import type { A11ySettings } from "../types";
 import { ask, Avatar, InlineEdit } from "./ui";
+import { DevicesPanel } from "./DevicesPanel";
+import { isRemote } from "../remote";
 
 const A11Y_OPTIONS: { key: keyof A11ySettings; name: string; hint: string }[] = [
   { key: "highContrast", name: "High contrast", hint: "Stronger borders and text; turns off card fading" },
@@ -159,6 +161,8 @@ export function SettingsPage() {
         <h3>
           <Accessibility size={15} /> Accessibility
         </h3>
+        {!isRemote && (
+        <>
         <div className="field-row">
           <label>Zoom</label>
           <div className="zoom-control">
@@ -178,6 +182,8 @@ export function SettingsPage() {
           </div>
         </div>
         <p className="muted small">Hold Ctrl and scroll, or use Ctrl + / Ctrl − / Ctrl 0, anywhere in the app.</p>
+        </>
+        )}
         <div className="a11y-grid">
           {A11Y_OPTIONS.map((o) => (
             <label key={o.key} className="check-row">
@@ -283,6 +289,8 @@ export function SettingsPage() {
           </ul>
         )}
       </section>
+
+      {inTauri && <DevicesPanel />}
 
       <section className="panel">
         <h3>Data</h3>

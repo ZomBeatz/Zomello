@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { isRemote, remoteFileUrl, remoteLoad, remoteSave, remoteUpload } from "./remote";
 
 /** True when running inside the Tauri shell; false in a plain browser (vite dev). */
 export const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -7,6 +8,7 @@ const LS_KEY = "zomello-data";
 const LEGACY_LS_KEY = "planwise-data";
 
 export async function loadRaw(): Promise<string | null> {
+  if (isRemote) return remoteLoad();
   if (inTauri) {
     return (await invoke<string | null>("load_data")) ?? null;
   }
@@ -18,6 +20,7 @@ export async function loadRaw(): Promise<string | null> {
 }
 
 export async function saveRaw(json: string): Promise<void> {
+  if (isRemote) return remoteSave(json);
   if (inTauri) return invoke("save_data", { data: json });
   try {
     localStorage.setItem(LS_KEY, json);
@@ -50,6 +53,7 @@ export async function readBackup(timestamp: number): Promise<string> {
 }
 
 export async function dataLocation(): Promise<string> {
+  if (isRemote) return "On your PC (this device is connected to it)";
   return inTauri ? invoke<string>("data_location") : "Browser localStorage (dev mode)";
 }
 
@@ -73,6 +77,7 @@ export async function openExternal(target: string): Promise<void> {
 
 /** Copy a file into Zomello's storage. Returns the value to keep in `Attachment.url`. */
 export async function storeFile(file: File): Promise<string> {
+  if (isRemote) return remoteUpload(file);
   if (inTauri) {
     const bytes = new Uint8Array(await file.arrayBuffer());
     return invoke<string>("save_attachment", bytes, { headers: { "x-name": encodeURIComponent(file.name) } });
@@ -99,7 +104,9 @@ export async function fileFromPath(path: string): Promise<File> {
 
 /** URL the webview can display for a stored file (images, previews). */
 export function storedSrc(url: string): string {
-  if (!inTauri || url.startsWith("data:")) return url;
+  if (url.startsWith("data:")) return url;
+  if (isRemote) return /^[a-z]+:/i.test(url) ? url : remoteFileUrl(url);
+  if (!inTauri) return url;
   // Served by the app itself (see `serve_attachment` in lib.rs); Windows' webview needs the http form.
   const path = url.split("/").map(encodeURIComponent).join("/");
   // `npm run app` serves the page from the Vite dev server, which can't load zfile:// — it serves them itself.
@@ -111,7 +118,7 @@ export const isWindows = typeof navigator !== "undefined" && /Windows/i.test(nav
 
 /** Open a stored file with the system's default app. */
 export async function openStored(url: string): Promise<void> {
-  if (!inTauri) return void window.open(url, "_blank", "noopener");
+  if (!inTauri) return void window.open(storedSrc(url), "_blank", "noopener");
   const abs = await invoke<string>("attachment_abs_path", { rel: url });
   const { openPath } = await import("@tauri-apps/plugin-opener");
   return openPath(abs);
@@ -128,6 +135,7 @@ export async function cleanupStoredFiles(referenced: Set<string>): Promise<numbe
 
 // ---- Notifications ----
 export async function notify(title: string, body: string): Promise<void> {
+  if (isRemote) return; // reminders come from the PC
   if (inTauri) {
     const n = await import("@tauri-apps/plugin-notification");
     let ok = await n.isPermissionGranted();
