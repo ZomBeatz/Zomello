@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Smartphone, Unlink, X } from "lucide-react";
 import { useStore } from "../store";
 import { ask, InlineEdit, Modal } from "./ui";
+import { copyText } from "./Markdown";
 
 interface DeviceInfo {
   id: string;
@@ -117,6 +118,34 @@ export function DevicesPanel() {
           />
         </label>
       </div>
+
+      {st.enabled && st.running && st.url && (
+        <details className="install-help small">
+          <summary>Install it as an app on the phone</summary>
+          <p>
+            <b>Android (Chrome):</b> Chrome only offers “Install app” on secure addresses, so tell it this one is safe:
+          </p>
+          <ol>
+            <li>
+              In Chrome, open <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code>
+            </li>
+            <li>
+              Paste <code className="copyable" onClick={() => void copyText(st.url!.replace(/\/$/, ""))} title="Copy">{st.url.replace(/\/$/, "")}</code>{" "}
+              into the box, set it to <b>Enabled</b>, then tap <b>Relaunch</b>.
+            </li>
+            <li>
+              Open {st.url}, then <b>⋮ → Install app</b> (or “Add to Home screen” → Install).
+            </li>
+          </ol>
+          <p>
+            <b>iPad / iPhone (Safari):</b> Share → <b>Add to Home Screen</b>. It opens full-screen like an app, then pair it once
+            more from there.
+          </p>
+          <p className="muted">
+            Tip: give this PC a fixed address in your router (a “DHCP reservation”) so the address above never changes.
+          </p>
+        </details>
+      )}
 
       {st.devices.length > 0 && (
         <ul className="archive-list devices">
