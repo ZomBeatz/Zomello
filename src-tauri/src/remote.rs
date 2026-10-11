@@ -317,11 +317,10 @@ fn tls_config(app: &AppHandle) -> Result<Arc<rustls::ServerConfig>, String> {
     Ok(Arc::new(config))
 }
 
-/// The CA certificate, for installing on a phone (DER: the format every phone accepts).
+/// The CA certificate (public part only), for installing on a phone. PEM, served like HaRM's,
+/// which this kind of phone is known to accept.
 async fn ca_cert(State(app): State<AppHandle>) -> Response {
-    let pem = app.state::<Remote>().inner.lock().unwrap().ca_pem.clone();
-    use rustls::pki_types::pem::PemObject;
-    let Some(der) = pem.and_then(|p| rustls::pki_types::CertificateDer::from_pem_slice(p.as_bytes()).ok()) else {
+    let Some(pem) = app.state::<Remote>().inner.lock().unwrap().ca_pem.clone() else {
         return StatusCode::NOT_FOUND.into_response();
     };
     (
@@ -329,7 +328,7 @@ async fn ca_cert(State(app): State<AppHandle>) -> Response {
             (header::CONTENT_TYPE, "application/x-x509-ca-cert"),
             (header::CONTENT_DISPOSITION, "attachment; filename=\"zomello-ca.crt\""),
         ],
-        der.to_vec(),
+        pem,
     )
         .into_response()
 }
