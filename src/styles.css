@@ -137,7 +137,7 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
   width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 2px;
   padding: 14px 10px; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto;
 }
-.brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 17px; padding: 4px 10px 14px; color: var(--accent); }
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 17px; padding: 6px 8px 16px; color: var(--accent); }
 .brand span { color: var(--text); }
 .nav-item {
   display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 7px;
@@ -552,7 +552,7 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 
 /* ===================== Zomello additions ===================== */
 .splash { height: 100%; display: flex; align-items: center; justify-content: center; animation: fade .3s; }
-.wordmark { font-weight: 800; font-size: 19px; letter-spacing: -.01em; color: var(--text); }
+.wordmark { font-weight: 800; font-size: 24px; letter-spacing: -.01em; color: var(--text); }
 .wordmark span { color: var(--accent); }
 .brand { gap: 10px; color: var(--text); }
 .brand .collapse-btn { margin-left: auto; }

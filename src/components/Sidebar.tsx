@@ -63,7 +63,7 @@ export function Sidebar() {
             }
           }}
         >
-          <LogoMark size={30} animate={dancing} />
+          <LogoMark size={collapsed ? 40 : 46} animate={dancing} />
         </button>
         <Wordmark />
         <button
