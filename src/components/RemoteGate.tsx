@@ -100,6 +100,11 @@ function PairForm({ onPaired }: { onPaired: () => void }) {
       <button className="btn primary" disabled={busy || code.replace(/\D/g, "").length !== 6}>
         <Smartphone size={16} /> {busy ? "Connecting…" : "Connect"}
       </button>
+      {!window.isSecureContext && (
+        <a className="muted small" href={`/setup${code ? `#pair=${code}` : ""}`}>
+          Want to install Zomello as an app? Set up a secure connection first.
+        </a>
+      )}
     </form>
   );
 }
