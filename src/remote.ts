@@ -85,6 +85,17 @@ export function remoteSubscribe(onData: (json: string) => void): () => void {
   };
 }
 
+export const isIOS = () =>
+  /iPad|iPhone/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+
+/** Opened over plain http, but this device already trusts the PC's certificate? Then https works too. */
+export async function httpsTrusted(): Promise<boolean> {
+  return fetch(`https://${location.host}/api/status`, { mode: "no-cors", cache: "no-store" }).then(
+    () => true,
+    () => false,
+  );
+}
+
 /** A friendly default name for this device. */
 export function guessDeviceName(): string {
   const ua = navigator.userAgent;

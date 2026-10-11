@@ -26,7 +26,7 @@ import { installFileDropPolicy } from "./fileDrop";
 import { ImportDialog } from "./components/ImportDialog";
 import { DropOverlay } from "./components/DropOverlay";
 import { AiDialog } from "./components/AiDialog";
-import { ConnectionBanner } from "./components/RemoteGate";
+import { ConnectionBanner, SecureBanner } from "./components/RemoteGate";
 
 const DENSITY = { compact: "13px", normal: "14px", comfortable: "15.5px" };
 
@@ -145,6 +145,7 @@ export default function App() {
       <main className="main">
         {phone && <PhoneBar onMenu={() => setNavOpen(true)} />}
         <ConnectionBanner />
+        <SecureBanner />
         {saveError && <div className="save-error">Saving failed: {saveError}</div>}
         <ErrorBoundary resetKey={route} onHome={() => useStore.getState().navigate({ page: "home" })}>
           {route.page === "home" && <HomePage />}

@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Smartphone, WifiOff } from "lucide-react";
-import { guessDeviceName, isRemote, onConnectionChange, remotePair, remoteStatus, UNPAIRED_EVENT } from "../remote";
+import {
+  guessDeviceName, httpsTrusted, isIOS, isRemote, onConnectionChange, remotePair, remoteStatus, UNPAIRED_EVENT,
+} from "../remote";
 import { LogoMark } from "./Logo";
 
 type Gate = "checking" | "paired" | "unpaired" | "unreachable";
@@ -16,7 +18,14 @@ export function RemoteGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isRemote) return;
-    void check();
+    // Opened at the plain http address (an old bookmark or shortcut)? If this device trusts the PC's
+    // certificate, move to the secure address so Chrome shows it as secure and offers "Install app".
+    if (location.protocol === "http:" && !isIOS()) {
+      void httpsTrusted().then((ok) => {
+        if (ok) location.replace(`https://${location.host}${location.pathname}${location.search}${location.hash}`);
+        else void check();
+      });
+    } else void check();
     const h = () => setGate("unpaired");
     window.addEventListener(UNPAIRED_EVENT, h);
     return () => window.removeEventListener(UNPAIRED_EVENT, h);
@@ -106,6 +115,42 @@ function PairForm({ onPaired }: { onPaired: () => void }) {
         </a>
       )}
     </form>
+  );
+}
+
+/** On Android over plain http: explain why it says "Not secure" and how to fix it. */
+export function SecureBanner() {
+  const [show, setShow] = useState(() => {
+    try {
+      return isRemote && location.protocol === "http:" && !isIOS() && !sessionStorage.getItem("zomello-secure-hint");
+    } catch {
+      return false;
+    }
+  });
+  if (!show) return null;
+  return (
+    <div className="secure-banner">
+      <span className="grow">
+        Chrome shows this as <b>Not secure</b>, and Zomello can't be installed as an app yet. One-time setup fixes both.
+      </span>
+      <a className="btn sm primary" href="/setup">
+        Set up
+      </a>
+      <button
+        className="icon-btn tiny"
+        aria-label="Hide"
+        onClick={() => {
+          try {
+            sessionStorage.setItem("zomello-secure-hint", "1");
+          } catch {
+            /* fine */
+          }
+          setShow(false);
+        }}
+      >
+        ×
+      </button>
+    </div>
   );
 }
 
