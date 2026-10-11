@@ -5,6 +5,7 @@ import { importStats, parseImportFile, type ImportedBoard } from "../importers";
 import { Modal } from "./ui";
 import { registerDropZone } from "../fileDrop";
 import { fileFromPath, inTauri } from "../storage";
+import { plural } from "../utils";
 
 export function ImportDialog() {
   const close = () => useStore.getState().setOverlay({ importOpen: false });
@@ -55,7 +56,7 @@ export function ImportDialog() {
     <Modal onClose={close} width={600} className="import-dialog">
       <header className="customize-head">
         <h2>Import a board</h2>
-        <button className="icon-btn" onClick={close}>
+        <button className="icon-btn" title="Close" aria-label="Close" onClick={close}>
           <X size={18} />
         </button>
       </header>
@@ -101,7 +102,7 @@ export function ImportDialog() {
               {board.lists.map((l, i) => (
                 <li key={i}>
                   <span className="grow">{l.name}</span>
-                  <span className="muted small">{l.cards.length} cards{l.archived ? " · archived" : ""}</span>
+                  <span className="muted small">{plural(l.cards.length, "card")}{l.archived ? " · archived" : ""}</span>
                 </li>
               ))}
             </ul>

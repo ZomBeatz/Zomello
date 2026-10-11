@@ -27,6 +27,7 @@ import { ImportDialog } from "./components/ImportDialog";
 import { DropOverlay } from "./components/DropOverlay";
 import { AiDialog } from "./components/AiDialog";
 import { ConnectionBanner, SecureBanner } from "./components/RemoteGate";
+import { WelcomeGuide } from "./components/WelcomeGuide";
 
 const DENSITY = { compact: "13px", normal: "14px", comfortable: "15.5px" };
 
@@ -39,6 +40,7 @@ export default function App() {
   const searchOpen = useStore((s) => s.searchOpen);
   const quickAddOpen = useStore((s) => s.quickAddOpen);
   const helpOpen = useStore((s) => s.helpOpen);
+  const welcomeOpen = useStore((s) => s.welcomeOpen);
   const importOpen = useStore((s) => s.importOpen);
   const aiDialog = useStore((s) => s.aiDialog);
   const customizeBoard = useStore((s) => (s.customizeBoardId ? s.data.boards[s.customizeBoardId] : undefined));
@@ -95,12 +97,14 @@ export default function App() {
     const root = document.documentElement;
     if (settings.theme === "system") delete root.dataset.theme;
     else root.dataset.theme = settings.theme;
+    if (settings.style === "classic") delete root.dataset.style;
+    else root.dataset.style = settings.style;
     if (settings.accent) root.style.setProperty("--accent", settings.accent);
     else root.style.removeProperty("--accent");
     root.style.fontSize = DENSITY[settings.density];
     // Accessibility switches become data-* attributes the stylesheet keys off.
     for (const [k, v] of Object.entries(settings.a11y)) root.toggleAttribute(`data-${k.toLowerCase()}`, v);
-  }, [settings.theme, settings.accent, settings.density, settings.a11y]);
+  }, [settings.theme, settings.style, settings.accent, settings.density, settings.a11y]);
 
   useEffect(() => {
     // Zoom is the PC's setting; phones and tablets pinch-zoom on their own.
@@ -166,18 +170,9 @@ export default function App() {
       {importOpen && <ImportDialog />}
       {aiDialog && <AiDialog init={aiDialog} />}
       {customizeBoard && <BoardCustomize board={customizeBoard} />}
-      {helpOpen && (
-        <Modal onClose={() => useStore.getState().setOverlay({ helpOpen: false })} width={760} className="help">
-          <header className="customize-head">
-            <h2>Keyboard shortcuts</h2>
-            <button className="icon-btn" onClick={() => useStore.getState().setOverlay({ helpOpen: false })}>
-              <X size={18} />
-            </button>
-          </header>
-          <div className="customize-body">
-            <ShortcutList />
-          </div>
-        </Modal>
+      {helpOpen && <HelpWindow />}
+      {(welcomeOpen || (!settings.onboarded && !isBoardWindow && !isRemote)) && (
+        <WelcomeGuide onClose={() => useStore.getState().setOverlay({ welcomeOpen: false })} />
       )}
       <DropOverlay />
       <Toasts />
@@ -204,6 +199,61 @@ function PhoneBar({ onMenu }: { onMenu: () => void }) {
         <Plus size={20} />
       </button>
     </header>
+  );
+}
+
+/** Help: the welcome guide again, the basics at a glance, and every keyboard shortcut. */
+function HelpWindow() {
+  const close = () => useStore.getState().setOverlay({ helpOpen: false });
+  return (
+    <Modal onClose={close} width={760} className="help">
+      <header className="customize-head">
+        <h2>Help</h2>
+        <button className="icon-btn" onClick={close}>
+          <X size={18} />
+        </button>
+      </header>
+      <div className="customize-body">
+        <div className="help-start">
+          <div>
+            <b>New here, or need a refresher?</b>
+            <p className="muted small">A one-minute tour of boards, buckets, cards and the essentials.</p>
+          </div>
+          <button
+            className="btn primary"
+            onClick={() => {
+              close();
+              useStore.getState().setOverlay({ welcomeOpen: true });
+            }}
+          >
+            Show the welcome guide
+          </button>
+        </div>
+        <h3 className="help-h">Good to know</h3>
+        <ul className="help-faq">
+          <li>
+            <b>Where did my completed card go?</b> It's tucked under <i>Show completed</i> at the bottom of its bucket. Buckets
+            set to complete their cards (like Done) show them instead; change that from the bucket's ⋯ menu.
+          </li>
+          <li>
+            <b>Deleted something by mistake?</b> Press Ctrl+Z, or Undo on the message that pops up. Archived things are under
+            Archive in the sidebar.
+          </li>
+          <li>
+            <b>Where is my data?</b> In one file on this computer, saved as you type, with automatic backups every 30
+            minutes. Settings → Data shows where, and can export or restore it.
+          </li>
+          <li>
+            <b>Use it on a phone or tablet?</b> Settings → Phones &amp; tablets walks you through it.
+          </li>
+          <li>
+            <b>Select several cards?</b> Ctrl+click (or Shift+click) them, then use the bar that appears.
+          </li>
+        </ul>
+        <h3 className="help-h">Keyboard shortcuts</h3>
+        <ShortcutList />
+      </div>
+    </Modal>
   );
 }
 

@@ -102,11 +102,11 @@ export function CalendarView({ board, lists, cards }: { board: Board; lists: Lis
     <div className="calendar-wrap">
       <div className="calendar">
         <div className="cal-toolbar">
-          <button className="icon-btn" onClick={() => setMonth((m) => addMonths(m, -1))}>
+          <button className="icon-btn" title="Previous month" aria-label="Previous month" onClick={() => setMonth((m) => addMonths(m, -1))}>
             <ChevronLeft size={18} />
           </button>
           <h2>{format(month, "MMMM yyyy")}</h2>
-          <button className="icon-btn" onClick={() => setMonth((m) => addMonths(m, 1))}>
+          <button className="icon-btn" title="Next month" aria-label="Next month" onClick={() => setMonth((m) => addMonths(m, 1))}>
             <ChevronRight size={18} />
           </button>
           <button className="btn sm" onClick={() => setMonth(startOfMonth(new Date()))}>

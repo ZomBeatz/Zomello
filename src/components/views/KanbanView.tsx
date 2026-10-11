@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { archiveList, deleteList as deleteListAction } from "../../actions";
 import { useDragSensors } from "../../mobile";
 import {
   closestCenter,
@@ -30,6 +31,7 @@ import {
   ArrowDownUp,
   Check,
   ChevronsLeftRight,
+  CircleCheck,
   SlidersHorizontal,
   Sparkles,
   ClipboardCopy,
@@ -41,11 +43,11 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import type { BadgeKey, BadgeMode, Board, Card, GroupBy, ID, List } from "../../types";
+import type { BadgeKey, BadgeMode, Board, Card, GroupBy, ID, List, Progress } from "../../types";
 import { useStore } from "../../store";
 import { buildGroups, SORT_MODES, sortCards, type Group } from "../../utils";
 import { CardTile } from "../CardTile";
-import { ask, InlineEdit, MenuItem, Modal, Popover } from "../ui";
+import { InlineEdit, MenuItem, Modal, Popover } from "../ui";
 import { BADGES } from "../BoardCustomize";
 import { copyText } from "../Markdown";
 import { workOrder } from "../../ai";
@@ -106,14 +108,16 @@ export function KanbanView({
 
   // Like Planner/Teams: completed cards are tucked into a collapsible section under each column
   // (except when grouping by progress, where "Completed" is its own column).
+  // A bucket that completes its cards (e.g. "Done") shows them instead.
   const hideCompleted = groupBy !== "progress";
-  const isActive = (c: Card) => !hideCompleted || c.progress !== "completed";
+  const tucks = (g: Group) => hideCompleted && g.list?.autoProgress !== "completed";
+  const isActive = (c: Card, g: Group) => !tucks(g) || c.progress !== "completed";
   const completedByGroup = useMemo(
     () =>
       Object.fromEntries(
         groups.map((g) => [
           g.id,
-          hideCompleted
+          tucks(g)
             ? g.cards.filter((c) => c.progress === "completed").sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
             : [],
         ]),
@@ -125,7 +129,7 @@ export function KanbanView({
   const [dragCols, setDragCols] = useState<Record<string, ID[]> | null>(null);
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const columns = useMemo(
-    () => dragCols ?? Object.fromEntries(groups.map((g) => [g.id, g.cards.filter(isActive).map((c) => c.id)])),
+    () => dragCols ?? Object.fromEntries(groups.map((g) => [g.id, g.cards.filter((c) => isActive(c, g)).map((c) => c.id)])),
     [dragCols, groups, hideCompleted],
   );
   const canDrag = DRAGGABLE.includes(groupBy);
@@ -284,7 +288,6 @@ function Column({
   completed: Card[];
 }) {
   const updateList = useStore((s) => s.updateList);
-  const deleteList = useStore((s) => s.deleteList);
   const list = group.list;
   const [displayOpen, setDisplayOpen] = useState(false);
   const sortable = useSortable({
@@ -352,7 +355,7 @@ function Column({
           <Popover
             align="right"
             trigger={(_, toggle) => (
-              <button className="icon-btn" onClick={toggle} onPointerDown={(e) => e.stopPropagation()}>
+              <button className="icon-btn" title="Bucket menu" aria-label="Bucket menu" onClick={toggle} onPointerDown={(e) => e.stopPropagation()}>
                 <MoreHorizontal size={16} />
               </button>
             )}
@@ -390,6 +393,20 @@ function Column({
                 >
                   Copy work order
                 </MenuItem>
+                <label className="menu-item">
+                  <CircleCheck size={14} />
+                  <span>Cards moved here become</span>
+                  <select
+                    className="auto-progress"
+                    value={list.autoProgress ?? ""}
+                    onChange={(e) => updateList(list.id, { autoProgress: (e.target.value || null) as Progress | null })}
+                  >
+                    <option value="">(unchanged)</option>
+                    <option value="notStarted">Not started</option>
+                    <option value="inProgress">In progress</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </label>
                 <MenuItem icon={<SlidersHorizontal size={14} />} onClick={() => (setDisplayOpen(true), close())}>
                   Card display{list.badges && Object.keys(list.badges).length ? " (custom)" : ""}…
                 </MenuItem>
@@ -408,16 +425,15 @@ function Column({
                     }}
                   />
                 </label>
-                <MenuItem icon={<Archive size={14} />} onClick={() => (updateList(list.id, { archived: true }), close())}>
+                <MenuItem icon={<Archive size={14} />} onClick={() => (archiveList(list), close())}>
                   Archive bucket
                 </MenuItem>
                 <MenuItem
                   danger
                   icon={<Trash2 size={14} />}
-                  onClick={async () => {
+                  onClick={() => {
                     close();
-                    if (await ask(`Delete "${list.title}" and all its cards? This can't be undone.`, { okText: "Delete", danger: true }))
-                      deleteList(list.id);
+                    void deleteListAction(list);
                   }}
                 >
                   Delete bucket
@@ -727,7 +743,7 @@ function BucketDisplayDialog({ list, board, onClose }: { list: List; board: Boar
     <Modal onClose={onClose} width={560} className="customize">
       <header className="customize-head">
         <h2>Card display in “{list.title}”</h2>
-        <button className="icon-btn" onClick={onClose}>
+        <button className="icon-btn" title="Close" aria-label="Close" onClick={onClose}>
           <X size={18} />
         </button>
       </header>

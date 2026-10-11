@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { ArchiveRestore, Trash2 } from "lucide-react";
 import { useStore } from "../store";
-import { timeAgo } from "../utils";
-import { ask, Empty } from "./ui";
+import { plural, timeAgo } from "../utils";
+import { Empty } from "./ui";
+import { deleteBoard, deleteCard, deleteList } from "../actions";
 
 type Tab = "cards" | "lists" | "boards";
 
 export function ArchivePage() {
   const data = useStore((s) => s.data);
-  const { updateBoard, deleteBoard, updateList, deleteList, updateCard, deleteCard, openCard } = useStore.getState();
+  const { updateBoard, updateList, updateCard, openCard, toast } = useStore.getState();
   const [tab, setTab] = useState<Tab>("cards");
 
   const boards = Object.values(data.boards).filter((b) => b.archived);
@@ -17,7 +18,6 @@ export function ArchivePage() {
     .filter((c) => c.archived && data.boards[c.boardId])
     .sort((a, b) => b.updatedAt - a.updatedAt);
 
-  const confirmDelete = (what: string) => ask(`Permanently delete ${what}? This can't be undone.`, { okText: "Delete", danger: true });
 
   return (
     <div className="page">
@@ -46,10 +46,10 @@ export function ArchivePage() {
               <span className="muted small">
                 {data.boards[c.boardId].title} › {data.lists[c.listId]?.title} · {timeAgo(c.updatedAt)}
               </span>
-              <button className="btn sm" onClick={() => updateCard(c.id, { archived: false })}>
+              <button className="btn sm" onClick={() => (updateCard(c.id, { archived: false }), toast(`Restored “${c.title}”`))}>
                 <ArchiveRestore size={14} /> Restore
               </button>
-              <button className="icon-btn danger" onClick={async () => (await confirmDelete(`"${c.title}"`)) && deleteCard(c.id)}>
+              <button className="icon-btn danger" title="Delete" onClick={() => void deleteCard(c)}>
                 <Trash2 size={15} />
               </button>
             </li>
@@ -59,14 +59,15 @@ export function ArchivePage() {
             <li key={l.id}>
               <span className="grow ellipsis">{l.title}</span>
               <span className="muted small">
-                {data.boards[l.boardId].title} · {Object.values(data.cards).filter((c) => c.listId === l.id).length} cards
+                {data.boards[l.boardId].title} · {plural(Object.values(data.cards).filter((c) => c.listId === l.id).length, "card")}
               </span>
-              <button className="btn sm" onClick={() => updateList(l.id, { archived: false })}>
+              <button className="btn sm" onClick={() => (updateList(l.id, { archived: false }), toast(`Restored “${l.title}”`))}>
                 <ArchiveRestore size={14} /> Restore
               </button>
               <button
                 className="icon-btn danger"
-                onClick={async () => (await confirmDelete(`bucket "${l.title}" and its cards`)) && deleteList(l.id)}
+                title="Delete"
+                onClick={() => void deleteList(l)}
               >
                 <Trash2 size={15} />
               </button>
@@ -77,12 +78,13 @@ export function ArchivePage() {
             <li key={b.id}>
               <span className="board-dot" style={{ background: b.color }} />
               <span className="grow ellipsis">{b.title}</span>
-              <button className="btn sm" onClick={() => updateBoard(b.id, { archived: false })}>
+              <button className="btn sm" onClick={() => (updateBoard(b.id, { archived: false }), toast(`Restored “${b.title}”`))}>
                 <ArchiveRestore size={14} /> Restore
               </button>
               <button
                 className="icon-btn danger"
-                onClick={async () => (await confirmDelete(`board "${b.title}" and everything in it`)) && deleteBoard(b.id)}
+                title="Delete"
+                onClick={() => void deleteBoard(b)}
               >
                 <Trash2 size={15} />
               </button>

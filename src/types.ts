@@ -141,6 +141,11 @@ export interface List {
   sortDesc: boolean;
   /** Per-bucket overrides of the board's "Show on cards" settings. */
   badges?: Partial<Record<BadgeKey, BadgeMode>>;
+  /**
+   * Cards moved (or added) into this bucket get this progress, e.g. a "Done" bucket completes them.
+   * A bucket that completes cards also shows them, instead of tucking them under "Show completed".
+   */
+  autoProgress?: Progress | null;
 }
 
 export type BoardBackground =
@@ -205,6 +210,8 @@ export interface Board {
   labels: Label[];
   archived: boolean;
   starred: boolean;
+  /** Optional group in the sidebar and on Home (e.g. "Work", "Home"). Null = not in one. */
+  category?: string | null;
   order: number;
   createdAt: number;
 }
@@ -282,7 +289,17 @@ export interface Settings {
   focusMinutes: number;
   focusSound: boolean;
   a11y: A11ySettings;
+  /** Look of the whole app: the ZomBeatz blue and orange, or a theme found as an Easter egg. */
+  style: AppStyle;
+  /** Easter-egg styles found so far (they show up in Settings once found). */
+  unlockedStyles: AppStyle[];
+  /** The welcome guide has been seen (or skipped). */
+  onboarded: boolean;
+  /** Board categories folded shut in the sidebar. */
+  collapsedCategories: string[];
 }
+
+export type AppStyle = "classic" | "bassdrop";
 
 /** A reusable card blueprint. Labels are stored by name so templates work on any board. */
 export interface CardTemplate {

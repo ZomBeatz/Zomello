@@ -3,7 +3,7 @@ import { addDays, differenceInCalendarDays, format, isToday, isWeekend, startOfW
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Card, List } from "../../types";
 import { useStore } from "../../store";
-import { fromISO, isLate, progressMeta } from "../../utils";
+import { fromISO, isLate, plural, progressMeta } from "../../utils";
 import { openCardMenu } from "../ContextMenu";
 
 const DAY_W = 34;
@@ -55,13 +55,13 @@ export function TimelineView({ lists, cards }: { lists: List[]; cards: Card[] })
   return (
     <div className="timeline">
       <div className="cal-toolbar">
-        <button className="icon-btn" onClick={() => setStart((d) => addDays(d, -7))}>
+        <button className="icon-btn" title="Previous week" aria-label="Previous week" onClick={() => setStart((d) => addDays(d, -7))}>
           <ChevronLeft size={18} />
         </button>
         <h2>
           {format(days[0], "MMM d")} – {format(days[days.length - 1], "MMM d, yyyy")}
         </h2>
-        <button className="icon-btn" onClick={() => setStart((d) => addDays(d, 7))}>
+        <button className="icon-btn" title="Next week" aria-label="Next week" onClick={() => setStart((d) => addDays(d, 7))}>
           <ChevronRight size={18} />
         </button>
         <button className="btn sm" onClick={() => setStart(addDays(startOfWeek(new Date(), { weekStartsOn }), -7))}>
@@ -74,7 +74,7 @@ export function TimelineView({ lists, cards }: { lists: List[]; cards: Card[] })
             </button>
           ))}
         </div>
-        {unscheduledCount > 0 && <span className="muted small">{unscheduledCount} task(s) without dates hidden</span>}
+        {unscheduledCount > 0 && <span className="muted small">{plural(unscheduledCount, "task")} without dates not shown</span>}
       </div>
       <div className="tl-scroll">
         <div className="tl-grid" style={{ width: 220 + nDays * dayW }}>

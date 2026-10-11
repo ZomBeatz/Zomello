@@ -176,6 +176,59 @@ export function ColorPicker({
   );
 }
 
+/**
+ * Run `save` when the component goes away (a window closes, another card opens…), so typing that
+ * hasn't been committed yet is never lost. `save` should do nothing when there's nothing to save.
+ */
+export function useSaveOnUnmount(save: () => void) {
+  const ref = useRef(save);
+  ref.current = save;
+  useEffect(() => () => ref.current(), []);
+}
+
+/**
+ * A text box that saves when you press Enter, click away, or close the window it's in, so a typed
+ * value is never lost. `onCommit` only runs when the text actually changed.
+ */
+export function CommitInput({
+  value,
+  onCommit,
+  ...props
+}: Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue" | "onChange"> & {
+  value: string;
+  onCommit: (v: string) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  const dirty = useRef(false);
+  useEffect(() => {
+    if (!dirty.current) setDraft(value);
+  }, [value]);
+  const commit = () => {
+    if (!dirty.current) return;
+    dirty.current = false;
+    if (draft !== value) onCommit(draft);
+  };
+  useSaveOnUnmount(commit);
+  return (
+    <input
+      {...props}
+      value={draft}
+      onChange={(e) => {
+        dirty.current = true;
+        setDraft(e.target.value);
+      }}
+      onBlur={(e) => {
+        commit();
+        props.onBlur?.(e);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        props.onKeyDown?.(e);
+      }}
+    />
+  );
+}
+
 /** Text that turns into an input on click; commits on Enter / blur. */
 export function InlineEdit({
   value,
@@ -199,6 +252,10 @@ export function InlineEdit({
     if (v && v !== value) onSave(v);
     else setDraft(value);
   };
+  useSaveOnUnmount(() => {
+    const v = draft.trim();
+    if (editing && v && v !== value) onSave(v);
+  });
   if (!editing)
     return (
       <span className={`inline-edit ${className}`} onClick={() => setEditing(true)} title="Click to edit">

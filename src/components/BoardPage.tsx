@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { archiveBoard, deleteBoard as deleteBoardAction } from "../actions";
 import {
   Archive,
   BarChart3,
@@ -110,7 +111,7 @@ export function BoardPage({ boardId }: { boardId: ID }) {
 }
 
 function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
-  const { updateBoard, deleteBoard, duplicateBoard, navigate, setBoardUi } = useStore.getState();
+  const { updateBoard, duplicateBoard, navigate, setBoardUi } = useStore.getState();
   return (
     <header className="board-header">
       {board.icon ? <span className="board-icon">{board.icon}</span> : <span className="board-swatch" style={{ background: board.color }} />}
@@ -154,12 +155,15 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
       >
         {(close) => (
           <div className="menu" style={{ width: 250 }}>
-            <div className="menu-section">
-              <span className="menu-heading">
-                <Palette size={13} /> Board color
-              </span>
-              <ColorPicker value={board.color} onChange={(color) => updateBoard(board.id, { color: color ?? PALETTE[6] })} />
-            </div>
+            <MenuItem
+              icon={<Palette size={14} />}
+              onClick={() => {
+                close();
+                useStore.getState().setOverlay({ customizeBoardId: board.id });
+              }}
+            >
+              Customize board…
+            </MenuItem>
             <MenuItem icon={<Copy size={14} />} onClick={() => (close(), navigate({ page: "board", boardId: duplicateBoard(board.id) }))}>
               Duplicate board
             </MenuItem>
@@ -209,8 +213,7 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
               icon={<Archive size={14} />}
               onClick={() => {
                 close();
-                updateBoard(board.id, { archived: true });
-                navigate({ page: "home" });
+                archiveBoard(board);
               }}
             >
               Archive board
@@ -218,10 +221,9 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
             <MenuItem
               danger
               icon={<Trash2 size={14} />}
-              onClick={async () => {
+              onClick={() => {
                 close();
-                if (await ask(`Delete board "${board.title}" and everything in it? This can't be undone.`, { okText: "Delete board", danger: true }))
-                  deleteBoard(board.id);
+                void deleteBoardAction(board);
               }}
             >
               Delete board
@@ -334,7 +336,7 @@ function Toolbar({
           onChange={(e) => setFilter(board.id, { text: e.target.value })}
         />
         {f.text && (
-          <button className="icon-btn tiny" onClick={() => setFilter(board.id, { text: "" })}>
+          <button className="icon-btn tiny" title="Clear" aria-label="Clear" onClick={() => setFilter(board.id, { text: "" })}>
             <X size={13} />
           </button>
         )}
@@ -347,8 +349,50 @@ function Toolbar({
           </button>
         )}
       >
-        {() => (
+        {(close) => (
           <div className="menu filter-menu">
+            {(saved.length > 0 || active) && (
+              <>
+                <span className="menu-heading">Saved filters</span>
+                {saved.map((s) => (
+                  <div key={s.id} className="row">
+                    <button
+                      className="menu-item grow"
+                      onClick={() => {
+                        setBoardUi(board.id, { filter: { ...emptyFilter(), ...s.filter } });
+                        close();
+                      }}
+                    >
+                      <Bookmark size={14} /> <span>{s.name}</span>
+                    </button>
+                    <button className="icon-btn tiny" title="Delete this saved filter" onClick={() => deleteSavedFilter(s.id)}>
+                      <X size={13} />
+                    </button>
+                  </div>
+                ))}
+                {active && (
+                  <form
+                    className="row gap-sm pad-sm"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!saveName.trim()) return;
+                      saveFilter(board.id, saveName.trim(), f);
+                      setSaveName("");
+                    }}
+                  >
+                    <input
+                      className="grow"
+                      placeholder="Save this filter as…"
+                      value={saveName}
+                      onChange={(e) => setSaveName(e.target.value)}
+                    />
+                    <button className="btn sm" type="submit" disabled={!saveName.trim()}>
+                      Save
+                    </button>
+                  </form>
+                )}
+              </>
+            )}
             <span className="menu-heading">Due</span>
             <div className="seg wrap">
               {(
@@ -406,58 +450,6 @@ function Toolbar({
         )}
       </Popover>
 
-      <Popover
-        trigger={(_, t) => (
-          <button className="btn ghost sm" onClick={t}>
-            <Bookmark size={14} /> <span className="btn-label">Saved</span>
-          </button>
-        )}
-      >
-        {(close) => (
-          <div className="menu" style={{ width: 260 }}>
-            <span className="menu-heading">Saved filters</span>
-            {saved.length === 0 && <p className="muted small pad">None yet.</p>}
-            {saved.map((s) => (
-              <div key={s.id} className="row">
-                <button
-                  className="menu-item grow"
-                  onClick={() => {
-                    setBoardUi(board.id, { filter: { ...emptyFilter(), ...s.filter } });
-                    close();
-                  }}
-                >
-                  <Bookmark size={14} /> <span>{s.name}</span>
-                </button>
-                <button className="icon-btn tiny" onClick={() => deleteSavedFilter(s.id)}>
-                  <X size={13} />
-                </button>
-              </div>
-            ))}
-            {active && (
-              <form
-                className="row gap-sm pad-sm"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!saveName.trim()) return;
-                  saveFilter(board.id, saveName.trim(), f);
-                  setSaveName("");
-                }}
-              >
-                <input
-                  className="grow"
-                  placeholder="Save current filter as…"
-                  value={saveName}
-                  onChange={(e) => setSaveName(e.target.value)}
-                />
-                <button className="btn sm" type="submit">
-                  Save
-                </button>
-              </form>
-            )}
-          </div>
-        )}
-      </Popover>
-
       {f.relatedTo && (
         <span className="related-chip" title="Showing only this card and the cards related to it">
           <GitFork size={13} />
@@ -476,7 +468,7 @@ function Toolbar({
           <X size={14} /> Clear
         </button>
       )}
-      {active && <span className="muted small">{count} match</span>}
+      {active && <span className="muted small">{count} {count === 1 ? "match" : "matches"}</span>}
 
       <div className="grow" />
       {ui.view === "board" && (
@@ -524,6 +516,28 @@ function SelectionBar({ boardId }: { boardId: ID }) {
         }}
       >
         <CheckCircle2 size={14} /> Complete
+      </button>
+      <button
+        className="btn sm"
+        onClick={() => {
+          for (const c of picked) updateCard(c.id, { archived: true });
+          toast(`Archived ${picked.length} card${picked.length === 1 ? "" : "s"}`, { undo: true });
+          clearSelected();
+        }}
+      >
+        <Archive size={14} /> Archive
+      </button>
+      <button
+        className="btn sm danger"
+        onClick={async () => {
+          const n = picked.length;
+          if (!(await ask(`Delete ${n} card${n === 1 ? "" : "s"}? You can undo this right after.`, { okText: "Delete", danger: true }))) return;
+          for (const c of picked) useStore.getState().deleteCard(c.id);
+          toast(`Deleted ${n} card${n === 1 ? "" : "s"}`, { undo: true });
+          clearSelected();
+        }}
+      >
+        <Trash2 size={14} /> Delete
       </button>
       <button className="icon-btn" title="Clear selection (Esc)" onClick={clearSelected}>
         <X size={15} />

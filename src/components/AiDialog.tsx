@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { AlertTriangle, Bot, ClipboardCopy, Download, Sparkles, Wand2, X } from "lucide-react";
 import { useStore, type AiDialogState } from "../store";
 import type { Card, ID } from "../types";
-import { byOrder, matchesFilter } from "../utils";
+import { byOrder, matchesFilter, plural } from "../utils";
 import { exportFile } from "../storage";
 import {
   applyReply, DELEGATE_TASKS, parseReply, promptAddCards, promptDelegate, promptNewBoard, summarizeReply, type AiReply,
@@ -22,7 +22,7 @@ export function AiDialog({ init }: { init: AiDialogState }) {
         <h2>
           <Bot size={20} /> AI tools
         </h2>
-        <button className="icon-btn" onClick={close}>
+        <button className="icon-btn" title="Close" aria-label="Close" onClick={close}>
           <X size={18} />
         </button>
       </header>
@@ -188,7 +188,7 @@ function ExportTab({ init, onNext }: { init: AiDialogState; onNext: () => void }
       : scope === "cards"
         ? cards.length === 1
           ? `Card: ${cards[0].title}`
-          : `${cards.length} cards`
+          : plural(cards.length, "card")
         : `${data.boards[boardId ?? ""]?.title ?? ""}${scope === "filtered" ? " (filtered)" : ""}`;
   const text = useMemo(
     () => (boardId ? promptDelegate(boardId, done ? cards : cards.filter((c) => c.progress !== "completed"), task, custom, scopeName) : ""),

@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import { useDragSensors, useIsPhone } from "../mobile";
 import {
-  AppWindow, Archive, Bot, ChevronsLeft, ChevronsRight, ClipboardCopy, Copy, ExternalLink, Home, Hourglass, Keyboard, LayoutTemplate, Palette,
-  Pause, Pencil, Play, Plus, Search, Settings, Star, Trash2, UserCheck, X, Zap,
+  Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, UserCheck, X, Zap,
 } from "lucide-react";
 import { runningTimer, useStore } from "../store";
 import type { Board, ID } from "../types";
@@ -10,13 +9,14 @@ import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { CSS } from "@dnd-kit/utilities";
-import { openContextMenu, type MenuEntry } from "./ContextMenu";
-import { ask } from "./ui";
+import { openContextMenu } from "./ContextMenu";
+import { boardMenu, categoryMenu } from "./boardMenu";
 import { isBoardWindow, openBoardWindow } from "../windows";
-import { byOrder, formatDuration, parseDuration } from "../utils";
+import { boardCategories, byOrder, formatDuration, parseDuration } from "../utils";
 import { Popover } from "./ui";
 import { LogoMark, Wordmark } from "./Logo";
 import { useNow } from "./useNow";
+import { logoClicked } from "../easterEgg";
 
 export function Sidebar() {
   const boards = useStore((s) => s.data.boards);
@@ -33,9 +33,14 @@ export function Sidebar() {
 
   const live = useMemo(() => Object.values(boards).filter((b) => !b.archived).sort(byOrder), [boards]);
   const starred = live.filter((b) => b.starred);
+  // Optional categories group the boards; with none, it's one plain list as before.
+  const categories = useMemo(() => boardCategories(live), [live]);
+  const loose = categories.length && !collapsed ? live.filter((b) => !b.category) : live;
+  const collapsedCats = useStore((s) => s.data.settings.collapsedCategories);
   const activeId = route.page === "board" ? route.boardId : null;
 
   const [renaming, setRenaming] = useState<ID | null>(null);
+  const [dancing, setDancing] = useState(false);
 
   const NavItem = ({ icon, label, onClick, on, kbd }: { icon: React.ReactNode; label: string; onClick: () => void; on?: boolean; kbd?: string }) => (
     <button className={`nav-item ${on ? "active" : ""}`} onClick={onClick} title={collapsed ? label : undefined}>
@@ -48,7 +53,18 @@ export function Sidebar() {
   return (
     <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
       <div className="brand">
-        <LogoMark size={30} />
+        <button
+          className="logo-btn"
+          aria-label="Zomello"
+          onClick={() => {
+            if (logoClicked()) {
+              setDancing(true);
+              setTimeout(() => setDancing(false), 3200);
+            }
+          }}
+        >
+          <LogoMark size={30} animate={dancing} />
+        </button>
         <Wordmark />
         <button
           className="icon-btn tiny collapse-btn"
@@ -83,7 +99,7 @@ export function Sidebar() {
         </button>
       </div>
       <div className="nav-boards">
-        <BoardList list={live} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
+        <BoardList list={loose} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
         {adding && (
           <input
             autoFocus
@@ -111,6 +127,29 @@ export function Sidebar() {
             }}
           />
         )}
+        {!collapsed &&
+          categories.map((cat) => {
+            const inCat = live.filter((b) => b.category === cat);
+            const shut = collapsedCats.includes(cat);
+            return (
+              <div key={cat} className="nav-category">
+                <button
+                  className="nav-category-head"
+                  onClick={() => useStore.getState().toggleCategoryCollapsed(cat)}
+                  onContextMenu={(e) => openContextMenu(e, () => categoryMenu(cat))}
+                  title="Click to fold; right-click to rename or remove"
+                  aria-expanded={!shut}
+                >
+                  {shut ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+                  <span className="grow ellipsis">{cat}</span>
+                  <span className="count">{inCat.length}</span>
+                </button>
+                {!shut && (
+                  <BoardList list={inCat} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
+                )}
+              </div>
+            );
+          })}
       </div>
 
       <div className="grow" />
@@ -118,7 +157,7 @@ export function Sidebar() {
       <RunningTimer collapsed={collapsed} />
       <NavItem icon={<Archive size={16} />} label="Archive" on={route.page === "archive"} onClick={() => navigate({ page: "archive" })} />
       <NavItem icon={<Settings size={16} />} label="Settings" on={route.page === "settings"} onClick={() => navigate({ page: "settings" })} />
-      <NavItem icon={<Keyboard size={16} />} label="Shortcuts" kbd="?" onClick={() => setOverlay({ helpOpen: true })} />
+      <NavItem icon={<CircleHelp size={16} />} label="Help" kbd="?" onClick={() => setOverlay({ helpOpen: true })} />
     </aside>
   );
 }
@@ -290,75 +329,7 @@ function BoardLink({
       </div>
     );
 
-  const menu = (): MenuEntry[] => [
-    { label: "Open", icon: <ExternalLink size={14} />, onClick: () => st.navigate({ page: "board", boardId: board.id }) },
-    {
-      label: "Open in new window",
-      icon: <AppWindow size={14} />,
-      onClick: () => void openBoardWindow(board.id, board.title),
-    },
-    { label: "Rename", icon: <Pencil size={14} />, onClick: onRename },
-    {
-      label: board.starred ? "Unstar" : "Star",
-      icon: <Star size={14} />,
-      onClick: () => st.updateBoard(board.id, { starred: !board.starred }),
-    },
-    {
-      label: "Customize…",
-      icon: <Palette size={14} />,
-      onClick: () => {
-        st.navigate({ page: "board", boardId: board.id });
-        st.setOverlay({ customizeBoardId: board.id });
-      },
-    },
-    { separator: true },
-    {
-      label: "AI tools…",
-      icon: <Bot size={14} />,
-      onClick: () => st.setOverlay({ aiDialog: { tab: "ask", mode: "cards", boardId: board.id } }),
-    },
-    {
-      label: "Copy work order (all open cards)",
-      icon: <ClipboardCopy size={14} />,
-      onClick: async () => {
-        const [{ workOrder }, { copyText }] = await Promise.all([import("../ai"), import("./Markdown")]);
-        const all = Object.values(useStore.getState().data.cards).filter((c) => c.boardId === board.id);
-        copyText(workOrder(board.id, all, `${board.title}: open items`));
-      },
-    },
-    { separator: true },
-    {
-      label: "Duplicate",
-      icon: <Copy size={14} />,
-      onClick: () => st.navigate({ page: "board", boardId: st.duplicateBoard(board.id) }),
-    },
-    {
-      label: "New board with this layout",
-      icon: <LayoutTemplate size={14} />,
-      onClick: () =>
-        st.navigate({ page: "board", boardId: st.duplicateBoard(board.id, { title: `New ${board.title}`, withCards: false }) }),
-    },
-    {
-      label: "Archive",
-      icon: <Archive size={14} />,
-      onClick: () => {
-        st.updateBoard(board.id, { archived: true });
-        if (active) st.navigate({ page: "home" });
-        st.toast(`Archived “${board.title}”`, { undo: true });
-      },
-    },
-    {
-      label: "Delete",
-      icon: <Trash2 size={14} />,
-      danger: true,
-      onClick: async () => {
-        if (await ask(`Delete board "${board.title}" and everything in it?`, { okText: "Delete board", danger: true })) {
-          st.deleteBoard(board.id);
-          st.toast(`Deleted “${board.title}”`, { undo: true });
-        }
-      },
-    },
-  ];
+  const menu = () => boardMenu(board, { onRename });
 
   return (
     <button

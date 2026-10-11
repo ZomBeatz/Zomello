@@ -28,7 +28,8 @@ export function QuickAdd() {
     if (!effectiveList || (!title.trim() && !template)) return;
     const extra = {
       ...(title.trim() ? { title: title.trim() } : {}),
-      dueDate: due || null,
+      // Leave the date alone when none was picked (a repeating template sets its own).
+      ...(due ? { dueDate: due } : {}),
       priority,
       ...(mine && data.settings.me ? { assignees: [data.settings.me] } : {}),
     };
@@ -48,6 +49,11 @@ export function QuickAdd() {
           submit(false);
         }}
       >
+        {boards.length === 0 && (
+          <p className="quick-empty">
+            There are no boards yet. Create one on the Home page first, then tasks can go in it.
+          </p>
+        )}
         <div className="quick-title">
           <Zap size={18} />
           <input autoFocus placeholder="What needs doing?" value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -109,10 +115,10 @@ export function QuickAdd() {
             </label>
           )}
           <span className="grow" />
-          <button type="button" className="btn" onClick={() => submit(true)}>
+          <button type="button" className="btn" disabled={!effectiveList} onClick={() => submit(true)}>
             Add & open
           </button>
-          <button type="submit" className="btn primary">
+          <button type="submit" className="btn primary" disabled={!effectiveList}>
             Add task
           </button>
         </div>

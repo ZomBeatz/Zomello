@@ -1,11 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ImagePlus, Plus, Trash2, X } from "lucide-react";
 import type { BadgeKey, BadgeMode, Board, BoardDisplay, CardSection, FieldDef, FieldType } from "../types";
 import { useStore } from "../store";
-import { BOARD_EMOJIS, GRADIENTS, isImage, PALETTE, uid } from "../utils";
+import { boardCategories, BOARD_EMOJIS, GRADIENTS, isImage, PALETTE, uid } from "../utils";
 import { storedSrc, storeFile, storeFromPath } from "../storage";
 import { registerDropZone } from "../fileDrop";
-import { ask, ColorPicker, Modal } from "./ui";
+import { ask, ColorPicker, Modal, useSaveOnUnmount } from "./ui";
 
 export const BADGES: { key: BadgeKey; name: string; icon: string; full: string }[] = [
   { key: "dates", name: "Dates", icon: "Due date", full: "Dates + “in 3 days / 2 days late” + repeat rule" },
@@ -95,7 +95,7 @@ export function BoardCustomize({ board }: { board: Board }) {
     <Modal onClose={close} width={680} className="customize">
       <header className="customize-head">
         <h2>Customize “{board.title}”</h2>
-        <button className="icon-btn" onClick={close}>
+        <button className="icon-btn" title="Close" aria-label="Close" onClick={close}>
           <X size={18} />
         </button>
       </header>
@@ -126,13 +126,13 @@ export function BoardCustomize({ board }: { board: Board }) {
             A few lines of context — what the board is for, the project, where things live. Included in every AI prompt and
             export from this board, so you don't have to re-explain it.
           </p>
-          <textarea
-            rows={3}
-            className="about-board"
-            placeholder="e.g. Zomello is my Tauri + React task app, code in ~/claude/test. Bugs go in Bugs, ideas in Brainstorm."
-            defaultValue={board.description}
-            onBlur={(e) => e.target.value !== board.description && set({ description: e.target.value })}
-          />
+          <AboutBoard board={board} />
+        </section>
+
+        <section>
+          <h4>Category</h4>
+          <p className="muted small">Optional. Boards in the same category are grouped in the sidebar and on Home.</p>
+          <CategoryField board={board} />
         </section>
 
         <section>
@@ -393,7 +393,7 @@ function FieldsEditor({ board }: { board: Board }) {
                       value={o.label}
                       onChange={(e) => patch(f.id, { options: f.options.map((x) => (x.id === o.id ? { ...x, label: e.target.value } : x)) })}
                     />
-                    <button className="icon-btn tiny" onClick={() => patch(f.id, { options: f.options.filter((x) => x.id !== o.id) })}>
+                    <button className="icon-btn tiny" title="Remove this choice" aria-label="Remove this choice" onClick={() => patch(f.id, { options: f.options.filter((x) => x.id !== o.id) })}>
                       <X size={11} />
                     </button>
                   </span>
@@ -420,5 +420,52 @@ function FieldsEditor({ board }: { board: Board }) {
         </button>
       </div>
     </section>
+  );
+}
+
+/** The board's description; saved as you leave the box, or when the window closes. */
+function AboutBoard({ board }: { board: Board }) {
+  const [text, setText] = useState(board.description);
+  const save = () => {
+    const cur = useStore.getState().data.boards[board.id];
+    if (cur && text !== cur.description) useStore.getState().updateBoard(board.id, { description: text });
+  };
+  useSaveOnUnmount(save);
+  return (
+    <textarea
+      rows={3}
+      className="about-board"
+      placeholder="e.g. Zomello is my Tauri + React task app, code in ~/claude/test. Bugs go in Bugs, ideas in Brainstorm."
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={save}
+    />
+  );
+}
+
+function CategoryField({ board }: { board: Board }) {
+  const boards = useStore((s) => s.data.boards);
+  const [text, setText] = useState(board.category ?? "");
+  const save = () => {
+    const cur = useStore.getState().data.boards[board.id];
+    if (cur && (text.trim() || null) !== (cur.category ?? null)) useStore.getState().setBoardCategory(board.id, text);
+  };
+  useSaveOnUnmount(save);
+  return (
+    <>
+      <input
+        list="board-categories"
+        placeholder="None, e.g. Work"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
+      />
+      <datalist id="board-categories">
+        {boardCategories(Object.values(boards)).map((c) => (
+          <option key={c} value={c} />
+        ))}
+      </datalist>
+    </>
   );
 }
