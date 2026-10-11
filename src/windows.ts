@@ -1,4 +1,5 @@
 import { inTauri } from "./storage";
+import { isRemote, remoteSubscribe } from "./remote";
 import type { ID } from "./types";
 
 /**
@@ -30,13 +31,14 @@ export async function openBoardWindow(boardId: ID, title: string) {
 
 /** Tell the other windows the data changed (call after a successful save). */
 export async function broadcastData(json: string) {
-  if (!inTauri) return; // browser dev: the localStorage write itself fires `storage` in other tabs
+  if (!inTauri) return; // devices: the PC passes saves on; browser dev: the localStorage write itself fires `storage` in other tabs
   const { emit } = await import("@tauri-apps/api/event");
   await emit(SYNC_EVENT, { from: myLabel, json });
 }
 
 /** Run `onData` whenever another window saves. Returns an unsubscribe function. */
 export function onOtherWindowData(onData: (json: string) => void): () => void {
+  if (isRemote) return remoteSubscribe(onData);
   if (!inTauri) {
     const h = (e: StorageEvent) => e.key === LS_SYNC_KEY && e.newValue && onData(e.newValue);
     window.addEventListener("storage", h);

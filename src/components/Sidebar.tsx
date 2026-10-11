@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
+import { useDragSensors, useIsPhone } from "../mobile";
 import {
   AppWindow, Archive, Bot, ChevronsLeft, ChevronsRight, ClipboardCopy, Copy, ExternalLink, Home, Hourglass, Keyboard, LayoutTemplate, Palette,
   Pause, Pencil, Play, Plus, Search, Settings, Star, Trash2, UserCheck, X, Zap,
 } from "lucide-react";
 import { runningTimer, useStore } from "../store";
 import type { Board, ID } from "../types";
-import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { CSS } from "@dnd-kit/utilities";
@@ -23,7 +24,9 @@ export function Sidebar() {
   const savedCollapsed = useStore((s) => s.data.settings.sidebarCollapsed);
   // Board windows start with a slim sidebar (their own toggle, not the saved setting).
   const [winCollapsed, setWinCollapsed] = useState(true);
-  const collapsed = isBoardWindow ? winCollapsed : savedCollapsed;
+  // On a phone the sidebar is a slide-out drawer, always shown in full.
+  const phone = useIsPhone();
+  const collapsed = phone ? false : isBoardWindow ? winCollapsed : savedCollapsed;
   const { navigate, createBoard, setOverlay, updateSettings } = useStore.getState();
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
@@ -398,7 +401,7 @@ function BoardList({
   renaming: ID | null;
   setRenaming: (id: ID | null) => void;
 }) {
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useDragSensors(5);
   const onDragEnd = ({ active: a, over }: DragEndEvent) => {
     if (!over || a.id === over.id) return;
     const ids = list.map((b) => b.id);

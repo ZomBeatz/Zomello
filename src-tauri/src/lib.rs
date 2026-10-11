@@ -4,6 +4,8 @@ use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager};
 
+mod remote;
+
 const DATA_FILE: &str = "zomello.json";
 const BACKUP_DIR: &str = "backups";
 const ATTACH_DIR: &str = "attachments";
@@ -105,6 +107,31 @@ fn attachment_path(app: &AppHandle, rel: &str) -> Result<PathBuf, String> {
     Ok(data_dir(app)?.join(rel))
 }
 
+/// The data file's contents ("" if there is none yet).
+fn read_data(app: &AppHandle) -> Result<String, String> {
+    let path = data_dir(app)?.join(DATA_FILE);
+    if !path.exists() {
+        return Ok(String::new());
+    }
+    fs::read_to_string(path).map_err(|e| e.to_string())
+}
+
+fn write_data(app: &AppHandle, data: &str) -> Result<(), String> {
+    serde_json::from_str::<serde_json::Value>(data).map_err(|e| format!("refusing to save invalid JSON: {e}"))?;
+    let dir = data_dir(app)?;
+    atomic_write(&dir.join(DATA_FILE), data.as_bytes())?;
+    maybe_backup(&dir, data)
+}
+
+/// Store raw bytes as a new attachment; returns `attachments/<id>/<name>`.
+fn store_bytes(app: &AppHandle, name: &str, bytes: &[u8]) -> Result<String, String> {
+    let rel = new_attachment_rel(name);
+    let abs = data_dir(app)?.join(&rel);
+    fs::create_dir_all(abs.parent().unwrap()).map_err(|e| e.to_string())?;
+    fs::write(&abs, bytes).map_err(|e| e.to_string())?;
+    Ok(rel.to_string_lossy().replace('\\', "/"))
+}
+
 #[tauri::command]
 fn load_data(app: AppHandle) -> Result<Option<String>, String> {
     let dir = data_dir(&app)?;
@@ -118,10 +145,9 @@ fn load_data(app: AppHandle) -> Result<Option<String>, String> {
 
 #[tauri::command]
 fn save_data(app: AppHandle, data: String) -> Result<(), String> {
-    serde_json::from_str::<serde_json::Value>(&data).map_err(|e| format!("refusing to save invalid JSON: {e}"))?;
-    let dir = data_dir(&app)?;
-    atomic_write(&dir.join(DATA_FILE), data.as_bytes())?;
-    maybe_backup(&dir, &data)
+    write_data(&app, &data)?;
+    remote::notify_desktop_save(&app, &data);
+    Ok(())
 }
 
 /// Writes an export file to the user's Downloads folder (falls back to the data dir).
@@ -215,11 +241,7 @@ fn save_attachment(app: AppHandle, request: tauri::ipc::Request) -> Result<Strin
         .and_then(|v| v.to_str().ok())
         .map(|v| percent_decode(v))
         .unwrap_or_else(|| "file".into());
-    let rel = new_attachment_rel(&name);
-    let abs = data_dir(&app)?.join(&rel);
-    fs::create_dir_all(abs.parent().unwrap()).map_err(|e| e.to_string())?;
-    fs::write(&abs, bytes).map_err(|e| e.to_string())?;
-    Ok(rel.to_string_lossy().replace('\\', "/"))
+    store_bytes(&app, &name, bytes)
 }
 
 #[tauri::command]
@@ -413,12 +435,20 @@ pub fn run() {
             read_dropped_file,
             attachment_abs_path,
             list_attachments,
-            delete_attachment
+            delete_attachment,
+            remote::remote_status,
+            remote::remote_set_enabled,
+            remote::remote_start_pairing,
+            remote::remote_cancel_pairing,
+            remote::remote_unlink,
+            remote::remote_rename
         ])
+        .manage(remote::Remote::new())
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
                 enable_spellcheck(&window);
             }
+            remote::init(app.handle());
             Ok(())
         })
         .run(tauri::generate_context!())

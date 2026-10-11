@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { useDragSensors } from "../mobile";
+import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { CSS } from "@dnd-kit/utilities";
@@ -17,7 +18,7 @@ export function ChecklistSection({ card }: { card: Card }) {
   const [newItem, setNewItem] = useState("");
   /** Index an inline "insert here" box is open at (null = none). */
   const [insertAt, setInsertAt] = useState<number | null>(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const sensors = useDragSensors(4);
   const setList = (checklist: ChecklistItem[]) => updateCard(card.id, { checklist });
 
   const insert = (index: number, text: string) => {
