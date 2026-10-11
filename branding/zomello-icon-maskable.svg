@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Android "maskable" icon: artwork kept inside the safe zone so any mask shape (circle, squircle) never cuts it. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#232833"/>
+      <stop offset="1" stop-color="#12151b"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4fb0ec"/>
+      <stop offset="1" stop-color="#2580c3"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <g transform="translate(512 532) scale(.74) translate(-512 -592)">
+  <path d="M 214 600 A 298 298 0 0 1 810 600" fill="none" stroke="#0a0c10" stroke-width="64" stroke-linecap="round"/>
+  <path d="M 214 600 A 298 298 0 0 1 810 600" fill="none" stroke="#ec6a3f" stroke-width="30" stroke-linecap="round"/>
+  <rect x="196" y="500" width="84" height="264" rx="30" fill="#ec6a3f"/>
+  <rect x="150" y="522" width="86" height="220" rx="30" fill="#0a0c10"/>
+  <rect x="744" y="500" width="84" height="264" rx="30" fill="#ec6a3f"/>
+  <rect x="788" y="522" width="86" height="220" rx="30" fill="#0a0c10"/>
+  <rect x="334" y="400" width="96" height="364" rx="30" fill="url(#blue)"/>
+  <rect x="464" y="500" width="96" height="264" rx="30" fill="url(#blue)" opacity=".85"/>
+  <rect x="594" y="590" width="96" height="174" rx="30" fill="url(#blue)" opacity=".7"/>
+  </g>
+</svg>
