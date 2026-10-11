@@ -33,7 +33,7 @@
 <body>
 <main>
   <header><img src="/icon-192.png" alt="" /><h1>Set up Zomello</h1></header>
-  <p class="muted">To install Zomello as an app, this device needs to trust your PC's secure connection. You only do this once.</p>
+  <p class="muted">To install Zomello as an app, this device needs to trust your computer's secure connection. You only do this once.</p>
 
   <div class="card" id="status-card">
     <div class="status" id="status"><span class="dot"></span><span id="status-text">Checking the secure connection…</span></div>
@@ -68,7 +68,7 @@
 
     <details class="card">
       <summary>Why is this needed? Is it safe?</summary>
-      <p class="muted">Browsers only let you install web apps from secure (https) addresses. Your PC can't get a public certificate for a home-network address, so Zomello made its own, just for this PC.</p>
+      <p class="muted">Browsers only let you install web apps from secure (https) addresses. Your computer can't get a public certificate for a home-network address, so Zomello made its own, just for this computer.</p>
       <p class="muted">It is limited to home-network addresses, so it can't be used to vouch for any real website. You can remove it any time from the same Settings screen.</p>
     </details>
 
@@ -77,7 +77,7 @@
   </div>
 </main>
 <script>
-  // A pairing code from the PC's QR code rides along in the #fragment (never sent to the server).
+  // A pairing code from the computer's QR code rides along in the #fragment (never sent to the server).
   var hash = location.hash;
   var host = location.host;
   var secureUrl = "https://" + host + "/" + hash;
@@ -93,12 +93,12 @@
   function trusted() {
     var card = document.getElementById("status");
     card.className = "status ok";
-    document.getElementById("status-text").textContent = "This device trusts your PC's secure connection";
+    document.getElementById("status-text").textContent = "This device trusts your computer's secure connection";
     document.getElementById("ready").hidden = false;
   }
   function check() {
     if (location.protocol === "https:") return trusted();
-    // Succeeds only if this device accepts the PC's certificate.
+    // Succeeds only if this device accepts the computer's certificate.
     fetch("https://" + host + "/api/status", { mode: "no-cors", cache: "no-store" })
       .then(trusted)
       .catch(function () {

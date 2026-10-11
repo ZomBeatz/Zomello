@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { invoke } from "@tauri-apps/api/core";
-import { ShieldCheck, Smartphone, Unlink, X } from "lucide-react";
+import { Download, KeyRound, QrCode, RefreshCw, ShieldCheck, Smartphone, Unlink, X } from "lucide-react";
 import { useStore } from "../store";
 import { ask, InlineEdit, Modal } from "./ui";
 import { copyText } from "./Markdown";
@@ -16,12 +16,16 @@ interface RemoteStatus {
   enabled: boolean;
   running: boolean;
   port: number;
+  addresses: string[];
+  address: string | null;
+  host: string | null;
   url: string | null;
   secure_url: string | null;
   setup_url: string | null;
   error: string | null;
   devices: DeviceInfo[];
-  firewall: { kind: "ufw" | "firewalld" | "windows" | "none"; allowed: boolean; command: string | null };
+  firewall: { kind: "ufw" | "firewalld" | "windows" | "macos" | "none"; allowed: boolean; command: string | null };
+  cert: { fingerprint: string; created: number; covers_address: boolean } | null;
 }
 interface PairingInfo {
   code: string;
@@ -30,69 +34,107 @@ interface PairingInfo {
   expires_in: number;
 }
 
-/** Settings → Phones & tablets (desktop app only): the home-network server, pairing and unlinking. */
+const FIREWALL_NAME = { ufw: "ufw", firewalld: "firewalld", windows: "Windows Firewall", macos: "The macOS firewall", none: "" };
+const CUSTOM = "\u0000custom";
+
+/** Settings → Phones & tablets (desktop app only): the home-network server, pairing, certificate and unlinking. */
 export function DevicesPanel() {
   const [st, setSt] = useState<RemoteStatus | null>(null);
   const [pairing, setPairing] = useState<PairingInfo | null>(null);
+  const [certQr, setCertQr] = useState<string | null>(null);
   const [port, setPort] = useState("");
-  const [fwBusy, setFwBusy] = useState(false);
+  /** Text of the custom-address box while it's open. */
+  const [custom, setCustom] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"" | "firewall" | "cert">("");
+  const toast = (t: string) => useStore.getState().toast(t);
 
   useEffect(() => {
     const refresh = () => void invoke<RemoteStatus>("remote_status").then(setSt);
     refresh();
-    // A device just paired (from its own screen): refresh the list and close the pairing window.
-    let un: (() => void) | undefined;
     let gone = false;
-    void import("@tauri-apps/api/event").then(({ listen }) =>
-      listen("zomello://remote-changed", () => {
+    const uns: (() => void)[] = [];
+    void import("@tauri-apps/api/event").then(async ({ listen }) => {
+      const a = await listen("zomello://remote-changed", refresh);
+      // A device just paired (from its own screen): close the pairing window.
+      const b = await listen("zomello://device-paired", () => {
         refresh();
         setPairing((p) => {
-          if (p) useStore.getState().toast("Device connected");
+          if (p) toast("Device connected");
           return null;
         });
-      }).then((u) => (gone ? u() : (un = u))),
-    );
+      });
+      if (gone) (a(), b());
+      else uns.push(a, b);
+    });
     return () => {
       gone = true;
-      un?.();
+      uns.forEach((u) => u());
     };
   }, []);
 
   if (!st) return null;
 
-  const setEnabled = async (enabled: boolean) => {
-    const p = Number(port);
-    setSt(await invoke<RemoteStatus>("remote_set_enabled", { enabled, port: p >= 1024 && p <= 65535 ? p : null }));
-    setPort("");
+  const run = async (fn: () => Promise<RemoteStatus>, okText?: string) => {
+    try {
+      setSt(await fn());
+      if (okText) toast(okText);
+      return true;
+    } catch (e) {
+      toast(String(e));
+      return false;
+    }
   };
+  const setEnabled = (enabled: boolean) => {
+    const p = Number(port);
+    setPort("");
+    return run(() => invoke("remote_set_enabled", { enabled, port: p >= 1024 && p <= 65535 ? p : null }));
+  };
+  const setAddress = (address: string | null) => run(() => invoke("remote_set_address", { address }));
   const startPairing = async () => {
     try {
       setPairing(await invoke<PairingInfo>("remote_start_pairing"));
     } catch (e) {
-      useStore.getState().toast(String(e));
+      toast(String(e));
     }
   };
   const unlink = async (d: DeviceInfo) => {
     if (!(await ask(`Unlink “${d.name}”? It's disconnected right away and would need to pair again.`, { okText: "Unlink", danger: true })))
       return;
-    setSt(await invoke<RemoteStatus>("remote_unlink", { id: d.id }));
+    await run(() => invoke("remote_unlink", { id: d.id }));
   };
-
   const openFirewall = async () => {
-    setFwBusy(true);
+    setBusy("firewall");
+    await run(() => invoke("remote_open_firewall"), "Phones and tablets can now get through the firewall");
+    setBusy("");
+  };
+  const regenerate = async () => {
+    if (
+      !(await ask(
+        "Make a new security certificate? Every phone and tablet that installed the current one will need to install the new one (and can remove the old one).",
+        { okText: "Make a new one", danger: true },
+      ))
+    )
+      return;
+    setBusy("cert");
+    await run(() => invoke("remote_regenerate_cert"), "New certificate made. Install it on your devices again.");
+    setBusy("");
+  };
+  const exportCert = async () => {
     try {
-      setSt(await invoke<RemoteStatus>("remote_open_firewall"));
-      useStore.getState().toast("Firewall now lets phones and tablets reach Zomello");
+      const path = await invoke<string>("remote_export_cert");
+      toast(`Saved ${path}`);
+      const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
+      await revealItemInDir(path).catch(() => {});
     } catch (e) {
-      useStore.getState().toast(`Firewall not changed: ${e}`);
-    } finally {
-      setFwBusy(false);
+      toast(String(e));
     }
+  };
+  const showCertQr = async () => {
+    if (st.setup_url) setCertQr(await invoke<string>("remote_qr", { text: st.setup_url }));
   };
 
   const on = st.enabled && st.running;
   const fw = st.firewall;
-  const fwDone = fw.kind === "none" || fw.kind === "windows" || fw.allowed;
 
   return (
     <section className="panel">
@@ -100,8 +142,8 @@ export function DevicesPanel() {
         <Smartphone size={16} /> Phones &amp; tablets
       </h3>
       <p className="muted small">
-        Use Zomello from phones and tablets on your home Wi‑Fi, and install it on them as an app. It works while this PC
-        is on and Zomello is open; your data stays on this PC, and only devices you pair can connect.
+        Use Zomello from phones and tablets on your home network, and install it on them as an app. It works while this
+        computer is on and Zomello is open; your data stays here, and only devices you pair can connect.
       </p>
 
       <ol className="setup-steps">
@@ -112,71 +154,148 @@ export function DevicesPanel() {
             Allow access from phones and tablets on this network
           </label>
           {st.error && <p className="small danger-text">{st.error}</p>}
-          <details className="small muted">
-            <summary>Port ({st.port})</summary>
-            <label className="row gap-sm">
-              Use port
-              <input
-                className="port-input"
-                inputMode="numeric"
-                placeholder={String(st.port)}
-                value={port}
-                onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))}
-                onKeyDown={(e) => e.key === "Enter" && st.enabled && void setEnabled(true)}
-              />
-              <span>(only if something else uses {st.port}; press Enter)</span>
-            </label>
-          </details>
-        </li>
 
-        <li className={!on ? "" : fwDone ? "done" : "current"}>
-          <div className="step-title">Let it through this PC's firewall</div>
-          {fw.kind === "none" && <p className="small muted">No firewall is blocking it. Nothing to do.</p>}
-          {fw.kind === "windows" && (
-            <p className="small muted">
-              Windows asks the first time it's turned on. Choose <b>Allow</b> (with <b>Private networks</b> ticked). If you
-              missed it, set your Wi‑Fi to <b>Private</b> in Windows Settings → Network.
-            </p>
-          )}
-          {(fw.kind === "ufw" || fw.kind === "firewalld") &&
-            (fw.allowed ? (
-              <p className="small ok-text">Allowed through the firewall ({fw.kind}).</p>
-            ) : (
-              <>
-                <p className="small muted">
-                  This PC's firewall ({fw.kind}) blocks phones until you allow Zomello. You'll be asked for your password.
-                </p>
-                <button className="btn" disabled={!on || fwBusy} onClick={() => void openFirewall()}>
-                  <ShieldCheck size={14} /> {fwBusy ? "Waiting for your password…" : "Allow through firewall"}
+          <div className="address-row small">
+            <span className="muted">Devices connect to</span>
+            {custom !== null ? (
+              <form
+                className="row gap-sm"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void setAddress(custom.trim() || null).then((ok) => ok && setCustom(null));
+                }}
+              >
+                <input
+                  autoFocus
+                  className="address-input"
+                  placeholder="e.g. 192.168.1.20 or mypc.lan"
+                  value={custom}
+                  onChange={(e) => setCustom(e.target.value)}
+                  onKeyDown={(e) => e.key === "Escape" && setCustom(null)}
+                />
+                <button className="btn sm primary">Use</button>
+                <button type="button" className="btn sm ghost" onClick={() => setCustom(null)}>
+                  Cancel
                 </button>
-                {fw.command && (
-                  <details className="small muted">
-                    <summary>Or run it yourself</summary>
-                    <code className="copyable" onClick={() => void copyText(fw.command!)} title="Copy">
-                      {fw.command}
-                    </code>
-                  </details>
-                )}
-              </>
-            ))}
+              </form>
+            ) : (
+              <select
+                value={st.address ?? ""}
+                onChange={(e) => (e.target.value === CUSTOM ? setCustom(st.address ?? "") : void setAddress(e.target.value || null))}
+              >
+                <option value="">Automatic ({st.addresses[0] ?? "not found"})</option>
+                {st.addresses.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+                {st.address && !st.addresses.includes(st.address) && <option value={st.address}>{st.address}</option>}
+                <option value={CUSTOM}>Custom address or name…</option>
+              </select>
+            )}
+            <span className="muted">port</span>
+            <input
+              className="port-input"
+              inputMode="numeric"
+              placeholder={String(st.port)}
+              value={port}
+              onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))}
+              onKeyDown={(e) => e.key === "Enter" && st.enabled && void setEnabled(true)}
+              title="Change only if something else uses this port. Press Enter to apply."
+            />
+          </div>
+          <p className="small muted">
+            Automatic uses the address this computer reaches the internet with. Pick another if it has several (Wi‑Fi and
+            Ethernet, or a VPN like Tailscale), or type a name your router gives it. Ask your router for a fixed address (a
+            “DHCP reservation”) so it never changes.
+          </p>
         </li>
 
-        <li className={on && fwDone ? (st.devices.length ? "done" : "current") : ""}>
+        <li className={!on ? "" : fw.allowed ? "done" : "current"}>
+          <div className="step-title">Let it through the firewall</div>
+          {fw.kind === "none" ? (
+            <p className="small muted">No firewall is blocking it. Nothing to do.</p>
+          ) : fw.allowed ? (
+            <p className="small ok-text">Allowed through {FIREWALL_NAME[fw.kind]}.</p>
+          ) : (
+            <>
+              <p className="small muted">
+                {FIREWALL_NAME[fw.kind]} blocks phones until you allow Zomello.{" "}
+                {fw.kind === "windows" ? "Windows will ask you to confirm." : "You'll be asked for your password."}
+              </p>
+              <button className="btn" disabled={!on || busy === "firewall"} onClick={() => void openFirewall()}>
+                <ShieldCheck size={14} /> {busy === "firewall" ? "Waiting for your OK…" : "Allow through firewall"}
+              </button>
+              {fw.command && (
+                <details className="small muted">
+                  <summary>Or do it yourself</summary>
+                  <code className="copyable" onClick={() => void copyText(fw.command!)} title="Copy">
+                    {fw.command}
+                  </code>
+                </details>
+              )}
+            </>
+          )}
+        </li>
+
+        <li className={on && fw.allowed ? (st.devices.length ? "done" : "current") : ""}>
           <div className="step-title">Pair a phone or tablet</div>
           <p className="small muted">
-            Scan the QR code with the device. It opens a short setup page there: install this PC's security certificate
-            (once per device), then <b>Install app</b> in Chrome or <b>Add to Home Screen</b> on iPhone/iPad.
+            Scan the QR code with the device. It opens a short setup page there: install this computer's security
+            certificate (once per device), then <b>Install app</b> in Chrome, or <b>Add to Home Screen</b> on iPhone/iPad.
           </p>
           <button className="btn primary" disabled={!on} onClick={startPairing}>
             <Smartphone size={14} /> Pair a device
           </button>
-          {on && st.setup_url && (
-            <p className="small muted">
-              Already paired, but it says “Not secure” or won't install? Open <code>{st.setup_url}</code> on it.
-            </p>
-          )}
         </li>
       </ol>
+
+      <div className="cert-box">
+        <div className="step-title">
+          <KeyRound size={14} /> Security certificate
+        </div>
+        <p className="small muted">
+          Devices install this once so their browser trusts this computer's secure (https) address, which installing as an
+          app needs. It only works for home-network addresses, so it can't vouch for any real website.
+        </p>
+        {st.cert && (
+          <p className="small muted">
+            Made {st.cert.created ? format(st.cert.created * 1000, "MMM d, yyyy") : "earlier"} · fingerprint{" "}
+            <code title={st.cert.fingerprint}>{st.cert.fingerprint.slice(0, 23)}…</code>
+          </p>
+        )}
+        {st.cert && !st.cert.covers_address && (
+          <p className="small danger-text">
+            This certificate doesn't cover <b>{st.host}</b>. Make a new one to use that address securely.
+          </p>
+        )}
+        <div className="row gap-sm wrap">
+          <button className="btn sm" disabled={!on} onClick={() => void showCertQr()}>
+            <QrCode size={14} /> Put it on a device
+          </button>
+          <button className="btn sm" onClick={() => void exportCert()}>
+            <Download size={14} /> Save certificate file
+          </button>
+          <button className="btn sm" disabled={busy === "cert"} onClick={() => void regenerate()}>
+            <RefreshCw size={14} /> Make a new certificate
+          </button>
+        </div>
+        <details className="small muted">
+          <summary>Installing the saved file by hand</summary>
+          <p>Send it to the device (USB cable, email, AirDrop, a cloud drive) and then:</p>
+          <p>
+            <b>Android:</b> Settings → search “CA certificate” → Install anyway → choose <code>zomello-ca.crt</code>.
+          </p>
+          <p>
+            <b>iPhone/iPad:</b> open the file → Settings → General → VPN &amp; Device Management → Install; then Settings →
+            General → About → Certificate Trust Settings → turn on Zomello.
+          </p>
+          <p>
+            <b>Windows / Mac / Linux computers:</b> open it and add it as a trusted root certificate (Windows: “Trusted Root
+            Certification Authorities”; Mac: Keychain Access → Always Trust).
+          </p>
+        </details>
+      </div>
 
       {st.devices.length > 0 && (
         <ul className="archive-list devices">
@@ -186,7 +305,7 @@ export function DevicesPanel() {
               <span className="grow">
                 <InlineEdit
                   value={d.name}
-                  onSave={async (name) => name.trim() && setSt(await invoke<RemoteStatus>("remote_rename", { id: d.id, name }))}
+                  onSave={(name) => void (name.trim() && run(() => invoke("remote_rename", { id: d.id, name })))}
                 />
                 <span className="muted small">
                   Paired {formatDistanceToNow(d.created * 1000, { addSuffix: true })} · last seen{" "}
@@ -204,23 +323,41 @@ export function DevicesPanel() {
       {pairing && (
         <PairingWindow
           info={pairing}
+          setupUrl={st.setup_url}
           onClose={() => {
             void invoke("remote_cancel_pairing");
             setPairing(null);
           }}
         />
       )}
+      {certQr && (
+        <Modal onClose={() => setCertQr(null)} width={440} className="pairing">
+          <header className="customize-head">
+            <h2>Put the certificate on a device</h2>
+            <button className="icon-btn" onClick={() => setCertQr(null)}>
+              <X size={18} />
+            </button>
+          </header>
+          <div className="customize-body pairing-body">
+            <p className="small">Scan with the phone or tablet. Its setup page has the download and the steps:</p>
+            {/* Generated by the app itself (qrcode crate). */}
+            <div className="qr" dangerouslySetInnerHTML={{ __html: certQr }} />
+            <p className="small muted">
+              Or open <code>{st.setup_url}</code> on it.
+            </p>
+          </div>
+        </Modal>
+      )}
     </section>
   );
 }
 
-function PairingWindow({ info, onClose }: { info: PairingInfo; onClose: () => void }) {
+function PairingWindow({ info, setupUrl, onClose }: { info: PairingInfo; setupUrl: string | null; onClose: () => void }) {
   const [left, setLeft] = useState(info.expires_in);
   useEffect(() => {
     const t = setInterval(() => setLeft((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(t);
   }, []);
-  const expired = left === 0;
   return (
     <Modal onClose={onClose} width={440} className="pairing">
       <header className="customize-head">
@@ -230,15 +367,15 @@ function PairingWindow({ info, onClose }: { info: PairingInfo; onClose: () => vo
         </button>
       </header>
       <div className="customize-body pairing-body">
-        {expired ? (
+        {left === 0 ? (
           <p className="muted">This code expired. Close this and choose Pair a device again.</p>
         ) : (
           <>
-            <p className="small">Scan with your phone or iPad camera, on the same Wi‑Fi as this PC:</p>
+            <p className="small">Scan with the phone or tablet camera, on the same network as this computer:</p>
             {/* Generated by the app itself (qrcode crate), not from user input. */}
             <div className="qr" dangerouslySetInnerHTML={{ __html: info.qr_svg }} />
             <p className="small muted">
-              Or open <code>{info.url.replace("https://", "http://").replace(/\/$/, "/setup")}</code> in its browser and enter:
+              Or open <code>{setupUrl}</code> in its browser and enter:
             </p>
             <div className="pair-big-code">
               {info.code.slice(0, 3)} {info.code.slice(3)}

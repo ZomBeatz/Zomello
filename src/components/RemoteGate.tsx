@@ -7,7 +7,7 @@ import { LogoMark } from "./Logo";
 
 type Gate = "checking" | "paired" | "unpaired" | "unreachable";
 
-/** On a phone or tablet: show the pairing screen until this device is paired with the PC. */
+/** On a phone or tablet: show the pairing screen until this device is paired with the computer. */
 export function RemoteGate({ children }: { children: ReactNode }) {
   const [gate, setGate] = useState<Gate>(isRemote ? "checking" : "paired");
 
@@ -18,7 +18,7 @@ export function RemoteGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isRemote) return;
-    // Opened at the plain http address (an old bookmark or shortcut)? If this device trusts the PC's
+    // Opened at the plain http address (an old bookmark or shortcut)? If this device trusts the computer's
     // certificate, move to the secure address so Chrome shows it as secure and offers "Install app".
     if (location.protocol === "http:" && !isIOS()) {
       void httpsTrusted().then((ok) => {
@@ -42,8 +42,8 @@ export function RemoteGate({ children }: { children: ReactNode }) {
     return (
       <div className="pair-screen">
         <WifiOff size={36} className="muted" />
-        <h2>Can't reach Zomello on your PC</h2>
-        <p className="muted">Make sure the PC is on, Zomello is open, and this device is on the same Wi‑Fi.</p>
+        <h2>Can't reach Zomello on your computer</h2>
+        <p className="muted">Make sure the computer is on, Zomello is open, and this device is on the same Wi‑Fi.</p>
         <button className="btn primary" onClick={() => (setGate("checking"), void check())}>
           Try again
         </button>
@@ -86,7 +86,7 @@ function PairForm({ onPaired }: { onPaired: () => void }) {
       <LogoMark size={56} />
       <h2>Connect this device to Zomello</h2>
       <p className="muted">
-        On your PC, open <b>Settings → Phones &amp; tablets</b> and choose <b>Pair a device</b>. Enter the code it shows.
+        On your computer, open <b>Settings → Phones &amp; tablets</b> and choose <b>Pair a device</b>. Enter the code it shows.
       </p>
       <label>
         Pairing code
@@ -154,14 +154,14 @@ export function SecureBanner() {
   );
 }
 
-/** Thin banner while a device has lost its connection to the PC. */
+/** Thin banner while a device has lost its connection to the computer. */
 export function ConnectionBanner() {
   const [online, setOnline] = useState(true);
   useEffect(() => (isRemote ? onConnectionChange(setOnline) : undefined), []);
   if (online) return null;
   return (
     <div className="save-error conn-banner">
-      <WifiOff size={14} /> Reconnecting to your PC… Changes you make are kept and sent when it's back.
+      <WifiOff size={14} /> Reconnecting to your computer… Changes you make are kept and sent when it's back.
     </div>
   );
 }
