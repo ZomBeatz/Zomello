@@ -1,5 +1,5 @@
 /**
- * Running on a phone or tablet: the page is served by Zomello on the PC (see remote.rs), which marks
+ * Running on a phone or tablet: the page is served by Zomello on the computer (see remote.rs), which marks
  * index.html with `__ZOMELLO_REMOTE__`. Data, live updates and files all go through its /api.
  */
 export const isRemote = typeof window !== "undefined" && "__ZOMELLO_REMOTE__" in window;
@@ -7,7 +7,7 @@ export const isRemote = typeof window !== "undefined" && "__ZOMELLO_REMOTE__" in
 /** Identifies this page's saves so the live feed doesn't echo them back. */
 export const clientId = Math.random().toString(36).slice(2, 10);
 
-/** Fired when the PC says this device isn't (or is no longer) paired. */
+/** Fired when the computer says this device isn't (or is no longer) paired. */
 export const UNPAIRED_EVENT = "zomello:unpaired";
 
 async function api(path: string, init?: RequestInit): Promise<Response> {
@@ -54,7 +54,7 @@ const setOnline = (v: boolean) => {
   listeners.forEach((l) => l(v));
 };
 
-/** Live changes from the PC (and other devices). The first message on each connect is the current data. */
+/** Live changes from the computer (and other devices). The first message on each connect is the current data. */
 export function remoteSubscribe(onData: (json: string) => void): () => void {
   let es: EventSource | null = null;
   let retry: ReturnType<typeof setTimeout> | undefined;
@@ -88,7 +88,7 @@ export function remoteSubscribe(onData: (json: string) => void): () => void {
 export const isIOS = () =>
   /iPad|iPhone/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 
-/** Opened over plain http, but this device already trusts the PC's certificate? Then https works too. */
+/** Opened over plain http, but this device already trusts the computer's certificate? Then https works too. */
 export async function httpsTrusted(): Promise<boolean> {
   return fetch(`https://${location.host}/api/status`, { mode: "no-cors", cache: "no-store" }).then(
     () => true,

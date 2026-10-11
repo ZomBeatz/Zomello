@@ -442,7 +442,11 @@ pub fn run() {
             remote::remote_cancel_pairing,
             remote::remote_unlink,
             remote::remote_rename,
-            remote::remote_open_firewall
+            remote::remote_open_firewall,
+            remote::remote_set_address,
+            remote::remote_regenerate_cert,
+            remote::remote_export_cert,
+            remote::remote_qr
         ])
         .manage(remote::Remote::new())
         .setup(|app| {

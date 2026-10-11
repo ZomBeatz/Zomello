@@ -20,6 +20,7 @@
       ]
     },
     "clipboard-manager:allow-write-text",
-    "core:window:allow-set-title"
+    "core:window:allow-set-title",
+    "opener:allow-reveal-item-in-dir"
   ]
 }
