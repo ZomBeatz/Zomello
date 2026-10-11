@@ -325,7 +325,11 @@ async fn asset(State(app): State<AppHandle>, uri: axum::http::Uri) -> Response {
     let resolver = app.asset_resolver();
     let found = if path == "/" { None } else { resolver.get(path.to_string()) };
     match found {
-        Some(a) => ([(header::CONTENT_TYPE, a.mime_type().to_string())], a.bytes().to_vec()).into_response(),
+        Some(a) => {
+            // The resolver doesn't know .webmanifest; Chrome wants the proper type to offer "Install app".
+            let mime = if path.ends_with(".webmanifest") { "application/manifest+json".to_string() } else { a.mime_type().to_string() };
+            ([(header::CONTENT_TYPE, mime)], a.bytes().to_vec()).into_response()
+        }
         None => match resolver.get("/index.html".into()) {
             Some(a) => {
                 let html = String::from_utf8_lossy(&a.bytes()).replacen("<head>", "<head><script>window.__ZOMELLO_REMOTE__=1</script>", 1);
