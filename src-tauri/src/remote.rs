@@ -21,13 +21,16 @@ use std::{
     time::{Duration, Instant},
 };
 use tauri::{AppHandle, Emitter, Manager};
-use tokio::sync::{broadcast, oneshot};
+use std::sync::Arc;
+use tokio::sync::{broadcast, watch};
 
 const CONFIG_FILE: &str = "remote.json";
 const DEFAULT_PORT: u16 = 7311;
 const PAIR_TTL: Duration = Duration::from_secs(10 * 60);
 const PAIR_TRIES: u32 = 5;
 const COOKIE: &str = "zomello_device";
+const CA_CERT: &str = "remote-ca.pem";
+const CA_KEY: &str = "remote-ca-key.pem";
 
 #[derive(Serialize, Deserialize, Clone)]
 struct Device {
@@ -71,7 +74,9 @@ enum Msg {
 struct Inner {
     config: Config,
     pairing: Option<Pairing>,
-    shutdown: Option<oneshot::Sender<()>>,
+    shutdown: Option<watch::Sender<bool>>,
+    /// This PC's certificate authority (PEM), installed on devices so Chrome trusts the https address.
+    ca_pem: Option<String>,
     error: Option<String>,
 }
 
@@ -136,7 +141,7 @@ fn stop(app: &AppHandle) {
     let r = app.state::<Remote>();
     let shutdown = r.inner.lock().unwrap().shutdown.take();
     if let Some(tx) = shutdown {
-        let _ = tx.send(());
+        let _ = tx.send(true);
         let _ = r.tx.send(Msg::Shutdown);
     }
 }
@@ -152,7 +157,14 @@ fn start(app: &AppHandle) {
             return;
         }
     };
-    let (tx, rx) = oneshot::channel();
+    let tls = match tls_config(app) {
+        Ok(t) => t,
+        Err(e) => {
+            r.inner.lock().unwrap().error = Some(format!("Couldn't set up the secure connection: {e}"));
+            return;
+        }
+    };
+    let (tx, rx) = watch::channel(false);
     {
         let mut inner = r.inner.lock().unwrap();
         inner.shutdown = Some(tx);
@@ -165,15 +177,169 @@ fn start(app: &AppHandle) {
         .route("/api/events", get(events))
         .route("/api/attachment", post(upload))
         .route("/api/file/{*rel}", get(file))
+        .route("/setup", get(setup_page))
+        .route("/zomello-ca.crt", get(ca_cert))
         .fallback(get(asset))
         .layer(DefaultBodyLimit::max(512 * 1024 * 1024))
         .with_state(app.clone());
     tauri::async_runtime::spawn(async move {
         if let Ok(l) = tokio::net::TcpListener::from_std(listener) {
-            let _ = axum::serve(l, router).with_graceful_shutdown(async { let _ = rx.await; }).await;
+            serve(l, router, tls, rx).await;
         }
     });
 }
+
+/// One port for both: https (what Chrome needs to install the app) and plain http (setup page,
+/// certificate download, and devices that don't need https). The first byte tells them apart.
+async fn serve(listener: tokio::net::TcpListener, router: Router, tls: Arc<rustls::ServerConfig>, mut stop: watch::Receiver<bool>) {
+    let acceptor = tokio_rustls::TlsAcceptor::from(tls);
+    loop {
+        let stream = tokio::select! {
+            _ = stop.changed() => return,
+            r = listener.accept() => match r {
+                Ok((s, _)) => s,
+                Err(_) => continue,
+            },
+        };
+        let (router, acceptor, mut stop) = (router.clone(), acceptor.clone(), stop.clone());
+        tokio::spawn(async move {
+            let mut first = [0u8; 1];
+            let peeked = tokio::time::timeout(Duration::from_secs(20), stream.peek(&mut first)).await;
+            let is_tls = matches!(peeked, Ok(Ok(1))) && first[0] == 0x16; // TLS handshake record
+            let svc = hyper_util::service::TowerToHyperService::new(router);
+            let http = hyper::server::conn::http1::Builder::new();
+            // Turning access off closes every open connection, not just the listener.
+            if is_tls {
+                let Ok(s) = acceptor.accept(stream).await else { return };
+                tokio::select! {
+                    _ = http.serve_connection(hyper_util::rt::TokioIo::new(s), svc) => {}
+                    _ = stop.changed() => {}
+                }
+            } else {
+                tokio::select! {
+                    _ = http.serve_connection(hyper_util::rt::TokioIo::new(stream), svc) => {}
+                    _ = stop.changed() => {}
+                }
+            }
+        });
+    }
+}
+
+// ---- Certificates ----
+
+/// Days since 1970-01-01 → (year, month, day).
+fn civil_from_days(z: i64) -> (i32, u8, u8) {
+    let z = z + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u8;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u8;
+    ((yoe + era * 400 + i64::from(m <= 2)) as i32, m, d)
+}
+
+fn day(days_from_today: i64) -> (i32, u8, u8) {
+    civil_from_days(crate::now_secs() as i64 / 86_400 + days_from_today)
+}
+
+/// Home-network address ranges. The CA can only vouch for these (and `*.local` names), so even a
+/// stolen copy of it couldn't be used to impersonate real websites on a device that trusts it.
+fn private_ranges() -> Vec<rcgen::GeneralSubtree> {
+    use rcgen::{CidrSubnet::V4, GeneralSubtree::*};
+    vec![
+        IpAddress(V4([10, 0, 0, 0], [255, 0, 0, 0])),
+        IpAddress(V4([172, 16, 0, 0], [255, 240, 0, 0])),
+        IpAddress(V4([192, 168, 0, 0], [255, 255, 0, 0])),
+        DnsName("local".into()),
+    ]
+}
+
+/// This PC's certificate authority: created once, kept in the data folder.
+fn load_or_create_ca(app: &AppHandle) -> Result<(String, rcgen::KeyPair), String> {
+    let dir = crate::data_dir(app)?;
+    let (cert_path, key_path) = (dir.join(CA_CERT), dir.join(CA_KEY));
+    if let (Ok(cert), Ok(key)) = (fs::read_to_string(&cert_path), fs::read_to_string(&key_path)) {
+        if let Ok(k) = rcgen::KeyPair::from_pem(&key) {
+            return Ok((cert, k));
+        }
+    }
+    let key = rcgen::KeyPair::generate().map_err(|e| e.to_string())?;
+    let mut p = rcgen::CertificateParams::default();
+    p.distinguished_name.push(rcgen::DnType::CommonName, "Zomello (this PC only)");
+    p.distinguished_name.push(rcgen::DnType::OrganizationName, "Zomello");
+    p.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Constrained(0));
+    p.key_usages = vec![rcgen::KeyUsagePurpose::KeyCertSign, rcgen::KeyUsagePurpose::CrlSign];
+    p.name_constraints = Some(rcgen::NameConstraints { permitted_subtrees: private_ranges(), excluded_subtrees: vec![] });
+    let (y, m, d) = day(-1);
+    p.not_before = rcgen::date_time_ymd(y, m, d);
+    let (y, m, d) = day(365 * 10);
+    p.not_after = rcgen::date_time_ymd(y, m, d);
+    let cert = p.self_signed(&key).map_err(|e| e.to_string())?.pem();
+    let key_pem = key.serialize_pem();
+    crate::atomic_write(&key_path, key_pem.as_bytes())?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(&key_path, fs::Permissions::from_mode(0o600));
+    }
+    crate::atomic_write(&cert_path, cert.as_bytes())?;
+    Ok((cert, key))
+}
+
+/// A fresh server certificate for this PC's current address, signed by the CA (made at every start,
+/// so a new address after a router change just works once access is switched off and on).
+fn tls_config(app: &AppHandle) -> Result<Arc<rustls::ServerConfig>, String> {
+    let (ca_pem, ca_key) = load_or_create_ca(app)?;
+    let issuer = rcgen::Issuer::from_ca_cert_pem(&ca_pem, ca_key).map_err(|e| e.to_string())?;
+    let leaf_key = rcgen::KeyPair::generate().map_err(|e| e.to_string())?;
+    let mut sans: Vec<String> = lan_ip().into_iter().collect();
+    sans.retain(|ip| ip.parse::<std::net::Ipv4Addr>().is_ok_and(|a| a.is_private()));
+    let mut p = rcgen::CertificateParams::new(sans).map_err(|e| e.to_string())?;
+    p.distinguished_name.push(rcgen::DnType::CommonName, "Zomello");
+    p.key_usages = vec![rcgen::KeyUsagePurpose::DigitalSignature];
+    p.extended_key_usages = vec![rcgen::ExtendedKeyUsagePurpose::ServerAuth];
+    let (y, m, d) = day(-1);
+    p.not_before = rcgen::date_time_ymd(y, m, d);
+    let (y, m, d) = day(390);
+    p.not_after = rcgen::date_time_ymd(y, m, d);
+    let leaf = p.signed_by(&leaf_key, &issuer).map_err(|e| e.to_string())?;
+
+    let key_der = rustls::pki_types::PrivateKeyDer::try_from(leaf_key.serialize_der()).map_err(|e| e.to_string())?;
+    let config = rustls::ServerConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
+        .with_safe_default_protocol_versions()
+        .map_err(|e| e.to_string())?
+        .with_no_client_auth()
+        .with_single_cert(vec![leaf.der().clone()], key_der)
+        .map_err(|e| e.to_string())?;
+    app.state::<Remote>().inner.lock().unwrap().ca_pem = Some(ca_pem);
+    Ok(Arc::new(config))
+}
+
+/// The CA certificate, for installing on a phone (DER: the format every phone accepts).
+async fn ca_cert(State(app): State<AppHandle>) -> Response {
+    let pem = app.state::<Remote>().inner.lock().unwrap().ca_pem.clone();
+    use rustls::pki_types::pem::PemObject;
+    let Some(der) = pem.and_then(|p| rustls::pki_types::CertificateDer::from_pem_slice(p.as_bytes()).ok()) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    (
+        [
+            (header::CONTENT_TYPE, "application/x-x509-ca-cert"),
+            (header::CONTENT_DISPOSITION, "attachment; filename=\"zomello-ca.crt\""),
+        ],
+        der.to_vec(),
+    )
+        .into_response()
+}
+
+async fn setup_page() -> Response {
+    ([(header::CONTENT_TYPE, "text/html; charset=utf-8"), (header::CACHE_CONTROL, "no-cache")], SETUP_HTML).into_response()
+}
+
+const SETUP_HTML: &str = include_str!("setup.html");
+
 
 // ---- Auth ----
 
@@ -355,7 +521,12 @@ pub struct Status {
     enabled: bool,
     running: bool,
     port: u16,
+    /// Plain http address (works everywhere, can't be installed in Chrome).
     url: Option<String>,
+    /// https address (installable once the device trusts this PC's certificate).
+    secure_url: Option<String>,
+    /// Page that walks a device through trusting the certificate.
+    setup_url: Option<String>,
     error: Option<String>,
     devices: Vec<DeviceInfo>,
 }
@@ -364,11 +535,14 @@ fn status_of(app: &AppHandle) -> Status {
     let r = app.state::<Remote>();
     let inner = r.inner.lock().unwrap();
     let port = inner.config.port;
+    let ip = lan_ip();
     Status {
         enabled: inner.config.enabled,
         running: inner.shutdown.is_some(),
         port,
-        url: lan_ip().map(|ip| format!("http://{ip}:{port}/")),
+        url: ip.as_ref().map(|ip| format!("http://{ip}:{port}/")),
+        secure_url: ip.as_ref().map(|ip| format!("https://{ip}:{port}/")),
+        setup_url: ip.as_ref().map(|ip| format!("http://{ip}:{port}/setup")),
         error: inner.error.clone(),
         devices: inner
             .config
@@ -410,14 +584,17 @@ pub struct PairingInfo {
 #[tauri::command]
 pub fn remote_start_pairing(app: AppHandle) -> Result<PairingInfo, String> {
     let st = status_of(&app);
-    let url = st.url.ok_or("Couldn't find this PC's address on the network")?;
+    let (Some(url), Some(setup)) = (st.secure_url, st.setup_url) else {
+        return Err("Couldn't find this PC's address on the network".into());
+    };
     let mut b = [0u8; 4];
     getrandom::fill(&mut b).map_err(|e| e.to_string())?;
     let code = format!("{:06}", u32::from_le_bytes(b) % 1_000_000);
     app.state::<Remote>().inner.lock().unwrap().pairing =
         Some(Pairing { code: code.clone(), expires: Instant::now() + PAIR_TTL, tries: 0 });
-    // The code rides in the #fragment, which browsers never send to the server.
-    let link = format!("{url}#pair={code}");
+    // The QR code opens the setup page (which offers https once the device trusts it). The code rides
+    // in the #fragment, which browsers never send to the server.
+    let link = format!("{setup}#pair={code}");
     let qr_svg = qrcode::QrCode::new(link.as_bytes())
         .map_err(|e| e.to_string())?
         .render::<qrcode::render::svg::Color>()

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Set up Zomello</title>
+<link rel="icon" href="/icon-192.png" />
+<style>
+  :root { --bg: #f5f6f8; --card: #fff; --text: #1d2129; --muted: #667085; --accent: #2580c3; --ok: #1f9d55; --border: #e3e6eb; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #12151b; --card: #1c2029; --text: #e8eaee; --muted: #98a0ae; --border: #2c323d; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 520px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  header img { width: 44px; height: 44px; border-radius: 10px; }
+  h1 { font-size: 22px; margin: 0; }
+  h2 { font-size: 17px; margin: 0 0 8px; }
+  p { margin: 6px 0; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin: 14px 0; }
+  ol { padding-left: 22px; margin: 6px 0; }
+  li { margin: 6px 0; }
+  .btn { display: block; width: 100%; text-align: center; padding: 13px; border-radius: 10px; border: 0; font-size: 16px; font-weight: 600; text-decoration: none; background: var(--accent); color: #fff; }
+  .btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+  .status { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+  .ok .dot { background: var(--ok); }
+  .ok { color: var(--ok); }
+  details summary { cursor: pointer; font-weight: 600; }
+  b { font-weight: 650; }
+</style>
+</head>
+<body>
+<main>
+  <header><img src="/icon-192.png" alt="" /><h1>Set up Zomello</h1></header>
+  <p class="muted">To install Zomello as an app, this device needs to trust your PC's secure connection. You only do this once.</p>
+
+  <div class="card" id="status-card">
+    <div class="status" id="status"><span class="dot"></span><span id="status-text">Checking the secure connection…</span></div>
+    <div id="ready" hidden>
+      <p>All set. Open Zomello, then install it:</p>
+      <p class="muted" id="install-hint">Chrome: <b>⋮ menu → Install app</b>.</p>
+      <a class="btn" id="open-secure" href="/">Open Zomello</a>
+    </div>
+  </div>
+
+  <div id="steps">
+    <div class="card" id="android">
+      <h2>Android</h2>
+      <ol>
+        <li><a class="btn" href="/zomello-ca.crt" download>Download certificate</a></li>
+        <li>Open your phone's <b>Settings</b> and search for <b>“CA certificate”</b>. (Usually: Security &amp; privacy → More security settings → Encryption &amp; credentials → Install a certificate → <b>CA certificate</b>.)</li>
+        <li>Tap <b>Install anyway</b>, then choose <b>zomello-ca.crt</b> from Downloads.</li>
+        <li>Come back to this page. It notices by itself and shows <b>Open Zomello</b>.</li>
+      </ol>
+    </div>
+
+    <div class="card" id="ios">
+      <h2>iPad / iPhone</h2>
+      <ol>
+        <li><a class="btn" href="/zomello-ca.crt">Download certificate</a> and tap <b>Allow</b>.</li>
+        <li>Settings → General → <b>VPN &amp; Device Management</b> → Zomello → <b>Install</b>.</li>
+        <li>Settings → General → About → <b>Certificate Trust Settings</b> → turn on <b>Zomello</b>.</li>
+        <li>Come back here and tap <b>Open Zomello</b>, then Share → <b>Add to Home Screen</b>.</li>
+      </ol>
+      <p class="muted">On iPad and iPhone this step is optional: Add to Home Screen also works without it.</p>
+    </div>
+
+    <details class="card">
+      <summary>Why is this needed? Is it safe?</summary>
+      <p class="muted">Browsers only let you install web apps from secure (https) addresses. Your PC can't get a public certificate for a home-network address, so Zomello made its own, just for this PC.</p>
+      <p class="muted">It is limited to home-network addresses, so it can't be used to vouch for any real website. You can remove it any time from the same Settings screen.</p>
+    </details>
+
+    <a class="btn secondary" id="skip" href="/">Continue without installing</a>
+    <p class="muted" style="text-align:center">Use Zomello in the browser instead (no app install).</p>
+  </div>
+</main>
+<script>
+  // A pairing code from the PC's QR code rides along in the #fragment (never sent to the server).
+  var hash = location.hash;
+  var host = location.host;
+  var secureUrl = "https://" + host + "/" + hash;
+  document.getElementById("open-secure").href = secureUrl;
+  document.getElementById("skip").href = "http://" + host + "/" + hash;
+
+  var ua = navigator.userAgent;
+  var ios = /iPad|iPhone/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  // Show this device's steps first.
+  if (ios) document.getElementById("steps").insertBefore(document.getElementById("ios"), document.getElementById("android"));
+  if (ios) document.getElementById("install-hint").innerHTML = "Safari: <b>Share → Add to Home Screen</b>.";
+
+  function trusted() {
+    var card = document.getElementById("status");
+    card.className = "status ok";
+    document.getElementById("status-text").textContent = "This device trusts your PC's secure connection";
+    document.getElementById("ready").hidden = false;
+  }
+  function check() {
+    if (location.protocol === "https:") return trusted();
+    // Succeeds only if this device accepts the PC's certificate.
+    fetch("https://" + host + "/api/status", { mode: "no-cors", cache: "no-store" })
+      .then(trusted)
+      .catch(function () {
+        document.getElementById("status-text").textContent = "Not set up yet: follow the steps below";
+        setTimeout(check, 3000);
+      });
+  }
+  check();
+</script>
+</body>
+</html>
