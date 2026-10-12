@@ -1,8 +1,9 @@
 import { useStore } from "./store";
 
 /**
- * Easter egg #2: the beat pads in Settings → About sing "O", "I" and "A" (synthesized here, no audio
- * files). Play O-I-I-A-I-O, O-I-I-I-A-I and the Party Cat style unlocks.
+ * Easter egg #2: the beat pads in Settings → About sing "O", "I" and "A" (short clips in
+ * public/sounds; a synthesized voice if they can't play). Play O-I-I-A-I-O, O-I-I-I-A-I and the
+ * Party Cat style unlocks.
  */
 export type Vowel = "O" | "I" | "A";
 
@@ -16,13 +17,58 @@ const VOICES: Record<Vowel, { formants: [number, number, number]; pitch: number 
 };
 
 let ctx: AudioContext | null = null;
+const CLIPS: Record<Vowel, string> = { O: "/sounds/pad-1.wav", I: "/sounds/pad-2.wav", A: "/sounds/pad-3.wav" };
+const buffers: Partial<Record<Vowel, AudioBuffer>> = {};
+let loading: Promise<void> | null = null;
 
-/** Sing one vowel: a buzzy source shaped by three formant filters, with a little vibrato and a slide. */
-export function sing(v: Vowel) {
+function audio(): AudioContext | null {
   try {
     ctx ??= new AudioContext();
-    const c = ctx;
-    void c.resume();
+    return ctx;
+  } catch {
+    return null;
+  }
+}
+
+/** Load the three clips once (called when the pads appear, so the first tap plays right away). */
+export function preloadPads(): Promise<void> {
+  loading ??= (async () => {
+    const c = audio();
+    if (!c) return;
+    await Promise.all(
+      (Object.keys(CLIPS) as Vowel[]).map(async (v) => {
+        try {
+          const res = await fetch(CLIPS[v]);
+          buffers[v] = await c.decodeAudioData(await res.arrayBuffer());
+        } catch {
+          /* falls back to the synthesized voice */
+        }
+      }),
+    );
+  })();
+  return loading;
+}
+
+/** Play one vowel: the recorded clip, or the synthesized voice if the clip isn't available. */
+export function sing(v: Vowel) {
+  const c = audio();
+  if (!c) return;
+  void c.resume();
+  const buf = buffers[v];
+  if (buf) {
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.connect(c.destination);
+    src.start();
+    return;
+  }
+  void preloadPads();
+  synth(c, v);
+}
+
+/** The fallback voice: a buzzy source shaped by three formant filters, with a little vibrato and a slide. */
+function synth(c: AudioContext, v: Vowel) {
+  try {
     const t = c.currentTime;
     const { formants, pitch } = VOICES[v];
 
@@ -65,11 +111,24 @@ export function sing(v: Vowel) {
 
 let played: Vowel[] = [];
 
-/** Record a pad press. Returns true when it completes the pattern (and unlocks Party Cat). */
-export function padPressed(v: Vowel): boolean {
+/** How many of the latest presses match the start of the pattern (0 = off track). */
+function streak(): number {
+  for (let n = Math.min(played.length, PATTERN.length); n > 0; n--) {
+    const tail = played.slice(-n);
+    if (tail.every((x, i) => x === PATTERN[i])) return n;
+  }
+  return 0;
+}
+
+/**
+ * Record a pad press. Returns how far along the pattern the latest presses are (so the page can give a
+ * little nod), and whether this press finished it (which unlocks Party Cat).
+ */
+export function padPressed(v: Vowel): { streak: number; done: boolean } {
   sing(v);
   played = [...played, v].slice(-PATTERN.length);
-  if (played.length < PATTERN.length || played.some((x, i) => x !== PATTERN[i])) return false;
+  const n = streak();
+  if (n < PATTERN.length) return { streak: n, done: false };
   played = [];
   const st = useStore.getState();
   const s = st.data.settings;
@@ -77,7 +136,7 @@ export function padPressed(v: Vowel): boolean {
   st.updateSettings({ style: "partycat", unlockedStyles: first ? [...s.unlockedStyles, "partycat"] : s.unlockedStyles });
   st.toast(first ? "🐱 You found Party Cat! Switch styles any time in Settings → Appearance." : "🐱 Party Cat on", { key: "style" });
   confetti();
-  return true;
+  return { streak: PATTERN.length, done: true };
 }
 
 /** A short burst of confetti (skipped with Reduce motion). */
