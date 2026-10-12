@@ -302,6 +302,11 @@ export function BoardCustomize({ board }: { board: Board }) {
               </div>
             ))}
           </div>
+          <label className="check-row">
+            <input type="checkbox" checked={!!board.display.hideChecked} onChange={(e) => setDisplay({ hideChecked: e.target.checked })} />
+            Hide ticked checklist items on cards
+            <small className="muted">(when Checklist shows Details)</small>
+          </label>
         </section>
 
         <FieldsEditor board={board} />

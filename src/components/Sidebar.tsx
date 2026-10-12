@@ -4,7 +4,7 @@ import {
   Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, UserCheck, X, Zap,
 } from "lucide-react";
 import { runningTimer, useStore } from "../store";
-import type { Board, ID } from "../types";
+import type { Board, ID, Route } from "../types";
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
@@ -17,6 +17,7 @@ import { Popover } from "./ui";
 import { LogoMark, Wordmark } from "./Logo";
 import { useNow } from "./useNow";
 import { logoClicked } from "../easterEgg";
+import { SpinCat } from "./SpinCat";
 
 export function Sidebar() {
   const boards = useStore((s) => s.data.boards);
@@ -41,7 +42,9 @@ export function Sidebar() {
 
   const [renaming, setRenaming] = useState<ID | null>(null);
   const [dancing, setDancing] = useState(false);
+  const style = useStore((s) => s.data.settings.style);
   const homeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const burst = useRef<{ from: Route | null; last: number }>({ from: null, last: 0 });
 
   const NavItem = ({ icon, label, onClick, on, kbd }: { icon: React.ReactNode; label: string; onClick: () => void; on?: boolean; kbd?: string }) => (
     <button className={`nav-item ${on ? "active" : ""}`} onClick={onClick} title={collapsed ? label : undefined}>
@@ -59,15 +62,24 @@ export function Sidebar() {
           aria-label="Zomello: go to Home"
           title="Home"
           onClick={() => {
+            // Remember where this burst of clicks started.
+            const now = Date.now();
+            if (now - burst.current.last > 1500) burst.current.from = useStore.getState().route;
+            burst.current.last = now;
+            clearTimeout(homeTimer.current);
             if (logoClicked()) {
+              // The clicks were for the Easter egg: stay on (or go back to) the page they started on.
               setDancing(true);
               setTimeout(() => setDancing(false), 3200);
+              const from = burst.current.from;
+              if (from && useStore.getState().route.page !== from.page) navigate(from);
+              burst.current.last = 0;
+              return;
             }
-            // Go Home once the clicking stops (a short pause leaves room for the Easter egg's clicks).
-            clearTimeout(homeTimer.current);
+            // A single click goes Home, once the clicking stops.
             homeTimer.current = setTimeout(() => {
               if (useStore.getState().route.page !== "home") navigate({ page: "home" });
-            }, 280);
+            }, 450);
           }}
         >
           <LogoMark size={collapsed ? 40 : 46} animate={dancing} />
@@ -160,6 +172,11 @@ export function Sidebar() {
       </div>
 
       <div className="grow" />
+      {style === "partycat" && (
+        <div className="spin-cat-spot">
+          <SpinCat size={collapsed ? 44 : 64} />
+        </div>
+      )}
       <FocusWidget collapsed={collapsed} />
       <RunningTimer collapsed={collapsed} />
       <NavItem icon={<Archive size={16} />} label="Archive" on={route.page === "archive"} onClick={() => navigate({ page: "archive" })} />

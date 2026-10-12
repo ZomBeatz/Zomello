@@ -73,6 +73,11 @@ export const CardTile = memo(function CardTile({
   const mode = listBadges ? { ...board.display.badges, ...listBadges } : board.display.badges;
   const labels = board.labels.filter((l) => card.labelIds.includes(l.id));
   const cl = checklistStats(card);
+  // The bucket can override the board's "hide ticked items on cards".
+  const listHide = useStore((s) => s.data.lists[card.listId]?.hideChecked);
+  const hideChecked = listHide ?? !!board.display.hideChecked;
+  const shownItems = hideChecked ? card.checklist.filter((i) => !i.done) : card.checklist;
+  const hiddenDone = card.checklist.length - shownItems.length;
   const due = dueStatus(card);
   const done = card.progress === "completed";
   const running = card.time.some((t) => t.end === null);
@@ -170,16 +175,17 @@ export const CardTile = memo(function CardTile({
           })}
         </div>
       )}
-      {mode.checklist === "full" && cl.total > 0 && (
+      {mode.checklist === "full" && cl.total > 0 && (shownItems.length > 0 || hiddenDone > 0) && (
         <ul className="tile-checklist" onPointerDown={stop} onClick={stop}>
-          {card.checklist.slice(0, 6).map((i) => (
+          {shownItems.slice(0, 6).map((i) => (
             <li key={i.id} className={i.done ? "done" : ""}>
               <input type="checkbox" checked={i.done} onChange={() => toggleChecklistItem(card.id, i.id)} />
               <span className="grow">{i.cardId && <CornerDownRight size={10} className="muted" />} {i.text}</span>
               <ItemLabelDots boardId={card.boardId} item={i} />
             </li>
           ))}
-          {cl.total > 6 && <li className="muted small">+{cl.total - 6} more</li>}
+          {shownItems.length > 6 && <li className="muted small">+{shownItems.length - 6} more</li>}
+          {hiddenDone > 0 && <li className="muted small tile-done-note">✓ {hiddenDone} done</li>}
         </ul>
       )}
       {mode.links === "full" && linkedTitles && (
