@@ -124,8 +124,7 @@ export interface Card {
   createdAt: number;
   updatedAt: number;
   completedAt: number | null;
-  /** Hide ticked checklist items in the card window. */
-  hideChecked?: boolean;
+
 }
 
 /** A column on a board. Planner calls these "buckets". */
@@ -149,6 +148,8 @@ export interface List {
    * A bucket that completes cards also shows them, instead of tucking them under "Show completed".
    */
   autoProgress?: Progress | null;
+  /** Per-bucket override of the board's "hide ticked checklist items on cards". */
+  hideChecked?: boolean;
 }
 
 export type BoardBackground =
@@ -195,6 +196,8 @@ export interface BoardDisplay {
   badges: Record<BadgeKey, BadgeMode>;
   /** Fade cards that haven't been touched in a while. */
   aging: boolean;
+  /** Checklists shown on cards ("Details") leave out ticked items. */
+  hideChecked?: boolean;
 }
 
 export interface Board {

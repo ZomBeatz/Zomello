@@ -20,9 +20,6 @@ export function ChecklistSection({ card }: { card: Card }) {
   const [insertAt, setInsertAt] = useState<number | null>(null);
   const sensors = useDragSensors(4);
   const setList = (checklist: ChecklistItem[]) => updateCard(card.id, { checklist });
-  const allCards = useStore((s) => s.data.cards);
-  const isChecked = (i: ChecklistItem) => (i.cardId && allCards[i.cardId] ? allCards[i.cardId].progress === "completed" : i.done);
-  const isHidden = (i: ChecklistItem) => !!card.hideChecked && isChecked(i);
 
   const insert = (index: number, text: string) => {
     const list = [...useStore.getState().data.cards[card.id].checklist];
@@ -45,15 +42,6 @@ export function ChecklistSection({ card }: { card: Card }) {
             {cl.done}/{cl.total}
           </span>
         )}
-        {cl.done > 0 && (
-          <button
-            className="btn ghost sm cl-hide-toggle"
-            onClick={() => updateCard(card.id, { hideChecked: !card.hideChecked })}
-            title={card.hideChecked ? "Show the ticked items again" : "Hide ticked items on this card"}
-          >
-            {card.hideChecked ? `Show checked (${cl.done})` : "Hide checked"}
-          </button>
-        )}
       </h4>
       {cl.total > 0 && (
         <div className="progress-bar">
@@ -61,10 +49,9 @@ export function ChecklistSection({ card }: { card: Card }) {
         </div>
       )}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} modifiers={[restrictToVerticalAxis, restrictToParentElement]}>
-        <SortableContext items={card.checklist.filter((i) => !isHidden(i)).map((i) => i.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={card.checklist.map((i) => i.id)} strategy={verticalListSortingStrategy}>
           <ul className="checklist">
             {card.checklist.map((item, i) => (
-              isHidden(item) ? null :
               <ChecklistRow
                 key={item.id}
                 card={card}

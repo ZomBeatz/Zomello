@@ -824,6 +824,20 @@ function BucketDisplayDialog({ list, board, onClose }: { list: List; board: Boar
             );
           })}
         </div>
+        <div className="badge-mode-row">
+          <span className="grow">Ticked checklist items</span>
+          <div className="seg">
+            <button className={list.hideChecked === undefined ? "active" : ""} onClick={() => updateList(list.id, { hideChecked: undefined })}>
+              Board ({board.display.hideChecked ? "Hidden" : "Shown"})
+            </button>
+            <button className={list.hideChecked === false ? "active" : ""} onClick={() => updateList(list.id, { hideChecked: false })}>
+              Shown
+            </button>
+            <button className={list.hideChecked === true ? "active" : ""} onClick={() => updateList(list.id, { hideChecked: true })}>
+              Hidden
+            </button>
+          </div>
+        </div>
         {list.badges && (
           <button className="btn sm ghost" onClick={() => updateList(list.id, { badges: undefined })}>
             Use the board's settings for everything
