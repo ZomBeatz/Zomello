@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Smartphone, WifiOff } from "lucide-react";
+import { Smartphone, Wifi, WifiOff } from "lucide-react";
 import {
   guessDeviceName, httpsTrusted, isIOS, isRemote, onConnectionChange, remotePair, remoteStatus, UNPAIRED_EVENT,
 } from "../remote";
@@ -154,14 +154,49 @@ export function SecureBanner() {
   );
 }
 
-/** Thin banner while a device has lost its connection to the computer. */
+/**
+ * A small status pill while a device is reconnecting. It waits a few seconds first (a phone coming back
+ * from the background usually reconnects in a moment), and says "Connected" briefly when it's back.
+ */
 export function ConnectionBanner() {
-  const [online, setOnline] = useState(true);
-  useEffect(() => (isRemote ? onConnectionChange(setOnline) : undefined), []);
-  if (online) return null;
+  const [state, setState] = useState<"ok" | "reconnecting" | "back">("ok");
+  useEffect(() => {
+    if (!isRemote) return;
+    let showTimer: ReturnType<typeof setTimeout> | undefined;
+    let hideTimer: ReturnType<typeof setTimeout> | undefined;
+    let shown = false;
+    const off = onConnectionChange((online) => {
+      clearTimeout(showTimer);
+      clearTimeout(hideTimer);
+      if (!online) {
+        showTimer = setTimeout(() => {
+          shown = true;
+          setState("reconnecting");
+        }, 4000);
+      } else if (shown) {
+        shown = false;
+        setState("back");
+        hideTimer = setTimeout(() => setState("ok"), 1800);
+      } else setState("ok");
+    });
+    return () => {
+      off();
+      clearTimeout(showTimer);
+      clearTimeout(hideTimer);
+    };
+  }, []);
+  if (state === "ok") return null;
   return (
-    <div className="save-error conn-banner">
-      <WifiOff size={14} /> Reconnecting to your computer… Changes you make are kept and sent when it's back.
+    <div className={`conn-pill ${state}`} role="status">
+      {state === "reconnecting" ? (
+        <>
+          <span className="conn-spinner" /> Reconnecting… your changes are kept
+        </>
+      ) : (
+        <>
+          <Wifi size={14} /> Connected
+        </>
+      )}
     </div>
   );
 }

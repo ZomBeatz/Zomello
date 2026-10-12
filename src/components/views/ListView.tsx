@@ -8,7 +8,7 @@ import { openCardMenu } from "../ContextMenu";
 
 type SortKey = "title" | "bucket" | "progress" | "priority" | "start" | "due" | "updated";
 const PRI_RANK: Record<Priority, number> = { urgent: 0, important: 1, medium: 2, low: 3 };
-const PROG_RANK = { notStarted: 0, inProgress: 1, completed: 2 };
+const PROG_RANK = { notStarted: 0, inProgress: 1, waiting: 2, onHold: 3, completed: 4 };
 
 export function ListView({ board, lists, cards }: { board: Board; lists: List[]; cards: Card[] }) {
   const openCard = useStore((s) => s.openCard);

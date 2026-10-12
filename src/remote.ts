@@ -78,10 +78,23 @@ export function remoteSubscribe(onData: (json: string) => void): () => void {
     };
   };
   connect();
+  // Phones pause the page in the background, dropping the connection. Coming back reconnects at once
+  // instead of waiting for the next retry.
+  const onVisible = () => {
+    if (document.visibilityState !== "visible" || closed) return;
+    if (es && es.readyState === EventSource.OPEN) return;
+    clearTimeout(retry);
+    es?.close();
+    connect();
+  };
+  document.addEventListener("visibilitychange", onVisible);
+  window.addEventListener("online", onVisible);
   return () => {
     closed = true;
     clearTimeout(retry);
     es?.close();
+    document.removeEventListener("visibilitychange", onVisible);
+    window.removeEventListener("online", onVisible);
   };
 }
 

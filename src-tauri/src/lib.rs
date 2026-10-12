@@ -4,6 +4,8 @@ use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager};
 
+mod calendar;
+mod desktop;
 mod remote;
 
 const DATA_FILE: &str = "zomello.json";
@@ -338,7 +340,7 @@ fn percent_decode(s: &str) -> String {
 }
 
 /// Linux: turn on WebKitGTK's spell checker for a window (Windows' WebView2 has it built in).
-fn enable_spellcheck(window: &tauri::WebviewWindow) {
+pub(crate) fn enable_spellcheck(window: &tauri::WebviewWindow) {
     #[cfg(target_os = "linux")]
     let _ = window.with_webview(|webview| {
         use webkit2gtk::{WebContextExt, WebViewExt};
@@ -390,24 +392,22 @@ pub fn run() {
         // Must be first: a second launch just focuses the running window, so two
         // processes never write the same data file.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            // Launching again brings the main window back (re-creating it if only board windows are open).
-            match app.get_webview_window("main") {
-                Some(w) => {
-                    let _ = w.unminimize();
-                    let _ = w.set_focus();
-                }
-                None => {
-                    if let Ok(w) = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
-                        .title("Zomello")
-                        .inner_size(1400.0, 900.0)
-                        .min_inner_size(900.0, 600.0)
-                        .build()
-                    {
-                        enable_spellcheck(&w);
-                    }
+            // Launching again brings the main window back (from the tray, or re-created if it was closed).
+            desktop::show_main(app);
+        }))
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec![desktop::HIDDEN_ARG]),
+        ))
+        // In background mode, closing the main window just hides it to the tray.
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == "main" && desktop::in_background_mode() {
+                    api.prevent_close();
+                    let _ = window.hide();
                 }
             }
-        }))
+        })
         // Safety net: the app window only ever shows the app itself. Links open in the browser
         // instead, and a stray dropped file can never replace the UI.
         .plugin(
@@ -442,6 +442,11 @@ pub fn run() {
             remote::remote_cancel_pairing,
             remote::remote_unlink,
             remote::remote_rename,
+            calendar::fetch_calendar,
+            desktop::set_background_mode,
+            desktop::show_main_window,
+            desktop::get_autostart,
+            desktop::set_autostart,
             remote::remote_open_firewall,
             remote::remote_set_address,
             remote::remote_regenerate_cert,
@@ -452,6 +457,10 @@ pub fn run() {
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
                 enable_spellcheck(&window);
+                // Started at login: stay in the tray until opened (the page turns the tray on).
+                if !desktop::started_hidden() {
+                    let _ = window.show();
+                }
             }
             remote::init(app.handle());
             Ok(())

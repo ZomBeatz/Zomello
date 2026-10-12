@@ -28,6 +28,8 @@ export const PRIORITIES: { id: Priority; name: string; color: string }[] = [
 export const PROGRESS: { id: Progress; name: string; color: string }[] = [
   { id: "notStarted", name: "Not started", color: "#94a3b8" },
   { id: "inProgress", name: "In progress", color: "#3b82f6" },
+  { id: "waiting", name: "Waiting", color: "#f59e0b" },
+  { id: "onHold", name: "On hold", color: "#a855f7" },
   { id: "completed", name: "Completed", color: "#22c55e" },
 ];
 export const priorityMeta = (p: Priority) => PRIORITIES.find((x) => x.id === p)!;
@@ -366,7 +368,7 @@ export const SORT_MODES: { id: import("./types").SortMode; name: string; hint: s
   { id: "updated", name: "Recently updated", hint: "Last changed first" },
 ];
 const PRI_RANK = { urgent: 0, important: 1, medium: 2, low: 3 } as const;
-const PROG_RANK = { inProgress: 0, notStarted: 1, completed: 2 } as const;
+const PROG_RANK = { inProgress: 0, waiting: 1, notStarted: 2, onHold: 3, completed: 4 } as const;
 
 export function sortCards(cards: Card[], mode: import("./types").SortMode, desc = false): Card[] {
   if (mode === "custom") return cards;

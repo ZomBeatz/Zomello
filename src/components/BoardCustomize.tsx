@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ImagePlus, Plus, Trash2, X } from "lucide-react";
-import type { BadgeKey, BadgeMode, Board, BoardDisplay, CardSection, FieldDef, FieldType } from "../types";
+import type { BadgeKey, BadgeMode, Board, BoardDisplay, CalendarFeed, CardSection, FieldDef, FieldType } from "../types";
 import { useStore } from "../store";
-import { boardCategories, BOARD_EMOJIS, GRADIENTS, isImage, PALETTE, uid } from "../utils";
+import { loadFeed } from "../calendarFeeds";
+import { boardCategories, plural, BOARD_EMOJIS, GRADIENTS, isImage, PALETTE, uid } from "../utils";
 import { storedSrc, storeFile, storeFromPath } from "../storage";
 import { registerDropZone } from "../fileDrop";
-import { ask, ColorPicker, Modal, useSaveOnUnmount } from "./ui";
+import { ask, ColorPicker, Modal, Popover, useSaveOnUnmount } from "./ui";
 
 export const BADGES: { key: BadgeKey; name: string; icon: string; full: string }[] = [
   { key: "dates", name: "Dates", icon: "Due date", full: "Dates + “in 3 days / 2 days late” + repeat rule" },
@@ -127,6 +128,16 @@ export function BoardCustomize({ board }: { board: Board }) {
             export from this board, so you don't have to re-explain it.
           </p>
           <AboutBoard board={board} />
+        </section>
+
+        <section>
+          <h4>Calendars</h4>
+          <p className="muted small">
+            Show events from Google Calendar (or any calendar with an iCal link) in this board's Calendar view. In Google
+            Calendar: Settings → your calendar → Integrate calendar → <b>Secret address in iCal format</b>. Outlook and
+            Apple Calendar have an ICS / iCal link too. Events are read-only and refresh every 15 minutes.
+          </p>
+          <CalendarFeeds board={board} />
         </section>
 
         <section>
@@ -467,5 +478,77 @@ function CategoryField({ board }: { board: Board }) {
         ))}
       </datalist>
     </>
+  );
+}
+
+function CalendarFeeds({ board }: { board: Board }) {
+  const feeds = board.calendarFeeds ?? [];
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [status, setStatus] = useState<{ text: string; error?: boolean } | null>(null);
+  const save = (next: CalendarFeed[]) => useStore.getState().updateBoard(board.id, { calendarFeeds: next });
+
+  const add = async () => {
+    const u = url.trim();
+    if (!/^(https?|webcal):\/\//i.test(u)) return setStatus({ text: "Paste the calendar's iCal address (it starts with https:// or webcal://).", error: true });
+    const feed: CalendarFeed = { id: uid(), name: name.trim() || "Calendar", url: u, color: PALETTE[(feeds.length + 3) % PALETTE.length], show: true };
+    setStatus({ text: "Checking the calendar…" });
+    try {
+      const events = await loadFeed(board.id, feed, true);
+      save([...feeds, feed]);
+      setName("");
+      setUrl("");
+      setStatus({ text: `Added “${feed.name}” (${plural(events.length, "event")}). Open the Calendar view to see them.` });
+    } catch (e) {
+      setStatus({ text: `Couldn't load that calendar: ${e}`, error: true });
+    }
+  };
+
+  return (
+    <div className="feeds">
+      {feeds.map((f) => (
+        <div key={f.id} className="feed-row">
+          <Popover trigger={(_, t) => <button className="swatch" style={{ background: f.color }} title="Color" aria-label="Color" onClick={t} />}>
+            {(close) => (
+              <div className="menu">
+                <ColorPicker
+                  value={f.color}
+                  onChange={(color) => {
+                    save(feeds.map((x) => (x.id === f.id ? { ...x, color: color ?? x.color } : x)));
+                    close();
+                  }}
+                />
+              </div>
+            )}
+          </Popover>
+          <input
+            className="feed-name"
+            defaultValue={f.name}
+            onBlur={(e) => e.target.value.trim() && save(feeds.map((x) => (x.id === f.id ? { ...x, name: e.target.value.trim() } : x)))}
+          />
+          <label className="check-row small" title="Show this calendar's events">
+            <input type="checkbox" checked={f.show !== false} onChange={(e) => save(feeds.map((x) => (x.id === f.id ? { ...x, show: e.target.checked } : x)))} />
+            Show
+          </label>
+          <button className="icon-btn tiny" title="Remove this calendar" aria-label="Remove this calendar" onClick={() => save(feeds.filter((x) => x.id !== f.id))}>
+            <X size={13} />
+          </button>
+        </div>
+      ))}
+      <form
+        className="feed-add"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void add();
+        }}
+      >
+        <input placeholder="Name, e.g. Family" value={name} onChange={(e) => setName(e.target.value)} />
+        <input className="grow" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" value={url} onChange={(e) => setUrl(e.target.value)} spellCheck={false} />
+        <button className="btn sm" type="submit" disabled={!url.trim()}>
+          <Plus size={14} /> Add calendar
+        </button>
+      </form>
+      {status && <p className={`small ${status.error ? "danger-text" : "muted"}`}>{status.text}</p>}
+    </div>
   );
 }

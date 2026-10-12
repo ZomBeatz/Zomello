@@ -12,6 +12,9 @@ import { setZoom, ZOOM_MAX, ZOOM_MIN } from "../zoom";
 import type { A11ySettings } from "../types";
 import { ask, Avatar, InlineEdit } from "./ui";
 import { DevicesPanel } from "./DevicesPanel";
+import { DesktopPanel } from "./DesktopPanel";
+import { LogoMark } from "./Logo";
+import { padPressed, type Vowel } from "../partyCat";
 import { isRemote } from "../remote";
 
 const A11Y_OPTIONS: { key: keyof A11ySettings; name: string; hint: string }[] = [
@@ -96,8 +99,9 @@ export function SettingsPage() {
           ["people", "People"],
           ["reminders", "Reminders"],
           ["templates", "Templates"],
-          ...(inTauri ? [["devices", "Phones & tablets"]] : []),
+          ...(inTauri ? [["desktop", "Desktop app"], ["devices", "Phones & tablets"]] : []),
           ["data", "Data & backups"],
+          ["about", "About"],
           ["shortcuts", "Shortcuts"],
         ].map(([id, name]) => (
           <button key={id} onClick={() => document.getElementById(`set-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}>
@@ -130,7 +134,24 @@ export function SettingsPage() {
                   🎧 Bass Drop
                 </button>
               )}
+              {settings.unlockedStyles.includes("partycat") && (
+                <button className={settings.style === "partycat" ? "active" : ""} onClick={() => updateSettings({ style: "partycat" })}>
+                  🐱 Party Cat
+                </button>
+              )}
             </div>
+            <button
+              className="btn ghost sm"
+              title="Put the found styles back into hiding (they can be found again)"
+              onClick={async () => {
+                if (!(await ask("Hide the styles you've found? Zomello goes back to classic, and they can be found again the same way.", { okText: "Hide them" })))
+                  return;
+                updateSettings({ unlockedStyles: [], style: "classic" });
+                useStore.getState().toast("Hidden again. 🤫");
+              }}
+            >
+              Hide found styles
+            </button>
           </div>
         )}
         <div className="field-row">
@@ -138,8 +159,14 @@ export function SettingsPage() {
           <div className="swatches">
             <button
               className={`swatch none ${settings.accent === null ? "sel" : ""}`}
-              title={settings.style === "bassdrop" ? "Bass Drop pink (default)" : "Zomello blue (default)"}
-              style={{ background: settings.style === "bassdrop" ? "linear-gradient(135deg, #ff3fa4, #22e1ff)" : "linear-gradient(135deg, #2580c3, #4fb0ec)" }}
+              title={{ classic: "Zomello blue", bassdrop: "Bass Drop pink", partycat: "Party Cat lime" }[settings.style] + " (default)"}
+              style={{
+                background: {
+                  classic: "linear-gradient(135deg, #2580c3, #4fb0ec)",
+                  bassdrop: "linear-gradient(135deg, #ff3fa4, #22e1ff)",
+                  partycat: "linear-gradient(135deg, #b8f53b, #9d7bff)",
+                }[settings.style],
+              }}
               onClick={() => updateSettings({ accent: null })}
             />
             {ACCENTS.map((c) => (
@@ -322,6 +349,7 @@ export function SettingsPage() {
         )}
       </section>
 
+      {inTauri && <DesktopPanel />}
       {inTauri && <DevicesPanel />}
 
       <section className="panel" id="set-data">
@@ -381,6 +409,8 @@ export function SettingsPage() {
           </ul>
         </section>
       )}
+
+      <AboutPanel />
 
       <section className="panel" id="set-shortcuts">
         <h3>Keyboard shortcuts</h3>
@@ -448,5 +478,44 @@ function ZoomSlider({ zoom, onPreview }: { zoom: number; onPreview: (z: number |
       onKeyUp={commit}
       onBlur={commit}
     />
+  );
+}
+
+/** Version and credits, plus three little beat pads (they sing; there may be a song in them). */
+function AboutPanel() {
+  const [hit, setHit] = useState<Vowel | null>(null);
+  const pads: { v: Vowel; title: string }[] = [
+    { v: "O", title: "Boom" },
+    { v: "I", title: "Tick" },
+    { v: "A", title: "Clap" },
+  ];
+  return (
+    <section className="panel" id="set-about">
+      <h3>About Zomello</h3>
+      <div className="about-row">
+        <LogoMark size={44} />
+        <div>
+          <p>
+            <b>Zomello</b> {__APP_VERSION__}
+          </p>
+          <p className="muted small">Boards, tasks &amp; planning, kept on your own computer. Made by ZomBeatz Media.</p>
+        </div>
+        <div className="beat-pads" aria-label="Beat pads">
+          {pads.map((p) => (
+            <button
+              key={p.v}
+              className={`beat-pad ${hit === p.v ? "hit" : ""}`}
+              title={p.title}
+              aria-label={`Beat pad: ${p.title}`}
+              onClick={() => {
+                setHit(p.v);
+                setTimeout(() => setHit(null), 120);
+                padPressed(p.v);
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }

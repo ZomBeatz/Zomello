@@ -50,11 +50,13 @@ export function ChartsView({ lists, cards, people }: { lists: List[]; cards: Car
   const pct = cards.length ? Math.round((done / cards.length) * 100) : 0;
   const assignees = Array.from(new Set([...people, ...cards.flatMap((c) => c.assignees)]));
 
-  const tiles = [
+  const tiles: { label: string; value: number; sub?: string; color?: string }[] = [
     { label: "Total tasks", value: cards.length },
-    { label: "Not started", value: count((c) => c.progress === "notStarted"), color: PROGRESS[0].color },
-    { label: "In progress", value: count((c) => c.progress === "inProgress"), color: PROGRESS[1].color },
-    { label: "Completed", value: done, sub: `${pct}%`, color: PROGRESS[2].color },
+    // Every status, skipping Waiting / On hold while nothing is in them.
+    ...PROGRESS.filter((p) => p.id !== "completed")
+      .map((p) => ({ label: p.name, value: count((c) => c.progress === p.id), color: p.color }))
+      .filter((t, i) => i < 2 || t.value > 0),
+    { label: "Completed", value: done, sub: `${pct}%`, color: PROGRESS.find((p) => p.id === "completed")!.color },
     { label: "Late", value: count(isLate), color: "#ef4444" },
   ];
 

@@ -1,6 +1,6 @@
 import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Check, CircleDashed, CircleDot, CheckCircle2, X } from "lucide-react";
+import { Check, CheckCircle2, CircleDashed, CircleDot, CirclePause, Hourglass, X } from "lucide-react";
 import type { Priority, Progress } from "../types";
 import { colorFor, initials, PALETTE, priorityMeta } from "../utils";
 
@@ -133,6 +133,8 @@ export function Avatar({ name, size = 24 }: { name: string; size?: number }) {
 export function ProgressIcon({ progress, size = 16 }: { progress: Progress; size?: number }) {
   if (progress === "completed") return <CheckCircle2 size={size} className="prog-done" />;
   if (progress === "inProgress") return <CircleDot size={size} className="prog-doing" />;
+  if (progress === "waiting") return <Hourglass size={size} className="prog-waiting" />;
+  if (progress === "onHold") return <CirclePause size={size} className="prog-hold" />;
   return <CircleDashed size={size} className="prog-todo" />;
 }
 

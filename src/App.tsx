@@ -21,8 +21,10 @@ import { applyZoom, installZoomControls } from "./zoom";
 import { startFocusWatcher } from "./focus";
 import { isBoardWindow, onOtherWindowData, setWindowTitle } from "./windows";
 import { isRemote } from "./remote";
+import { inTauri } from "./storage";
 import { installLongPressMenus, useIsPhone } from "./mobile";
 import { installFileDropPolicy } from "./fileDrop";
+import { installHistorySync } from "./routing";
 import { ImportDialog } from "./components/ImportDialog";
 import { DropOverlay } from "./components/DropOverlay";
 import { AiDialog } from "./components/AiDialog";
@@ -50,6 +52,17 @@ export default function App() {
   useEffect(() => {
     void useStore.getState().load();
   }, []);
+
+  // Desktop app: turn the tray on if wanted. Started at login without it? Then show the window after all.
+  useEffect(() => {
+    if (!loaded || !inTauri || isBoardWindow) return;
+    void (async () => {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const bg = useStore.getState().data.settings.runInBackground;
+      if (bg) await invoke("set_background_mode", { enabled: true }).catch(() => invoke("show_main_window"));
+      else await invoke("show_main_window");
+    })();
+  }, [loaded]);
 
   useEffect(() => {
     // Reminders and the focus timer's alarm run in the main window only (no double notifications).
@@ -84,6 +97,8 @@ export default function App() {
   }, [windowTitle]);
 
   useEffect(() => installFileDropPolicy(), []);
+  // The address bar follows the page and open card (Back button, refresh, bookmarks).
+  useEffect(() => (loaded ? installHistorySync() : undefined), [loaded]);
   // Touch screens: press and hold opens the right-click menus.
   useEffect(() => (navigator.maxTouchPoints > 0 ? installLongPressMenus() : undefined), []);
 
@@ -150,7 +165,10 @@ export default function App() {
         {phone && <PhoneBar onMenu={() => setNavOpen(true)} />}
         <ConnectionBanner />
         <SecureBanner />
-        {saveError && <div className="save-error">Saving failed: {saveError}</div>}
+        {/* On a phone, a dropped connection is retried automatically (the reconnect pill covers it). */}
+        {saveError && !(isRemote && /fetch|network|load failed/i.test(saveError)) && (
+          <div className="save-error">Saving failed: {saveError}</div>
+        )}
         <ErrorBoundary resetKey={route} onHome={() => useStore.getState().navigate({ page: "home" })}>
           {route.page === "home" && <HomePage />}
           {route.page === "mytasks" && <MyTasksPage />}
@@ -190,8 +208,10 @@ function PhoneBar({ onMenu }: { onMenu: () => void }) {
       <button className="icon-btn" onClick={onMenu} aria-label="Menu">
         <Menu size={20} />
       </button>
-      <LogoMark size={24} />
-      <span className="phone-bar-title grow">Zomello</span>
+      <button className="phone-bar-home grow" onClick={() => useStore.getState().navigate({ page: "home" })} aria-label="Home">
+        <LogoMark size={26} />
+        <span className="phone-bar-title">Zomello</span>
+      </button>
       <button className="icon-btn" onClick={() => setSearchOpen(true)} aria-label="Search">
         <Search size={19} />
       </button>
