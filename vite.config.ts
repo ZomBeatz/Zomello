@@ -38,6 +38,8 @@ const devAttachments = {
 
 export default defineConfig({
   plugins: [react(), devAttachments],
+  // Shown in Settings → About.
+  define: { __APP_VERSION__: JSON.stringify(JSON.parse(fs.readFileSync("package.json", "utf8")).version) },
   clearScreen: false,
   server: {
     port: 1420,

@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { archiveList, deleteList as deleteListAction } from "../../actions";
-import { useDragSensors } from "../../mobile";
+import { useDragSensors, useIsPhone } from "../../mobile";
 import {
   closestCenter,
   closestCorners,
@@ -53,6 +53,46 @@ import { copyText } from "../Markdown";
 import { workOrder } from "../../ai";
 
 const COL_PREFIX = "col:";
+
+/**
+ * Phone dragging: hold a card near the left or right edge and the board moves over one bucket
+ * (again every ~0.6 s while you keep holding), instead of racing to the end.
+ */
+function useEdgePaging(enabled: boolean) {
+  const st = useRef({ x: -1, since: 0, timer: 0 as unknown as ReturnType<typeof setInterval> });
+  return useMemo(
+    () => ({
+      start() {
+        if (!enabled) return;
+        document.body.classList.add("dragging-card");
+        st.current.x = -1;
+        st.current.since = 0;
+        clearInterval(st.current.timer);
+        st.current.timer = setInterval(() => {
+          const { x } = st.current;
+          const w = window.innerWidth;
+          const dir = x < 0 ? 0 : x < w * 0.14 ? -1 : x > w * 0.86 ? 1 : 0;
+          if (!dir) return void (st.current.since = 0);
+          const now = Date.now();
+          if (!st.current.since) return void (st.current.since = now);
+          if (now - st.current.since < 450) return;
+          st.current.since = now + 150; // the next page waits a little longer
+          const board = document.querySelector<HTMLElement>(".board-content");
+          const col = document.querySelector<HTMLElement>(".kanban .column");
+          if (board && col) board.scrollBy({ left: dir * (col.offsetWidth + 10), behavior: "smooth" });
+        }, 100);
+      },
+      move(x: number) {
+        st.current.x = x;
+      },
+      stop() {
+        clearInterval(st.current.timer);
+        document.body.classList.remove("dragging-card");
+      },
+    }),
+    [enabled],
+  );
+}
 
 /**
  * Keyboard dragging (for people not using a mouse): focus a card or bucket header, press Shift+Space to
@@ -135,6 +175,8 @@ export function KanbanView({
   const canDrag = DRAGGABLE.includes(groupBy);
 
   const sensors = useDragSensors(6, useSensor(DeliberateKeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  const phone = useIsPhone();
+  const edge = useEdgePaging(phone);
 
   const findContainer = (id: UniqueIdentifier, cols = columns): string | undefined => {
     const s = String(id);
@@ -152,6 +194,7 @@ export function KanbanView({
 
   const onDragStart = ({ active }: DragStartEvent) => {
     setActiveId(active.id);
+    if (active.data.current?.type === "card") edge.start();
     if (active.data.current?.type === "card") setDragCols(columns);
   };
 
@@ -172,6 +215,7 @@ export function KanbanView({
   };
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
+    edge.stop();
     const cols = dragCols;
     setActiveId(null);
     setDragCols(null);
@@ -220,9 +264,16 @@ export function KanbanView({
       sensors={sensors}
       collisionDetection={collision}
       onDragStart={onDragStart}
+      onDragMove={({ active }) => {
+        const r = active.rect.current.translated;
+        if (r) edge.move(r.left + r.width / 2);
+      }}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
+      // Phones: no sideways auto-scroll (it flings to the far end); holding at an edge pages one bucket.
+      autoScroll={phone ? { threshold: { x: 0, y: 0.15 } } : true}
       onDragCancel={() => {
+        edge.stop();
         setActiveId(null);
         setDragCols(null);
       }}
@@ -404,6 +455,8 @@ function Column({
                     <option value="">(unchanged)</option>
                     <option value="notStarted">Not started</option>
                     <option value="inProgress">In progress</option>
+                    <option value="waiting">Waiting</option>
+                    <option value="onHold">On hold</option>
                     <option value="completed">Completed</option>
                   </select>
                 </label>

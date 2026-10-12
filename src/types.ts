@@ -1,7 +1,8 @@
 export type ID = string;
 
 export type Priority = "urgent" | "important" | "medium" | "low";
-export type Progress = "notStarted" | "inProgress" | "completed";
+/** Card status. "waiting" = blocked on someone else; "onHold" = paused on purpose. */
+export type Progress = "notStarted" | "inProgress" | "waiting" | "onHold" | "completed";
 
 export interface Label {
   id: ID;
@@ -123,6 +124,8 @@ export interface Card {
   createdAt: number;
   updatedAt: number;
   completedAt: number | null;
+  /** Hide ticked checklist items in the card window. */
+  hideChecked?: boolean;
 }
 
 /** A column on a board. Planner calls these "buckets". */
@@ -212,6 +215,8 @@ export interface Board {
   starred: boolean;
   /** Optional group in the sidebar and on Home (e.g. "Work", "Home"). Null = not in one. */
   category?: string | null;
+  /** Calendars shown (read-only) in this board's Calendar view. */
+  calendarFeeds?: CalendarFeed[];
   order: number;
   createdAt: number;
 }
@@ -297,9 +302,11 @@ export interface Settings {
   onboarded: boolean;
   /** Board categories folded shut in the sidebar. */
   collapsedCategories: string[];
+  /** Desktop app: closing the window keeps Zomello running in the tray. */
+  runInBackground: boolean;
 }
 
-export type AppStyle = "classic" | "bassdrop";
+export type AppStyle = "classic" | "bassdrop" | "partycat";
 
 /** A reusable card blueprint. Labels are stored by name so templates work on any board. */
 export interface CardTemplate {
@@ -344,4 +351,14 @@ export interface FocusTimer {
   endsAt: number | null;
   /** When paused: time left. */
   remainingMs: number;
+}
+
+/** An iCal (.ics) address whose events show in a board's Calendar view, e.g. a Google Calendar. */
+export interface CalendarFeed {
+  id: ID;
+  name: string;
+  url: string;
+  color: string;
+  /** Hidden from the calendar without removing it. */
+  show?: boolean;
 }

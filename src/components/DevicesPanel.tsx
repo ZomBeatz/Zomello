@@ -47,6 +47,7 @@ export function DevicesPanel() {
   const [custom, setCustom] = useState<string | null>(null);
   const [busy, setBusy] = useState<"" | "firewall" | "cert">("");
   const toast = (t: string) => useStore.getState().toast(t);
+  const runInBackground = useStore((s) => s.data.settings.runInBackground);
 
   useEffect(() => {
     const refresh = () => void invoke<RemoteStatus>("remote_status").then(setSt);
@@ -154,6 +155,11 @@ export function DevicesPanel() {
             Allow access from phones and tablets on this network
           </label>
           {st.error && <p className="small danger-text">{st.error}</p>}
+          {on && !runInBackground && (
+            <p className="small muted">
+              Tip: turn on <b>Desktop app → Keep running in the tray</b> so devices still connect after you close this window.
+            </p>
+          )}
 
           <div className="address-row small">
             <span className="muted">Devices connect to</span>

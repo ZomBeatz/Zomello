@@ -65,7 +65,7 @@ const FORMAT_SPEC = `type Card = {
   description?: string;        // Markdown allowed
   labels?: string[];           // label names (prefer the existing ones)
   priority?: "urgent" | "important" | "medium" | "low";
-  progress?: "notStarted" | "inProgress" | "completed";
+  progress?: Progress;
   start?: "YYYY-MM-DD"; due?: "YYYY-MM-DD";
   assignees?: string[];        // people's names
   checklist?: string[];        // small steps
@@ -77,7 +77,7 @@ const FORMAT_SPEC = `type Card = {
 const UPDATE_SPEC = `type Update = {
   id: string;                  // the card's id from the list, e.g. "a1b2c3d4"
   title?: string; description?: string; appendDescription?: string;
-  progress?: "notStarted" | "inProgress" | "completed";
+  progress?: Progress;
   priority?: "urgent" | "important" | "medium" | "low";
   due?: "YYYY-MM-DD" | null;
   labels?: string[]; addLabels?: string[]; assignees?: string[];
@@ -176,7 +176,7 @@ export const DELEGATE_TASKS: { id: DelegateTask; name: string; ask: string; repl
 1. Do it — fix the bug / build the feature / complete the task. Ask me if something is ambiguous rather than guessing.
 2. Check it works (build, run, test as appropriate).
 3. Report back: what you changed, anything I should know or test, and follow-ups you noticed.
-When you're finished (or if you stop part-way), reply with the status JSON below: mark finished items "completed", partly done ones "inProgress", and put your summary in each item's note. Add follow-ups with addChecklist or addSubtasks.`,
+When you're finished (or if you stop part-way), reply with the status JSON below: mark finished items "completed", partly done ones "inProgress", ones you can't finish without the user "waiting", and put your summary in each item's note. Add follow-ups with addChecklist or addSubtasks.`,
     replies: true,
   },
   {
@@ -362,7 +362,7 @@ export function summarizeReply(r: AiReply) {
 // ------------------------------------------------------------------ applying a reply
 
 const PRI = new Set(["urgent", "important", "medium", "low"]);
-const PROG = new Set(["notStarted", "inProgress", "completed"]);
+const PROG = new Set(["notStarted", "inProgress", "waiting", "onHold", "completed"]);
 const isoOrNull = (s?: string | null) => (s && /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : null);
 
 /** Find or create labels by name on a board; returns their ids. */

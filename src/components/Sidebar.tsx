@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useDragSensors, useIsPhone } from "../mobile";
 import {
   Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, UserCheck, X, Zap,
@@ -41,6 +41,7 @@ export function Sidebar() {
 
   const [renaming, setRenaming] = useState<ID | null>(null);
   const [dancing, setDancing] = useState(false);
+  const homeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const NavItem = ({ icon, label, onClick, on, kbd }: { icon: React.ReactNode; label: string; onClick: () => void; on?: boolean; kbd?: string }) => (
     <button className={`nav-item ${on ? "active" : ""}`} onClick={onClick} title={collapsed ? label : undefined}>
@@ -55,17 +56,23 @@ export function Sidebar() {
       <div className="brand">
         <button
           className="logo-btn"
-          aria-label="Zomello"
+          aria-label="Zomello: go to Home"
+          title="Home"
           onClick={() => {
             if (logoClicked()) {
               setDancing(true);
               setTimeout(() => setDancing(false), 3200);
             }
+            // Go Home once the clicking stops (a short pause leaves room for the Easter egg's clicks).
+            clearTimeout(homeTimer.current);
+            homeTimer.current = setTimeout(() => {
+              if (useStore.getState().route.page !== "home") navigate({ page: "home" });
+            }, 280);
           }}
         >
           <LogoMark size={collapsed ? 40 : 46} animate={dancing} />
+          <Wordmark />
         </button>
-        <Wordmark />
         <button
           className="icon-btn tiny collapse-btn"
           title={collapsed ? "Expand sidebar ([)" : "Collapse sidebar ([)"}

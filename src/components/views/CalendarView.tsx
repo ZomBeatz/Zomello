@@ -12,7 +12,8 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Plus, RefreshCw } from "lucide-react";
+import { eventDays, useFeedEvents, type FeedEvent } from "../../calendarFeeds";
 import { DndContext, DragOverlay, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { Board, Card, List } from "../../types";
 import { useStore } from "../../store";
@@ -36,6 +37,23 @@ function Chip({ card, color, onOpen }: { card: Card; color: string; onOpen: () =
     >
       <ProgressIcon progress={card.progress} size={12} />
       <span>{card.title}</span>
+    </div>
+  );
+}
+
+/** A calendar-feed event: read-only, in its calendar's color. */
+function EventChip({ event: e }: { event: FeedEvent }) {
+  const time = e.allDay ? "" : format(e.start, "p").replace(":00", "").replace(" ", "").toLowerCase();
+  const when = e.allDay ? "All day" : `${format(e.start, "p")}${e.end ? ` – ${format(e.end, "p")}` : ""}`;
+  return (
+    <div
+      className={`cal-event ${e.allDay ? "all-day" : ""}`}
+      style={{ "--ev": e.feed.color } as React.CSSProperties}
+      title={`${e.title}\n${when}${e.location ? `\n${e.location}` : ""}\n${e.feed.name}`}
+    >
+      <CalendarDays size={11} />
+      {time && <span className="ev-time">{time}</span>}
+      <span className="ev-title">{e.title}</span>
     </div>
   );
 }
@@ -64,6 +82,15 @@ export function CalendarView({ board, lists, cards }: { board: Board; lists: Lis
     const n = differenceInCalendarDays(end, start) + 1;
     return Array.from({ length: n }, (_, i) => addDays(start, i));
   }, [month, weekStartsOn]);
+
+  // Events from the board's calendar feeds (Google Calendar etc.), read-only.
+  const range = useMemo(() => ({ from: days[0], to: addDays(days[days.length - 1], 1) }), [days]);
+  const feeds = useFeedEvents(board, range.from, range.to);
+  const eventsByDay = useMemo(() => {
+    const m: Record<string, FeedEvent[]> = {};
+    for (const e of feeds.events) for (const d of eventDays(e)) (m[d] ??= []).push(e);
+    return m;
+  }, [feeds.events]);
 
   const byDay = useMemo(() => {
     const m: Record<string, Card[]> = {};
@@ -112,6 +139,16 @@ export function CalendarView({ board, lists, cards }: { board: Board; lists: Lis
           <button className="btn sm" onClick={() => setMonth(startOfMonth(new Date()))}>
             Today
           </button>
+          {feeds.hasFeeds && (
+            <button className="btn ghost sm" title="Fetch the calendars again now" onClick={feeds.reload}>
+              <RefreshCw size={13} /> Calendars
+            </button>
+          )}
+          {feeds.errors.length > 0 && (
+            <span className="small danger-text" title={feeds.errors.map((e) => `${e.feed.name}: ${e.message}`).join("\n")}>
+              Couldn't load {feeds.errors.map((e) => e.feed.name).join(", ")}
+            </span>
+          )}
         </div>
         <div className="cal-grid head">
           {days.slice(0, 7).map((d) => format(d, "EEE")).map((d) => (
@@ -138,7 +175,12 @@ export function CalendarView({ board, lists, cards }: { board: Board; lists: Lis
                     </button>
                   )}
                 </div>
-                <div className="cal-chips">{(byDay[iso] ?? []).map(chip)}</div>
+                <div className="cal-chips">
+                  {(eventsByDay[iso] ?? []).map((e, i) => (
+                    <EventChip key={`${e.feed.id}-${i}-${e.start.getTime()}`} event={e} />
+                  ))}
+                  {(byDay[iso] ?? []).map(chip)}
+                </div>
               </DropCell>
             );
           })}

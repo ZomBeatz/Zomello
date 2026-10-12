@@ -237,6 +237,7 @@ fn start(app: &AppHandle) {
         .route("/api/events", get(events))
         .route("/api/attachment", post(upload))
         .route("/api/file/{*rel}", get(file))
+        .route("/api/calendar/{board}/{feed}", get(calendar_feed))
         .route("/setup", get(setup_page))
         .route("/zomello-ca.crt", get(ca_cert))
         .fallback(get(asset))
@@ -670,6 +671,29 @@ async fn file(State(app): State<AppHandle>, headers: HeaderMap, UrlPath(rel): Ur
             Err(_) => StatusCode::NOT_FOUND.into_response(),
         },
         Err(_) => StatusCode::FORBIDDEN.into_response(),
+    }
+}
+
+/// A board's calendar feed, fetched by this computer. Only addresses saved on a board can be fetched,
+/// so a device can't make this computer download arbitrary sites.
+async fn calendar_feed(State(app): State<AppHandle>, headers: HeaderMap, UrlPath((board, feed)): UrlPath<(String, String)>) -> Response {
+    if device(&app, &headers).is_none() {
+        return unauthorized();
+    }
+    let url = crate::read_data(&app)
+        .ok()
+        .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
+        .and_then(|d| {
+            d["boards"][&board]["calendarFeeds"]
+                .as_array()?
+                .iter()
+                .find(|f| f["id"] == feed.as_str())
+                .and_then(|f| f["url"].as_str().map(str::to_string))
+        });
+    let Some(url) = url else { return StatusCode::NOT_FOUND.into_response() };
+    match crate::calendar::fetch_text(&url).await {
+        Ok(ics) => ([(header::CONTENT_TYPE, "text/calendar; charset=utf-8")], ics).into_response(),
+        Err(e) => (StatusCode::BAD_GATEWAY, e).into_response(),
     }
 }
 

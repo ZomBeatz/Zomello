@@ -63,6 +63,7 @@ export const defaultSettings = (): Settings => ({
   unlockedStyles: [],
   onboarded: false,
   collapsedCategories: [],
+  runInBackground: false,
 });
 
 export const newBoard = (title: string, color: string, order: number): Board => ({
