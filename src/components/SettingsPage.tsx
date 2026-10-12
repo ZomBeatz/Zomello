@@ -14,7 +14,7 @@ import { ask, Avatar, InlineEdit } from "./ui";
 import { DevicesPanel } from "./DevicesPanel";
 import { DesktopPanel } from "./DesktopPanel";
 import { LogoMark } from "./Logo";
-import { padPressed, type Vowel } from "../partyCat";
+import { padPressed, preloadPads, type Vowel } from "../partyCat";
 import { isRemote } from "../remote";
 
 const A11Y_OPTIONS: { key: keyof A11ySettings; name: string; hint: string }[] = [
@@ -484,16 +484,21 @@ function ZoomSlider({ zoom, onPreview }: { zoom: number; onPreview: (z: number |
 /** Version and credits, plus three little beat pads (they sing; there may be a song in them). */
 function AboutPanel() {
   const [hit, setHit] = useState<Vowel | null>(null);
+  const [bop, setBop] = useState(0);
+  useEffect(() => void preloadPads(), []);
   const pads: { v: Vowel; title: string }[] = [
-    { v: "O", title: "Boom" },
-    { v: "I", title: "Tick" },
-    { v: "A", title: "Clap" },
+    { v: "O", title: "Pad 1" },
+    { v: "I", title: "Pad 2" },
+    { v: "A", title: "Pad 3" },
   ];
   return (
     <section className="panel" id="set-about">
       <h3>About Zomello</h3>
       <div className="about-row">
-        <LogoMark size={44} />
+        {/* Bops along while the notes are right. */}
+        <span key={bop} className={bop ? "about-logo bop" : "about-logo"}>
+          <LogoMark size={44} />
+        </span>
         <div>
           <p>
             <b>Zomello</b> {__APP_VERSION__}
@@ -510,7 +515,8 @@ function AboutPanel() {
               onClick={() => {
                 setHit(p.v);
                 setTimeout(() => setHit(null), 120);
-                padPressed(p.v);
+                const r = padPressed(p.v);
+                setBop(r.streak > 1 && !r.done ? (n) => n + 1 : 0);
               }}
             />
           ))}

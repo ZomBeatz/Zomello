@@ -1479,3 +1479,10 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 .cal-event.all-day { background: color-mix(in srgb, var(--ev) 32%, transparent); }
 .cal-event .ev-time { color: var(--text-2); font-variant-numeric: tabular-nums; }
 .cal-event .ev-title { overflow: hidden; text-overflow: ellipsis; }
+.about-logo { display: inline-flex; }
+.about-logo.bop { animation: bop .22s ease-out; }
+@keyframes bop { 40% { transform: translateY(-4px) rotate(-4deg); } }
+@media (prefers-reduced-motion: reduce) { .about-logo.bop { animation: none; } }
+/* Quick repeated taps (the I-I-I part) must count every time, never become a double-tap zoom. */
+.beat-pad { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+@media (hover: none) and (pointer: coarse) { .beat-pad { width: 44px; height: 44px; } }
