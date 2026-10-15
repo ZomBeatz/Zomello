@@ -71,7 +71,9 @@ shared by invitation, and admins manage people and boards from the Admin page.
 ```bash
 docker compose up -d      # then open http://<server>:7311 and create the admin account
 ```
-Setup, https options, backups and password recovery: [docs/server.md](docs/server.md).
+Pushing to GitHub builds a ready-made image (`ghcr.io/<you>/zomello-server`, for PCs and Raspberry Pis), so a server
+only needs [deploy/docker-compose.yml](deploy/docker-compose.yml). Step-by-step setup, https options, backups and
+password recovery: [docs/server.md](docs/server.md).
 
 ## Run
 ```bash

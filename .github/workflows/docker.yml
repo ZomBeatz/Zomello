@@ -1,0 +1,44 @@
+# Builds the Zomello Server Docker image on GitHub's machines and publishes it to GitHub's container
+# registry as ghcr.io/<your-github-name>/zomello-server, for PCs/VPSes (amd64) and Raspberry Pis (arm64).
+# Runs on every push to master/main, on version tags like v0.2.0, and from the Actions tab.
+name: Server image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, main]
+    tags: ["v*"]
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/zomello-server
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=sha,format=short
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Reuse unchanged layers (dependencies) between runs; the first arm64 build is slow.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
