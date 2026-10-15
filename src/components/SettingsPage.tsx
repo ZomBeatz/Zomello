@@ -154,17 +154,23 @@ export function SettingsPage() {
             </button>
           </div>
         )}
+        {settings.style === "partycat" && (
+          <label className="check-row">
+            <input type="checkbox" checked={settings.catSings !== false} onChange={(e) => updateSettings({ catSings: e.target.checked })} />
+            Let the cat sing (now and then, and when you click it)
+          </label>
+        )}
         <div className="field-row">
           <label>Accent</label>
           <div className="swatches">
             <button
               className={`swatch none ${settings.accent === null ? "sel" : ""}`}
-              title={{ classic: "Zomello blue", bassdrop: "Bass Drop pink", partycat: "Party Cat lime" }[settings.style] + " (default)"}
+              title={{ classic: "Zomello blue", bassdrop: "Bass Drop pink", partycat: "Party Cat teal" }[settings.style] + " (default)"}
               style={{
                 background: {
                   classic: "linear-gradient(135deg, #2580c3, #4fb0ec)",
                   bassdrop: "linear-gradient(135deg, #ff3fa4, #22e1ff)",
-                  partycat: "linear-gradient(135deg, #b8f53b, #9d7bff)",
+                  partycat: "linear-gradient(135deg, #3dd6d0, #ff5e7e)",
                 }[settings.style],
               }}
               onClick={() => updateSettings({ accent: null })}
