@@ -65,6 +65,14 @@ Zomello runs on Windows 10/11 too (it uses the built-in Edge WebView2). Ways to 
 The installer is unsigned, so Windows SmartScreen will say "Windows protected your PC" — click **More info → Run anyway**.
 It installs per-user (no admin needed); data lives in `%APPDATA%\com.zombeatz.zomello`.
 
+## Zomello Server (several people, on a server)
+Run Zomello on a home server, NAS, Raspberry Pi or VPS. Everyone gets their own account and boards, boards can be
+shared by invitation, and admins manage people and boards from the Admin page.
+```bash
+docker compose up -d      # then open http://<server>:7311 and create the admin account
+```
+Setup, https options, backups and password recovery: [docs/server.md](docs/server.md).
+
 ## Run
 ```bash
 npm install

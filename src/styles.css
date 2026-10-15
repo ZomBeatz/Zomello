@@ -1495,3 +1495,43 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 .spin-cat-spot { display: flex; justify-content: center; padding: 4px 0 8px; }
 .spin-cat { background-image: url("/spin-cat.webp"); background-repeat: no-repeat; background-position: 0 0; border-radius: 12px; image-rendering: auto; }
 .spin-cat:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Zomello Server: admin, sharing, account ---------- */
+.admin .panel { display: flex; flex-direction: column; gap: 10px; }
+.admin-stats { display: flex; gap: 18px; flex-wrap: wrap; align-items: baseline; }
+.admin-stats b { font-size: 18px; }
+.admin-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.admin-list > li { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); }
+.admin-list > li:first-child { border-top: none; }
+.admin-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.admin-user.off { opacity: .6; }
+.admin-actions { flex-shrink: 0; }
+.admin-board .board-dot { margin-top: 5px; }
+.admin-members { align-items: center; }
+.admin-members select { padding: 2px 6px; font-size: 12.5px; }
+.admin-add { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; align-items: end; padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+.admin-add label:not(.check-row) { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-2); font-weight: 600; }
+.admin-created { padding: 12px; border-radius: 10px; background: var(--accent-soft); display: flex; flex-direction: column; gap: 8px; }
+.admin-created p { margin: 0; }
+.admin-created pre { margin: 0; padding: 10px; background: var(--surface); border-radius: 8px; font-size: 13px; white-space: pre-wrap; }
+.admin-reset input { width: 200px; }
+.chip.accent { background: var(--accent-soft); color: var(--accent); }
+.gap-xs { gap: 2px; }
+.share-body { display: flex; flex-direction: column; gap: 10px; }
+.share-body h4 { margin: 8px 0 0; font-size: 13px; color: var(--text-2); }
+.share-invite { display: flex; gap: 8px; }
+.share-invite input { flex: 1; min-width: 0; }
+.share-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.share-list li { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+.btn.danger-outline { color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); align-self: flex-start; }
+.invites-panel { border-color: var(--accent); }
+.invites-panel li { display: flex; align-items: center; gap: 10px; padding: 6px 0; flex-wrap: wrap; }
+.account-btn { display: flex; align-items: center; gap: 8px; }
+.shared-icon { color: var(--muted); flex-shrink: 0; }
+.password-form { display: flex; flex-direction: column; gap: 6px; max-width: 320px; margin: 6px 0; } .password-form .step-title { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+
+/* Zomello Server: installing the server's own certificate */
+.cert-hint { max-width: 360px; text-align: left; font-size: 13px; }
+.cert-hint summary { cursor: pointer; color: var(--accent); }
+.cert-hint ol { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 6px; line-height: 1.45; }
+.page .cert-hint { max-width: none; margin-top: 10px; }

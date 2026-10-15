@@ -13,6 +13,8 @@ import type { A11ySettings } from "../types";
 import { ask, Avatar, InlineEdit } from "./ui";
 import { DevicesPanel } from "./DevicesPanel";
 import { DesktopPanel } from "./DesktopPanel";
+import { AccountPanel } from "./AccountPanel";
+import { isServer } from "../server";
 import { LogoMark } from "./Logo";
 import { padPressed, preloadPads, type Vowel } from "../partyCat";
 import { isRemote } from "../remote";
@@ -94,6 +96,7 @@ export function SettingsPage() {
       <h1>Settings</h1>
       <nav className="settings-nav" aria-label="Settings sections">
         {[
+          ...(isServer ? [["account", "Account"]] : []),
           ["appearance", "Appearance"],
           ["accessibility", "Accessibility"],
           ["people", "People"],
@@ -109,6 +112,8 @@ export function SettingsPage() {
           </button>
         ))}
       </nav>
+
+      {isServer && <AccountPanel />}
 
       <section className="panel" id="set-appearance">
         <h3>Appearance</h3>
@@ -267,7 +272,12 @@ export function SettingsPage() {
 
       <section className="panel" id="set-people">
         <h3>People</h3>
-        <p className="muted small">People you can assign tasks to. Click a name to rename it everywhere. "Me" is you: it drives My Tasks, Home and reminders.</p>
+        <p className="muted small">
+          {isServer
+            ? "Everyone on this server can be assigned tasks. You can also add names of people who don't have an account."
+            : 'People you can assign tasks to. Click a name to rename it everywhere. "Me" is you: it drives My Tasks, Home and reminders.'}
+        </p>
+        {!isServer && (
         <div className="field-row">
           <label>Me</label>
           <select value={settings.me} onChange={(e) => updateSettings({ me: e.target.value })}>
@@ -277,6 +287,7 @@ export function SettingsPage() {
             ))}
           </select>
         </div>
+        )}
         <div className="row wrap gap-sm">
           {settings.people.map((p) => (
             <span key={p} className="chip">
@@ -368,9 +379,12 @@ export function SettingsPage() {
           <button className="btn" onClick={doExport}>
             <Download size={14} /> Export JSON
           </button>
-          <button className="btn" onClick={() => fileRef.current?.click()}>
-            <Upload size={14} /> Restore from Zomello JSON
-          </button>
+          {/* On a shared server a restore would replace other people's boards too. */}
+          {!isServer && (
+            <button className="btn" onClick={() => fileRef.current?.click()}>
+              <Upload size={14} /> Restore from Zomello JSON
+            </button>
+          )}
           <button className="btn" onClick={() => useStore.getState().setOverlay({ importOpen: true })}>
             <FileUp size={14} /> Import from Trello / Planner
           </button>

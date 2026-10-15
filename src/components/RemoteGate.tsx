@@ -3,6 +3,7 @@ import { Smartphone, Wifi, WifiOff } from "lucide-react";
 import {
   guessDeviceName, httpsTrusted, isIOS, isRemote, onConnectionChange, remotePair, remoteStatus, UNPAIRED_EVENT,
 } from "../remote";
+import { isServer, onServerConnection } from "../server";
 import { LogoMark } from "./Logo";
 
 type Gate = "checking" | "paired" | "unpaired" | "unreachable";
@@ -161,11 +162,11 @@ export function SecureBanner() {
 export function ConnectionBanner() {
   const [state, setState] = useState<"ok" | "reconnecting" | "back">("ok");
   useEffect(() => {
-    if (!isRemote) return;
+    if (!isRemote && !isServer) return;
     let showTimer: ReturnType<typeof setTimeout> | undefined;
     let hideTimer: ReturnType<typeof setTimeout> | undefined;
     let shown = false;
-    const off = onConnectionChange((online) => {
+    const off = (isServer ? onServerConnection : onConnectionChange)((online) => {
       clearTimeout(showTimer);
       clearTimeout(hideTimer);
       if (!online) {

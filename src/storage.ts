@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { isRemote, remoteFileUrl, remoteLoad, remoteSave, remoteUpload } from "./remote";
+import { fileUrl as serverFileUrl, isServer, loadData as serverLoad, upload as serverUpload } from "./server";
 
 /** True when running inside the Tauri shell; false in a plain browser (vite dev). */
 export const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -8,6 +9,7 @@ const LS_KEY = "zomello-data";
 const LEGACY_LS_KEY = "planwise-data";
 
 export async function loadRaw(): Promise<string | null> {
+  if (isServer) return serverLoad();
   if (isRemote) return remoteLoad();
   if (inTauri) {
     return (await invoke<string | null>("load_data")) ?? null;
@@ -53,7 +55,8 @@ export async function readBackup(timestamp: number): Promise<string> {
 }
 
 export async function dataLocation(): Promise<string> {
-  if (isRemote) return "On your PC (this device is connected to it)";
+  if (isServer) return "On your Zomello Server (an admin can back it up from the Admin page)";
+  if (isRemote) return "On your computer (this device is connected to it)";
   return inTauri ? invoke<string>("data_location") : "Browser localStorage (dev mode)";
 }
 
@@ -77,6 +80,7 @@ export async function openExternal(target: string): Promise<void> {
 
 /** Copy a file into Zomello's storage. Returns the value to keep in `Attachment.url`. */
 export async function storeFile(file: File): Promise<string> {
+  if (isServer) return serverUpload(file);
   if (isRemote) return remoteUpload(file);
   if (inTauri) {
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -105,6 +109,7 @@ export async function fileFromPath(path: string): Promise<File> {
 /** URL the webview can display for a stored file (images, previews). */
 export function storedSrc(url: string): string {
   if (url.startsWith("data:")) return url;
+  if (isServer) return /^[a-z]+:/i.test(url) ? url : serverFileUrl(url);
   if (isRemote) return /^[a-z]+:/i.test(url) ? url : remoteFileUrl(url);
   if (!inTauri) return url;
   // Served by the app itself (see `serve_attachment` in lib.rs); Windows' webview needs the http form.
@@ -135,7 +140,7 @@ export async function cleanupStoredFiles(referenced: Set<string>): Promise<numbe
 
 // ---- Notifications ----
 export async function notify(title: string, body: string): Promise<void> {
-  if (isRemote) return; // reminders come from the PC
+  if (isRemote) return; // reminders come from the computer
   if (inTauri) {
     const n = await import("@tauri-apps/plugin-notification");
     let ok = await n.isPermissionGranted();

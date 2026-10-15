@@ -21,6 +21,10 @@ import { applyZoom, installZoomControls } from "./zoom";
 import { startFocusWatcher } from "./focus";
 import { isBoardWindow, onOtherWindowData, setWindowTitle } from "./windows";
 import { isRemote } from "./remote";
+import { isServer, loadData as serverLoadData, RELOAD_EVENT, subscribe as serverSubscribe } from "./server";
+import { useInvites } from "./invites";
+import { AdminPage } from "./components/AdminPage";
+import { ShareDialog } from "./components/ShareDialog";
 import { inTauri } from "./storage";
 import { installLongPressMenus, useIsPhone } from "./mobile";
 import { installFileDropPolicy } from "./fileDrop";
@@ -46,6 +50,7 @@ export default function App() {
   const importOpen = useStore((s) => s.importOpen);
   const aiDialog = useStore((s) => s.aiDialog);
   const customizeBoard = useStore((s) => (s.customizeBoardId ? s.data.boards[s.customizeBoardId] : undefined));
+  const shareBoard = useStore((s) => (s.shareBoardId ? s.data.boards[s.shareBoardId] : undefined));
   const settings = useStore((s) => s.data.settings);
   const boardExists = useStore((s) => route.page !== "board" || !!s.data.boards[route.boardId]);
 
@@ -70,6 +75,23 @@ export default function App() {
     const a = startReminders();
     const b = startFocusWatcher();
     return () => (a(), b());
+  }, [loaded]);
+
+  // Zomello Server: other people's changes, your other tabs, sharing changes and invitations.
+  useEffect(() => {
+    if (!loaded || !isServer) return;
+    const reload = () => void serverLoadData().then((json) => useStore.getState().reloadFromServer(json)).catch(() => {});
+    const off = serverSubscribe({
+      ops: (ops) => useStore.getState().applyServerOps(ops),
+      user: (doc) => useStore.getState().applyServerUserDoc(doc),
+      reload,
+      invites: () => void useInvites.getState().refresh(),
+    });
+    window.addEventListener(RELOAD_EVENT, reload);
+    return () => {
+      off();
+      window.removeEventListener(RELOAD_EVENT, reload);
+    };
   }, [loaded]);
 
   // Other windows' saves (board windows ↔ main window).
@@ -166,7 +188,7 @@ export default function App() {
         <ConnectionBanner />
         <SecureBanner />
         {/* On a phone, a dropped connection is retried automatically (the reconnect pill covers it). */}
-        {saveError && !(isRemote && /fetch|network|load failed/i.test(saveError)) && (
+        {saveError && !((isRemote || isServer) && /fetch|network|load failed/i.test(saveError)) && (
           <div className="save-error">Saving failed: {saveError}</div>
         )}
         <ErrorBoundary resetKey={route} onHome={() => useStore.getState().navigate({ page: "home" })}>
@@ -176,6 +198,7 @@ export default function App() {
           {route.page === "board" && !boardExists && <HomePage />}
           {route.page === "archive" && <ArchivePage />}
           {route.page === "settings" && <SettingsPage />}
+          {route.page === "admin" && <AdminPage />}
         </ErrorBoundary>
       </main>
       {openCardId && (
@@ -188,6 +211,7 @@ export default function App() {
       {importOpen && <ImportDialog />}
       {aiDialog && <AiDialog init={aiDialog} />}
       {customizeBoard && <BoardCustomize board={customizeBoard} />}
+      {shareBoard && <ShareDialog board={shareBoard} onClose={() => useStore.getState().setOverlay({ shareBoardId: null })} />}
       {helpOpen && <HelpWindow />}
       {(welcomeOpen || (!settings.onboarded && !isBoardWindow && !isRemote)) && (
         <WelcomeGuide onClose={() => useStore.getState().setOverlay({ welcomeOpen: false })} />

@@ -3,6 +3,7 @@ import { addDays, startOfDay } from "date-fns";
 import type { Board, CalendarFeed } from "./types";
 import { inTauri } from "./storage";
 import { isRemote } from "./remote";
+import { isServer } from "./server";
 import { toISO } from "./utils";
 
 /**
@@ -246,7 +247,7 @@ async function download(boardId: string, feed: CalendarFeed): Promise<string> {
     const { invoke } = await import("@tauri-apps/api/core");
     return invoke<string>("fetch_calendar", { url: feed.url });
   }
-  if (isRemote) {
+  if (isRemote || isServer) {
     const res = await fetch(`/api/calendar/${encodeURIComponent(boardId)}/${encodeURIComponent(feed.id)}`, { credentials: "same-origin" });
     if (!res.ok) throw new Error((await res.text()) || `${res.status}`);
     return res.text();
