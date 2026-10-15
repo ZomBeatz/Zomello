@@ -9,15 +9,68 @@ Zomello for several people on one always-on machine: a home server, NAS, Raspber
 
 It's the same app as the desktop version, in the browser. Phones and tablets can install it as an app ("Add to Home screen" / "Install app") once it's served over https.
 
-## Install with Docker (recommended)
+## Setup guide
 
-In the Zomello folder:
+Three parts. Parts 1 and 2 happen once, on your PC. Part 3 happens on the server.
 
-```bash
-docker compose up -d
+```
+Your PC  ──git push──▶  GitHub  ──builds the image──▶  ghcr.io  ◀──docker pull──  Your server
 ```
 
-Then open `http://<server-address>:7311`. The first visit asks you to create the **admin account**. After that, open **Admin** in the sidebar to add people.
+### Part 1: Put Zomello on GitHub (on your PC, once)
+
+1. On github.com, click **New repository**. Name it `zomello` and leave every "Add a README / .gitignore / license" box unticked. **Private** is fine.
+2. In the Zomello folder, connect it and upload. Swap in your username:
+   ```bash
+   git remote add origin git@github.com:YOUR-GITHUB-NAME/zomello.git
+   git push -u origin master
+   ```
+   This uses your SSH key. If GitHub doesn't know it yet, add `~/.ssh/id_ed25519.pub` under GitHub → Settings → SSH and GPG keys.
+
+After that, `git push` uploads new changes whenever you want.
+
+### Part 2: Let GitHub build the server image (automatic)
+
+Every push starts **Actions → Server image**. It builds Zomello Server for normal PCs/VPSes and for Raspberry Pis, then publishes it as `ghcr.io/your-github-name/zomello-server`. The first build takes a while, roughly 30–60 minutes, because the Raspberry Pi version is built under emulation. Later builds reuse the unchanged parts.
+
+When it shows a green check, the image is under **Packages** on your GitHub profile.
+
+**If the repository is private**, the image is private too. Pick one:
+- **Make just the image public:** Packages → zomello-server → Package settings → Change visibility → Public. The code stays private; only the built app is public.
+- **Keep it private:** the server signs in once. Make a token on GitHub (Settings → Developer settings → Personal access tokens → Tokens (classic)) with only the `read:packages` box ticked, then on the server run:
+  ```bash
+  docker login ghcr.io -u YOUR-GITHUB-NAME
+  ```
+  Paste the token as the password.
+
+### Part 3: Run it on the server
+
+1. **Install Docker**, if the server doesn't have it. On Debian/Ubuntu/Raspberry Pi OS: `curl -fsSL https://get.docker.com | sh`. Unraid, TrueNAS and Synology have Docker in their app centers.
+2. **Make a folder** and put in it the file [`deploy/docker-compose.yml`](../deploy/docker-compose.yml) from this repository:
+   ```bash
+   mkdir ~/zomello && cd ~/zomello
+   curl -O https://raw.githubusercontent.com/YOUR-GITHUB-NAME/zomello/master/deploy/docker-compose.yml
+   ```
+   For a private repository, download the file from GitHub in a browser and copy it over.
+3. **Edit** `docker-compose.yml` and replace `YOUR-GITHUB-NAME` with your username **in lowercase**.
+4. **Start it:**
+   ```bash
+   docker compose up -d
+   ```
+5. **Open** `http://<server-address>:7311` in a browser. It asks you to create the **admin account**.
+6. **Add people:** sidebar → **Admin** → **Add a person**. Send them the sign-in details it gives you.
+7. **Phones and tablets:** to install Zomello as an app they need https. See *https: pick one* below. Tailscale is the easiest.
+
+**Updating** after you push changes and the GitHub build finishes:
+```bash
+cd ~/zomello && docker compose pull && docker compose up -d
+```
+
+### Or: build it on the server instead of GitHub
+
+If the server has the source code (`git clone` it), `docker compose up -d` in the Zomello folder builds the image right there. It uses the `docker-compose.yml` at the top of the repository and needs no GitHub packages. Update with `git pull && docker compose up -d --build`.
+
+## Where the data lives
 
 Everything Zomello stores lives in the `zomello-data` volume (`/data` inside the container):
 
@@ -28,7 +81,7 @@ Everything Zomello stores lives in the `zomello-data` volume (`/data` inside the
 | `backups/` | a copy of the database every day, last 14 kept |
 | `tls/` | the server's own certificate, if `ZOMELLO_TLS=self` |
 
-To update, rebuild and restart: `docker compose up -d --build`. Your data stays in the volume.
+Updating never touches the volume, so your data stays put.
 
 The image builds on x86-64 and on arm64 (Raspberry Pi 4/5) alike. It's about 46 MB and runs as a non-root user with no shell inside.
 

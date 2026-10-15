@@ -1,0 +1,30 @@
+# Zomello Server, using the image GitHub builds for you (no source code needed on the server).
+#
+# 1. Replace YOUR-GITHUB-NAME below with your GitHub username, in lowercase.
+# 2. docker compose up -d
+# 3. Open http://<this-server>:7311 and create the admin account.
+#
+# Update later with:  docker compose pull && docker compose up -d
+services:
+  zomello:
+    image: ghcr.io/YOUR-GITHUB-NAME/zomello-server:latest
+    container_name: zomello
+    restart: unless-stopped
+    ports:
+      - "7311:7311"
+    volumes:
+      - zomello-data:/data
+    environment:
+      # The address people type, shown on the Admin page. Optional.
+      # ZOMELLO_PUBLIC_URL: "https://zomello.example.com"
+
+      # https. Leave off when Tailscale, Caddy, Nginx or Traefik serve https in front of Zomello.
+      #   self:  Zomello makes its own certificate (install it on each device from the sign-in page)
+      #   files: use your own certificate, e.g. mounted into /certs
+      ZOMELLO_TLS: "off"
+      # ZOMELLO_HOSTS: "zomello.lan,192.168.1.50"   # names/addresses for the `self` certificate
+      # ZOMELLO_TLS_CERT: /certs/fullchain.pem
+      # ZOMELLO_TLS_KEY: /certs/privkey.pem
+
+volumes:
+  zomello-data:
