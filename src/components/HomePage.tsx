@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { addDays } from "date-fns";
-import { AlertTriangle, CalendarClock, CheckCircle2, FileUp, FolderOpen, Plus, Sparkles, Sun, Timer } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, FileUp, FolderOpen, Mail, Users, Plus, Sparkles, Sun, Timer } from "lucide-react";
 import { openBoardWindow } from "../windows";
 import type { Card } from "../types";
 import { useStore } from "../store";
@@ -8,6 +8,8 @@ import { boardCategories, byOrder, dueStatus, isLate, PALETTE, prettyDate, toISO
 import { ColorPicker, Empty, ProgressIcon } from "./ui";
 import { openCardMenu, openContextMenu } from "./ContextMenu";
 import { boardMenu } from "./boardMenu";
+import { useInvites } from "../invites";
+import { answerInvite, isServer, loadData as serverLoadData } from "../server";
 
 export function HomePage() {
   const data = useStore((s) => s.data);
@@ -81,7 +83,10 @@ export function HomePage() {
         title="Middle-click to open in a new window; right-click for more"
       >
         <span className="tile-band" style={{ background: b.color }} />
-        <span className="tile-title">{b.title}</span>
+        <span className="tile-title">
+          {b.title}
+          {(b.members?.length ?? 0) > 1 && <Users size={13} className="shared-icon" aria-label="Shared" />}
+        </span>
         <span className="muted small">
           {done}/{cs.length} done{late ? ` · ${late} late` : ""}
         </span>
@@ -104,6 +109,7 @@ export function HomePage() {
         {open.length} open task{open.length === 1 ? "" : "s"} across {boards.length} board{boards.length === 1 ? "" : "s"}.
       </p>
 
+      <Invitations />
       <div className="home-grid">
         {sections.map((s) => (
           <section key={s.title} className={`panel ${s.tone ?? ""}`}>
@@ -179,5 +185,45 @@ export function HomePage() {
       )}
       {boards.length === 0 && <Empty title="No boards yet">Create one above to get started.</Empty>}
     </div>
+  );
+}
+
+/** Zomello Server: boards you've been invited to. */
+function Invitations() {
+  const invites = useInvites((s) => s.invites);
+  if (!isServer || invites.length === 0) return null;
+  const answer = async (id: string, a: "accept" | "decline", title: string) => {
+    try {
+      await answerInvite(id, a);
+      await useInvites.getState().refresh();
+      if (a === "accept") {
+        useStore.getState().reloadFromServer(await serverLoadData());
+        useStore.getState().toast(`“${title}” is on your boards now`);
+      }
+    } catch (e) {
+      useStore.getState().toast(String(e instanceof Error ? e.message : e));
+    }
+  };
+  return (
+    <section className="panel invites-panel">
+      <h3>
+        <Mail size={16} /> Invitations <span className="count">{invites.length}</span>
+      </h3>
+      <ul className="home-list">
+        {invites.map((i) => (
+          <li key={i.id}>
+            <span className="grow">
+              <b>{i.from}</b> invited you to <b>{i.boardTitle}</b>
+            </span>
+            <button className="btn sm primary" onClick={() => void answer(i.id, "accept", i.boardTitle)}>
+              Accept
+            </button>
+            <button className="btn sm ghost" onClick={() => void answer(i.id, "decline", i.boardTitle)}>
+              Decline
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

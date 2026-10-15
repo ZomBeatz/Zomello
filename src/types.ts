@@ -220,6 +220,9 @@ export interface Board {
   category?: string | null;
   /** Calendars shown (read-only) in this board's Calendar view. */
   calendarFeeds?: CalendarFeed[];
+  /** Zomello Server only (set by the server): who owns the board, and everyone on it. */
+  ownerId?: ID;
+  members?: { userId: ID; displayName: string; username: string; role: "owner" | "member" }[];
   order: number;
   createdAt: number;
 }
@@ -345,7 +348,9 @@ export type Route =
   | { page: "mytasks" }
   | { page: "board"; boardId: ID }
   | { page: "archive" }
-  | { page: "settings" };
+  | { page: "settings" }
+  /** Zomello Server: admins only. */
+  | { page: "admin" };
 
 /** A countdown ("focus") timer, optionally tied to a card's time tracking. */
 export interface FocusTimer {

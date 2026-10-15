@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { AppWindow, Archive, Bot, Check, ClipboardCopy, Copy, ExternalLink, FolderOpen, FolderX, LayoutTemplate, Palette, Pencil, Plus, Star, Trash2 } from "lucide-react";
+import { AppWindow, Archive, Bot, Check, ClipboardCopy, Copy, ExternalLink, FolderOpen, FolderX, LayoutTemplate, LogOut, Palette, Pencil, Plus, Star, Trash2, Users } from "lucide-react";
 import { boardCategories } from "../utils";
 import type { Board } from "../types";
 import { useStore } from "../store";
 import { archiveBoard, deleteBoard } from "../actions";
 import { openBoardWindow } from "../windows";
 import type { MenuEntry } from "./ContextMenu";
+import { isServer, leaveBoard, ownsBoard } from "../server";
 import { workOrder } from "../ai";
 import { copyText } from "./Markdown";
 
@@ -14,6 +15,7 @@ export function boardMenu(board: Board, opts: { onRename?: () => void } = {}): M
   const st = useStore.getState();
   return [
     { label: "Open", icon: <ExternalLink size={14} />, onClick: () => st.navigate({ page: "board", boardId: board.id }) },
+    ...(isServer ? [{ label: ownsBoard(board) ? "Share…" : "People on this board…", icon: <Users size={14} />, onClick: () => st.setOverlay({ shareBoardId: board.id }) }] : []),
     {
       label: "Open in new window",
       icon: <AppWindow size={14} />,
@@ -64,17 +66,20 @@ export function boardMenu(board: Board, opts: { onRename?: () => void } = {}): M
       onClick: () =>
         st.navigate({ page: "board", boardId: st.duplicateBoard(board.id, { title: `New ${board.title}`, withCards: false }) }),
     },
-    {
-      label: "Archive",
-      icon: <Archive size={14} />,
-      onClick: () => archiveBoard(board),
-    },
-    {
-      label: "Delete",
-      icon: <Trash2 size={14} />,
-      danger: true,
-      onClick: () => void deleteBoard(board),
-    },
+    // On a shared server, only a board's owner archives or deletes it; others can leave it.
+    ...(ownsBoard(board)
+      ? [
+          { label: "Archive", icon: <Archive size={14} />, onClick: () => archiveBoard(board) },
+          { label: "Delete", icon: <Trash2 size={14} />, danger: true, onClick: () => void deleteBoard(board) },
+        ]
+      : [
+          {
+            label: "Leave board",
+            icon: <LogOut size={14} />,
+            danger: true,
+            onClick: () => void leaveBoard(board.id).then(() => st.toast(`You left “${board.title}”`)),
+          },
+        ]),
   ];
 }
 

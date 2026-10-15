@@ -4,6 +4,7 @@ import {
 } from "lucide-react";
 import { useStore } from "../store";
 import { byOrder } from "../utils";
+import { isServer, loadData, updateProfile } from "../server";
 import { LogoMark } from "./Logo";
 import { Modal } from "./ui";
 
@@ -25,7 +26,10 @@ export function WelcomeGuide({ onClose }: { onClose: () => void }) {
   const finish = () => {
     const st = useStore.getState();
     const me = st.data.settings.me;
-    if (name.trim() && name.trim() !== me) {
+    if (isServer && name.trim() && name.trim() !== me) {
+      // On a server your name belongs to your account.
+      void updateProfile(name.trim()).then(async () => st.reloadFromServer(await loadData())).catch(() => {});
+    } else if (name.trim() && name.trim() !== me) {
       if (me) st.renamePerson(me, name.trim());
       else st.updateSettings({ me: name.trim(), people: [...new Set([...st.data.settings.people, name.trim()])] });
     }
@@ -61,7 +65,9 @@ export function WelcomeGuide({ onClose }: { onClose: () => void }) {
               <div>
                 <h2>{firstRun ? "Welcome to Zomello" : "Zomello in a minute"}</h2>
                 <p className="muted">
-                  Boards like Trello, task details like Planner, and everything stays on this computer. No account needed.
+                  {isServer
+                    ? "Boards like Trello and task details like Planner, on your own Zomello Server. Make your own boards, or work on boards people share with you."
+                    : "Boards like Trello, task details like Planner, and everything stays on this computer. No account needed."}
                 </p>
               </div>
             </div>
@@ -74,7 +80,9 @@ export function WelcomeGuide({ onClose }: { onClose: () => void }) {
                 onChange={(e) => setName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && setStep(1)}
               />
-              <span className="muted small">Tasks assigned to you show up on Home and in My Tasks.</span>
+              <span className="muted small">
+                {isServer ? "This is how others see you on shared boards. " : ""}Tasks assigned to you show up on Home and in My Tasks.
+              </span>
             </label>
             <div className="welcome-field">
               Look

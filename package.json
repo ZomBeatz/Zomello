@@ -10,7 +10,9 @@
     "tauri": "tauri",
     "app": "tauri dev",
     "bundle": "tauri build",
-    "bundle:windows": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis"
+    "bundle:windows": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis",
+    "server": "npm run build && cargo build --release --manifest-path server/Cargo.toml",
+    "server:docker": "docker build -t zomello-server ."
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

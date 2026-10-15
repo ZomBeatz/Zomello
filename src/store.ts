@@ -7,6 +7,7 @@ import type {
 import type { ImportedBoard } from "./importers";
 import { broadcastData, isBoardWindow, windowBoardId } from "./windows";
 import { isRemote } from "./remote";
+import { isServer, mergeOps, pushChanges, rebaseSnapshot, setBase, type Ops } from "./server";
 import {
   blockLoopReason, byOrder, emptyFilter, fromISO, inverseLink, nextRecurrenceDate, PALETTE, subtaskLoopReason, toISO, todayISO, uid,
 } from "./utils";
@@ -259,8 +260,9 @@ export function normalize(raw: unknown): AppData {
       ...d.settings,
       reminders: { ...defaultSettings().reminders, ...d.settings?.reminders },
       a11y: { ...defaultSettings().a11y, ...d.settings?.a11y },
-      // Files from before the welcome guide existed belong to people who are already set up.
-      onboarded: d.settings?.onboarded ?? true,
+      // Files from before the welcome guide existed belong to people who are already set up; a new
+      // account on a Zomello Server hasn't seen it yet.
+      onboarded: d.settings?.onboarded ?? !isServer,
       unlockedStyles: d.settings?.unlockedStyles ?? [],
     },
   };
@@ -313,6 +315,8 @@ interface State {
   helpOpen: boolean;
   welcomeOpen: boolean;
   customizeBoardId: ID | null;
+  /** Zomello Server: the board whose Share window is open. */
+  shareBoardId: ID | null;
   toasts: Toast[];
   focus: FocusTimer | null;
   importOpen: boolean;
@@ -329,7 +333,7 @@ interface State {
   toast(text: string, opts?: { undo?: boolean; key?: string }): void;
   dismissToast(id: ID): void;
   setOverlay(
-    patch: Partial<Pick<State, "quickAddOpen" | "helpOpen" | "welcomeOpen" | "customizeBoardId" | "searchOpen" | "importOpen" | "aiDialog">>,
+    patch: Partial<Pick<State, "quickAddOpen" | "helpOpen" | "welcomeOpen" | "customizeBoardId" | "shareBoardId" | "searchOpen" | "importOpen" | "aiDialog">>,
   ): void;
 
   startFocus(minutes: number, cardId?: ID | null, label?: string): void;
@@ -341,6 +345,12 @@ interface State {
   replaceData(data: AppData): void;
   /** Adopt data another window just saved. */
   applyRemoteData(json: string): void;
+  /** Zomello Server: merge other people's changes. */
+  applyServerOps(ops: Ops): void;
+  /** Zomello Server: your own settings/view changed in another tab. */
+  applyServerUserDoc(doc: Pick<AppData, "settings" | "ui" | "templates" | "savedFilters">): void;
+  /** Zomello Server: load everything again (after sharing changes, or reconnecting). */
+  reloadFromServer(json: string): void;
   navigate(route: Route): void;
   /**
    * Open a card. With `via` set, the current card is kept on a trail so the user can step back
@@ -579,6 +589,7 @@ export const useStore = create<State>((set, get) => {
     helpOpen: false,
     welcomeOpen: false,
     customizeBoardId: null,
+    shareBoardId: null,
     toasts: [],
     focus: loadFocus(),
     importOpen: false,
@@ -623,7 +634,15 @@ export const useStore = create<State>((set, get) => {
       try {
         const raw = await loadRaw();
         lastJson = raw;
-        const data = raw ? normalize(JSON.parse(raw)) : sampleData();
+        let data = raw ? normalize(JSON.parse(raw)) : sampleData();
+        if (isServer) {
+          setBase(data);
+          // A brand-new account starts with the tutorial board (it's theirs, so it gets saved).
+          if (!data.settings.onboarded && Object.keys(data.boards).length === 0) {
+            const sample = sampleData();
+            data = { ...data, boards: sample.boards, lists: sample.lists, cards: sample.cards };
+          }
+        }
         const first = Object.values(data.boards).filter((b) => !b.archived).sort(byOrder)[0];
         const route: Route =
           windowBoardId && data.boards[windowBoardId]
@@ -638,6 +657,61 @@ export const useStore = create<State>((set, get) => {
         // Never overwrite a file we failed to parse: stay unloaded so autosave is disabled.
         set({ loadError: String(e) });
       }
+    },
+
+    applyServerOps(ops) {
+      // Fill in anything missing, the same as when loading a file (never trust the shape of incoming data).
+      ops = {
+        ...ops,
+        upserts: {
+          boards: (ops.upserts.boards ?? []).map((b) => {
+            const board = b as Board;
+            return { ...newBoard("", PALETTE[6], 0), ...board, id: board.id, display: { ...defaultDisplay(), ...board.display } };
+          }),
+          lists: (ops.upserts.lists ?? []).map((l) => ({ ...newList((l as List).boardId, "", 0), ...(l as List) })),
+          cards: (ops.upserts.cards ?? []).map((c) => ({ ...newCard((c as Card).boardId, (c as Card).listId, "", 0), ...(c as Card) })),
+        },
+      };
+      applyingRemote = true;
+      try {
+        set((s) => ({ data: mergeOps(s.data, ops) }));
+        // Keep undo from bringing back someone else's old version of a card.
+        past = past.map((p) => rebaseSnapshot(p, ops));
+        future = future.map((p) => rebaseSnapshot(p, ops));
+      } finally {
+        applyingRemote = false;
+      }
+      const st = get();
+      if (st.openCardId && !st.data.cards[st.openCardId]) set({ openCardId: null });
+      if (st.route.page === "board" && !st.data.boards[st.route.boardId]) set({ route: { page: "home" } });
+    },
+    applyServerUserDoc(doc) {
+      applyingRemote = true;
+      try {
+        set((s) => ({ data: { ...s.data, ...doc, settings: { ...s.data.settings, ...doc.settings, me: s.data.settings.me, people: s.data.settings.people } } }));
+      } finally {
+        applyingRemote = false;
+      }
+    },
+    reloadFromServer(json) {
+      let data: AppData;
+      try {
+        data = normalize(JSON.parse(json));
+      } catch {
+        return;
+      }
+      setBase(data);
+      past = [];
+      future = [];
+      applyingRemote = true;
+      try {
+        set({ data });
+      } finally {
+        applyingRemote = false;
+      }
+      const st = get();
+      if (st.openCardId && !data.cards[st.openCardId]) set({ openCardId: null });
+      if (st.route.page === "board" && !data.boards[st.route.boardId]) set({ route: { page: "home" } });
     },
 
     applyRemoteData(json) {
@@ -1208,10 +1282,15 @@ async function flush() {
   pending = null;
   saving = true;
   try {
-    const json = JSON.stringify(snapshot);
-    await saveRaw(json);
-    lastJson = json;
-    void broadcastData(json);
+    if (isServer) {
+      // Only what changed goes to the server.
+      await pushChanges(snapshot);
+    } else {
+      const json = JSON.stringify(snapshot);
+      await saveRaw(json);
+      lastJson = json;
+      void broadcastData(json);
+    }
     if (useStore.getState().saveError) useStore.setState({ saveError: null });
   } catch (e) {
     useStore.setState({ saveError: String(e) });

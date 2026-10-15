@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { archiveBoard, deleteBoard as deleteBoardAction } from "../actions";
+import { isServer, leaveBoard, ownsBoard } from "../server";
 import {
   Archive,
   BarChart3,
@@ -23,6 +24,8 @@ import {
   Star,
   Tag,
   Trash2,
+  Users,
+  LogOut,
   X,
 } from "lucide-react";
 import type { Board, DueFilter, Filter, GroupBy, ID, ViewMode } from "../types";
@@ -164,6 +167,17 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
             >
               Customize board…
             </MenuItem>
+            {isServer && (
+              <MenuItem
+                icon={<Users size={14} />}
+                onClick={() => {
+                  close();
+                  useStore.getState().setOverlay({ shareBoardId: board.id });
+                }}
+              >
+                {ownsBoard(board) ? "Share…" : "People on this board…"}
+              </MenuItem>
+            )}
             <MenuItem icon={<Copy size={14} />} onClick={() => (close(), navigate({ page: "board", boardId: duplicateBoard(board.id) }))}>
               Duplicate board
             </MenuItem>
@@ -209,25 +223,40 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
             >
               New board with this layout
             </MenuItem>
-            <MenuItem
-              icon={<Archive size={14} />}
-              onClick={() => {
-                close();
-                archiveBoard(board);
-              }}
-            >
-              Archive board
-            </MenuItem>
-            <MenuItem
-              danger
-              icon={<Trash2 size={14} />}
-              onClick={() => {
-                close();
-                void deleteBoardAction(board);
-              }}
-            >
-              Delete board
-            </MenuItem>
+            {ownsBoard(board) ? (
+              <>
+                <MenuItem
+                  icon={<Archive size={14} />}
+                  onClick={() => {
+                    close();
+                    archiveBoard(board);
+                  }}
+                >
+                  Archive board
+                </MenuItem>
+                <MenuItem
+                  danger
+                  icon={<Trash2 size={14} />}
+                  onClick={() => {
+                    close();
+                    void deleteBoardAction(board);
+                  }}
+                >
+                  Delete board
+                </MenuItem>
+              </>
+            ) : (
+              <MenuItem
+                danger
+                icon={<LogOut size={14} />}
+                onClick={() => {
+                  close();
+                  void leaveBoard(board.id).then(() => useStore.getState().toast(`You left “${board.title}”`));
+                }}
+              >
+                Leave board
+              </MenuItem>
+            )}
           </div>
         )}
       </Popover>

@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useDragSensors, useIsPhone } from "../mobile";
 import {
-  Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, UserCheck, X, Zap,
+  Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Shield, UserCog, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, UserCheck, Users, X, Zap,
 } from "lucide-react";
 import { runningTimer, useStore } from "../store";
 import type { Board, ID, Route } from "../types";
@@ -18,6 +18,8 @@ import { LogoMark, Wordmark } from "./Logo";
 import { useNow } from "./useNow";
 import { logoClicked } from "../easterEgg";
 import { SpinCat } from "./SpinCat";
+import { isServer, logout, me } from "../server";
+import { Avatar } from "./ui";
 
 export function Sidebar() {
   const boards = useStore((s) => s.data.boards);
@@ -180,8 +182,12 @@ export function Sidebar() {
       <FocusWidget collapsed={collapsed} />
       <RunningTimer collapsed={collapsed} />
       <NavItem icon={<Archive size={16} />} label="Archive" on={route.page === "archive"} onClick={() => navigate({ page: "archive" })} />
+      {isServer && me?.isAdmin && (
+        <NavItem icon={<Shield size={16} />} label="Admin" on={route.page === "admin"} onClick={() => navigate({ page: "admin" })} />
+      )}
       <NavItem icon={<Settings size={16} />} label="Settings" on={route.page === "settings"} onClick={() => navigate({ page: "settings" })} />
       <NavItem icon={<CircleHelp size={16} />} label="Help" kbd="?" onClick={() => setOverlay({ helpOpen: true })} />
+      {isServer && me && <AccountButton collapsed={collapsed} />}
     </aside>
   );
 }
@@ -376,7 +382,23 @@ function BoardLink({
     >
       {icon}
       <span className="ellipsis label">{board.title}</span>
+      {!collapsed && (board.members?.length ?? 0) > 1 && <SharedMark board={board} />}
     </button>
+  );
+}
+
+/** Shared boards get a small people icon; hovering says whose board it is. */
+function SharedMark({ board }: { board: Board }) {
+  const owner = board.members?.find((m) => m.role === "owner");
+  const mine = owner?.userId === me?.id;
+  return (
+    <span
+      className="shared-icon"
+      aria-label="Shared"
+      title={mine ? `Shared with ${board.members!.length - 1} ${board.members!.length === 2 ? "person" : "people"}` : `${owner?.displayName ?? "Someone"}'s board`}
+    >
+      <Users size={12} />
+    </span>
   );
 }
 
@@ -423,5 +445,47 @@ function BoardList({
         ))}
       </SortableContext>
     </DndContext>
+  );
+}
+
+/** Zomello Server: who's signed in, with account settings and sign-out. */
+function AccountButton({ collapsed }: { collapsed: boolean }) {
+  const name = useStore((s) => s.data.settings.me);
+  return (
+    <Popover
+      trigger={(_, t) => (
+        <button className="nav-item account-btn" onClick={t} title={collapsed ? name : "Your account"}>
+          <Avatar name={name} size={20} />
+          <span className="label ellipsis">{name}</span>
+        </button>
+      )}
+    >
+      {(close) => (
+        <div className="menu">
+          <span className="menu-heading">Signed in as @{me?.username}</span>
+          <button
+            className="menu-item"
+            onClick={() => {
+              close();
+              useStore.getState().navigate({ page: "settings" });
+              setTimeout(() => document.getElementById("set-account")?.scrollIntoView({ behavior: "smooth" }), 100);
+            }}
+          >
+            <UserCog size={14} /> <span>Your account</span>
+          </button>
+          <button
+            className="menu-item"
+            onClick={async () => {
+              close();
+              await logout().catch(() => {});
+              location.hash = "";
+              location.reload();
+            }}
+          >
+            <LogOut size={14} /> <span>Sign out</span>
+          </button>
+        </div>
+      )}
+    </Popover>
   );
 }

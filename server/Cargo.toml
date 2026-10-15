@@ -1,0 +1,33 @@
+[package]
+name = "zomello-server"
+version = "0.1.0"
+edition = "2021"
+description = "Zomello Server: multi-user Zomello for a home server, NAS or VPS"
+
+[dependencies]
+axum = { version = "0.8", features = ["json", "query", "http1", "tokio"], default-features = false }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+argon2 = "0.5"
+getrandom = "0.3"
+sha2 = "0.10"
+futures-util = { version = "0.3", default-features = false }
+rust-embed = "8"
+mime_guess = "2"
+# https and calendar fetching
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring", "x509-parser"] }
+hyper = { version = "1", features = ["http1", "server", "client"] }
+hyper-util = { version = "0.1", features = ["tokio", "service"] }
+http-body-util = "0.1"
+bytes = "1"
+webpki-roots = "1"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

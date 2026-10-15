@@ -1,0 +1,10 @@
+node_modules
+dist
+src-tauri
+server/target
+server/data
+.git
+docs
+branding
+scripts
+*.log
