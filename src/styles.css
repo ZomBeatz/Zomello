@@ -1357,70 +1357,76 @@ body.dragging-card .board-content { scroll-snap-type: none; }
 #set-desktop .check-row { align-items: flex-start; } #set-desktop .check-row input { margin-top: 3px; } #set-desktop .check-row span { display: flex; flex-direction: column; gap: 2px; }
 
 /* ---------- Party Cat: an Easter-egg style (play the beat pads in Settings → About) ---------- */
+/* Disco ball: mirror teal and coral on midnight blue (light: deep teal and coral on pale mint). */
 :root[data-style="partycat"] {
-  --bg: #f7f9ee;
+  --bg: #f1fafa;
   --surface: #ffffff;
-  --surface-2: #eff2e2;
-  --surface-3: #e3e8d0;
-  --column: #edf0de;
-  --border: #dbe0c6;
-  --text: #1c1838;
-  --text-2: #463f6e;
-  --muted: #7b769a;
-  --accent: #6b3fe0;
-  --brand-orange: #4f8f00;
-  --danger: #d6334f;
+  --surface-2: #e4f4f5;
+  --surface-3: #d3ecee;
+  --column: #e8f5f6;
+  --border: #cbe3e6;
+  --text: #0f2236;
+  --text-2: #33506b;
+  --muted: #6a879f;
+  --accent: #0e9a95;
+  --brand-orange: #e0405f;
+  --danger: #d23552;
   --warn: #b47a00;
-  --ok: #3f8f00;
-  --neon: #4f8f00;
+  --ok: #0e9a62;
+  --neon: #e0405f;
+  --on-accent: #ffffff;
 }
 @media (prefers-color-scheme: dark) {
   :root[data-style="partycat"]:not([data-theme="light"]) {
-    --bg: #0f0c24;
-    --surface: #18143a;
-    --surface-2: #211b4a;
-    --surface-3: #2c2560;
-    --column: #141032;
-    --border: #322a66;
-    --text: #f1eeff;
-    --text-2: #c9c2f2;
-    --muted: #8f87c2;
-    --accent: #b8f53b;
-    --brand-orange: #9d7bff;
-    --danger: #ff6b8a;
+    --bg: #0a1424;
+    --surface: #111f35;
+    --surface-2: #172a45;
+    --surface-3: #1f3656;
+    --column: #0e1a2e;
+    --border: #25405f;
+    --text: #e9f6ff;
+    --text-2: #b6d1e8;
+    --muted: #7c99b6;
+    --accent: #3dd6d0;
+    --brand-orange: #ff5e7e;
+    --danger: #ff6b81;
     --warn: #ffd166;
-    --ok: #5ff0b0;
-    --neon: #9d7bff;
-    --on-accent: #14102a;
+    --ok: #5cf2a5;
+    --neon: #ff5e7e;
+    --on-accent: #052a2a;
     --shadow: 0 1px 2px #00000080;
-    --shadow-lg: 0 10px 40px #000000b3, 0 0 0 1px #b8f53b1f;
+    --shadow-lg: 0 10px 40px #000000b3, 0 0 0 1px #3dd6d01f;
   }
 }
 :root[data-style="partycat"][data-theme="dark"] {
-  --bg: #0f0c24;
-  --surface: #18143a;
-  --surface-2: #211b4a;
-  --surface-3: #2c2560;
-  --column: #141032;
-  --border: #322a66;
-  --text: #f1eeff;
-  --text-2: #c9c2f2;
-  --muted: #8f87c2;
-  --accent: #b8f53b;
-  --brand-orange: #9d7bff;
-  --danger: #ff6b8a;
+  --bg: #0a1424;
+  --surface: #111f35;
+  --surface-2: #172a45;
+  --surface-3: #1f3656;
+  --column: #0e1a2e;
+  --border: #25405f;
+  --text: #e9f6ff;
+  --text-2: #b6d1e8;
+  --muted: #7c99b6;
+  --accent: #3dd6d0;
+  --brand-orange: #ff5e7e;
+  --danger: #ff6b81;
   --warn: #ffd166;
-  --ok: #5ff0b0;
-  --neon: #9d7bff;
-  --on-accent: #14102a;
+  --ok: #5cf2a5;
+  --neon: #ff5e7e;
+  --on-accent: #052a2a;
   --shadow: 0 1px 2px #00000080;
-  --shadow-lg: 0 10px 40px #000000b3, 0 0 0 1px #b8f53b1f;
+  --shadow-lg: 0 10px 40px #000000b3, 0 0 0 1px #3dd6d01f;
 }
-/* Party lights: soft colored spots, a lime-to-violet wordmark. */
+/* Disco lights: soft teal and coral spots, a scatter of mirror-ball sparkles, a teal-to-coral wordmark. */
 :root[data-style="partycat"] body {
   background:
-    radial-gradient(700px 360px at 8% 105%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
-    radial-gradient(700px 360px at 95% -10%, color-mix(in srgb, var(--neon) 14%, transparent), transparent 70%),
+    radial-gradient(2px 2px at 12% 18%, color-mix(in srgb, var(--text) 35%, transparent) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 68% 9%, color-mix(in srgb, var(--text) 30%, transparent) 50%, transparent 51%),
+    radial-gradient(2px 2px at 88% 62%, color-mix(in srgb, var(--text) 25%, transparent) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 34% 82%, color-mix(in srgb, var(--text) 25%, transparent) 50%, transparent 51%),
+    radial-gradient(700px 360px at 6% 105%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 70%),
+    radial-gradient(700px 360px at 96% -10%, color-mix(in srgb, var(--neon) 12%, transparent), transparent 70%),
     var(--bg);
 }
 :root[data-style="partycat"] .wordmark,

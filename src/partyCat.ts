@@ -2,12 +2,12 @@ import { useStore } from "./store";
 
 /**
  * Easter egg #2: the beat pads in Settings → About sing "O", "I" and "A" (short clips in
- * public/sounds; a synthesized voice if they can't play). Play O-I-I-A-I-O, O-I-I-I-A-I and the
+ * public/sounds; a synthesized voice if they can't play). Play O-I-I-A-I-O-I-I-I-A-I-I and the
  * Party Cat style unlocks.
  */
 export type Vowel = "O" | "I" | "A";
 
-const PATTERN: Vowel[] = ["O", "I", "I", "A", "I", "O", "O", "I", "I", "I", "A", "I"];
+const PATTERN: Vowel[] = ["O", "I", "I", "A", "I", "O", "I", "I", "I", "A", "I", "I"];
 
 /** Vocal-tract resonances (formants, Hz) and a high, cat-like pitch for each vowel. */
 const VOICES: Record<Vowel, { formants: [number, number, number]; pitch: number }> = {
@@ -144,7 +144,7 @@ export function confetti() {
   const reduce =
     document.documentElement.hasAttribute("data-reducemotion") || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (reduce) return;
-  const colors = ["#b8f53b", "#9d7bff", "#ffd166", "#2ee6c8", "#ff7ab6"];
+  const colors = ["#3dd6d0", "#ff5e7e", "#eaf8ff", "#ffd166", "#8ff3ee"];
   const layer = document.createElement("div");
   layer.className = "confetti";
   for (let i = 0; i < 90; i++) {

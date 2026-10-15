@@ -12,15 +12,19 @@ const SPIN_FIRST = 1;
 const SPIN_COUNT = FRAMES - SPIN_FIRST;
 const SONG: Vowel[][] = [
   ["O", "I", "I", "A", "I", "O"],
-  ["O", "I", "I", "I", "A", "I"],
+  ["I", "I", "I", "A", "I", "I"],
 ];
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
+const sings = () => useStore.getState().data.settings.catSings !== false;
 const reducedMotion = () =>
   document.documentElement.hasAttribute("data-reducemotion") || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export function SpinCat({ size = 64 }: { size?: number }) {
   const el = useRef<HTMLButtonElement>(null);
+  // Pending notes: cleared when the cat goes away (e.g. switching to another style), so nothing sings
+  // outside Party Cat.
+  const notes = useRef<ReturnType<typeof setTimeout>[]>([]);
   const state = useRef({
     spinning: false,
     frame: 0,
@@ -41,6 +45,21 @@ export function SpinCat({ size = 64 }: { size?: number }) {
     if (!s.speed) s.speed = s.target * 0.4;
   };
 
+  /** Sing the song (or just its first phrase), one note per step. */
+  const song = (phrases = SONG.length) => {
+    const step = 175;
+    const gap = 260;
+    let t = 0;
+    SONG.slice(0, phrases).forEach((phrase, p) => {
+      phrase.forEach((v) => {
+        notes.current.push(setTimeout(() => sing(v), t));
+        t += step;
+      });
+      if (p === 0) t += gap;
+    });
+    return t;
+  };
+
   useEffect(() => {
     void preloadPads();
     let raf = 0;
@@ -49,7 +68,11 @@ export function SpinCat({ size = 64 }: { size?: number }) {
       const s = state.current;
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
-      if (!s.spinning && now >= s.nextSpin) spin(rand(700, 3800));
+      if (!s.spinning && now >= s.nextSpin) {
+        // Now and then it sings while it spins.
+        if (Math.random() < 0.2 && !reducedMotion() && sings()) spin(song(Math.random() < 0.5 ? 1 : 2) + 300, 60);
+        else spin(rand(700, 3800));
+      }
       if (s.spinning) {
         // Now and then mid-spin: a new speed, or a sudden change of direction.
         if (Math.random() < dt * 0.9) s.target = rand(12, 80);
@@ -84,24 +107,13 @@ export function SpinCat({ size = 64 }: { size?: number }) {
     return () => {
       cancelAnimationFrame(raf);
       unsub();
+      notes.current.forEach(clearTimeout);
+      notes.current = [];
     };
   }, [size]);
 
-  // Click: spin and sing the song, one note per step.
-  const party = () => {
-    const notes = SONG.flat();
-    const step = 175;
-    const gap = 260;
-    spin(notes.length * step + gap + 300, 60);
-    let t = 0;
-    SONG.forEach((phrase, p) => {
-      phrase.forEach((v) => {
-        setTimeout(() => sing(v), t);
-        t += step;
-      });
-      if (p === 0) t += gap;
-    });
-  };
+  // Click: spin and sing the whole song (or just spin, if singing is off).
+  const party = () => spin((sings() ? song() : 2200) + 300, 60);
 
   return (
     <button

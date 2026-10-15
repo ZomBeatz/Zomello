@@ -72,53 +72,50 @@ function BassDropMark({ size, animate }: { size: number; animate: boolean }) {
   );
 }
 
-/** Party Cat: the headphones grow cat ears and a party hat; lime and violet. It spins like the meme. */
+/**
+ * Party Cat: the classic Zomello mark, quietly a cat: tabby ears on the headband and a tail curling
+ * out of an ear cup, in the Disco ball colors. It spins like the meme.
+ */
 function PartyCatMark({ size, animate }: { size: number; animate: boolean }) {
   return (
     <svg width={size} height={size} viewBox="48 48 928 928" aria-hidden="true" className={`partycat-mark ${animate ? "spinning" : ""}`}>
       <defs>
         <linearGradient id="pc-bg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#221a4d" />
-          <stop offset="1" stopColor="#0d0a1f" />
+          <stop offset="0" stopColor="#14263d" />
+          <stop offset="1" stopColor="#0a1220" />
         </linearGradient>
-        <linearGradient id="pc-bars" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#b8f53b" />
-          <stop offset="1" stopColor="#2ee6c8" />
+        <linearGradient id="pc-bars" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#8ff3ee" />
+          <stop offset=".5" stopColor="#3dd6d0" />
+          <stop offset="1" stopColor="#1fa7a2" />
         </linearGradient>
       </defs>
       <rect x="48" y="48" width="928" height="928" rx="208" fill="url(#pc-bg)" />
-      {/* confetti */}
-      <g opacity=".9">
-        <rect x="150" y="190" width="26" height="12" rx="6" fill="#ffd166" transform="rotate(-25 163 196)" />
-        <rect x="840" y="210" width="26" height="12" rx="6" fill="#2ee6c8" transform="rotate(30 853 216)" />
-        <circle cx="200" cy="860" r="11" fill="#9d7bff" />
-        <circle cx="830" cy="850" r="11" fill="#ff7ab6" />
-        <rect x="120" y="470" width="22" height="10" rx="5" fill="#b8f53b" transform="rotate(40 131 475)" />
-        <rect x="880" y="430" width="22" height="10" rx="5" fill="#ffd166" transform="rotate(-35 891 435)" />
+      {/* disco sparkles */}
+      <g fill="#eaf8ff">
+        <path d="M 170 200 l 10 26 l 26 10 l -26 10 l -10 26 l -10 -26 l -26 -10 l 26 -10 z" opacity=".9" />
+        <path d="M 850 180 l 7 18 l 18 7 l -18 7 l -7 18 l -7 -18 l -18 -7 l 18 -7 z" opacity=".75" />
+        <circle cx="880" cy="320" r="8" opacity=".6" />
+        <circle cx="140" cy="380" r="7" opacity=".5" />
       </g>
-      {/* cat ears on the headband */}
-      <path d="M 262 444 L 236 270 L 392 352 Z" fill="#9d7bff" stroke="#0a0614" strokeWidth="18" strokeLinejoin="round" />
-      <path d="M 278 400 L 266 318 L 344 360 Z" fill="#ff7ab6" />
-      <path d="M 762 444 L 788 270 L 632 352 Z" fill="#9d7bff" stroke="#0a0614" strokeWidth="18" strokeLinejoin="round" />
-      <path d="M 746 400 L 758 318 L 680 360 Z" fill="#ff7ab6" />
-      <path d="M 214 600 A 298 298 0 0 1 810 600" fill="none" stroke="#0a0614" strokeWidth="64" strokeLinecap="round" />
-      <path d="M 214 600 A 298 298 0 0 1 810 600" fill="none" stroke="#9d7bff" strokeWidth="30" strokeLinecap="round" />
-      {/* party hat */}
-      <path d="M 452 312 L 512 150 L 572 312 Z" fill="#ffd166" stroke="#0a0614" strokeWidth="14" strokeLinejoin="round" />
-      <path d="M 478 242 L 546 242 M 466 278 L 558 278" stroke="#ff7ab6" strokeWidth="14" strokeLinecap="round" />
-      <circle cx="512" cy="146" r="24" fill="#b8f53b" stroke="#0a0614" strokeWidth="10" />
-      <rect x="196" y="500" width="84" height="264" rx="30" fill="#9d7bff" />
-      <rect x="150" y="522" width="86" height="220" rx="30" fill="#0a0614" />
-      <rect x="744" y="500" width="84" height="264" rx="30" fill="#9d7bff" />
-      <rect x="788" y="522" width="86" height="220" rx="30" fill="#0a0614" />
+      {/* tabby ears */}
+      <path d="M 268 420 Q 236 288 262 196 Q 352 246 414 318 Z" fill="#8a847b" stroke="#0a0c10" strokeWidth="16" strokeLinejoin="round" />
+      <path d="M 284 378 Q 266 300 280 244 Q 334 280 372 322 Z" fill="#f2a7c3" />
+      <path d="M 756 420 Q 788 288 762 196 Q 672 246 610 318 Z" fill="#8a847b" stroke="#0a0c10" strokeWidth="16" strokeLinejoin="round" />
+      <path d="M 740 378 Q 758 300 744 244 Q 690 280 652 322 Z" fill="#f2a7c3" />
+      <path d="M 214 600 A 298 298 0 0 1 810 600" fill="none" stroke="#0a0c10" strokeWidth="64" strokeLinecap="round" />
+      <path d="M 214 600 A 298 298 0 0 1 810 600" fill="none" stroke="#ff5e7e" strokeWidth="30" strokeLinecap="round" />
+      <rect x="196" y="500" width="84" height="264" rx="30" fill="#ff5e7e" />
+      <rect x="150" y="522" width="86" height="220" rx="30" fill="#0a0c10" />
+      <rect x="744" y="500" width="84" height="264" rx="30" fill="#ff5e7e" />
+      <rect x="788" y="522" width="86" height="220" rx="30" fill="#0a0c10" />
       <rect x="334" y="400" width="96" height="364" rx="30" fill="url(#pc-bars)" />
       <rect x="464" y="500" width="96" height="264" rx="30" fill="url(#pc-bars)" opacity=".88" />
       <rect x="594" y="590" width="96" height="174" rx="30" fill="url(#pc-bars)" opacity=".76" />
-      {/* whiskers */}
-      <g stroke="#e9e3ff" strokeWidth="9" strokeLinecap="round" opacity=".75">
-        <path d="M 124 610 L 60 594 M 124 640 L 62 652" />
-        <path d="M 900 610 L 964 594 M 900 640 L 962 652" />
-      </g>
+      {/* tail curling up out of the right ear cup */}
+      <path d="M 830 752 C 912 752 936 668 900 604 C 880 566 896 520 936 528" fill="none" stroke="#0a0c10" strokeWidth="56" strokeLinecap="round" />
+      <path d="M 830 752 C 912 752 936 668 900 604 C 880 566 896 520 936 528" fill="none" stroke="#8a847b" strokeWidth="34" strokeLinecap="round" />
+      <path d="M 884 734 L 896 712 M 910 676 L 888 664 M 888 618 L 910 600" stroke="#5c574f" strokeWidth="11" strokeLinecap="round" />
     </svg>
   );
 }

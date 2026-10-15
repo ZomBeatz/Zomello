@@ -176,10 +176,17 @@ export const CardTile = memo(function CardTile({
         </div>
       )}
       {mode.checklist === "full" && cl.total > 0 && (shownItems.length > 0 || hiddenDone > 0) && (
-        <ul className="tile-checklist" onPointerDown={stop} onClick={stop}>
+        <ul className="tile-checklist">
           {shownItems.slice(0, 6).map((i) => (
             <li key={i.id} className={i.done ? "done" : ""}>
-              <input type="checkbox" checked={i.done} onChange={() => toggleChecklistItem(card.id, i.id)} />
+              {/* Only the checkbox is a control here; everything else opens the card like the rest of the tile. */}
+              <input
+                type="checkbox"
+                checked={i.done}
+                onPointerDown={stop}
+                onClick={stop}
+                onChange={() => toggleChecklistItem(card.id, i.id)}
+              />
               <span className="grow">{i.cardId && <CornerDownRight size={10} className="muted" />} {i.text}</span>
               <ItemLabelDots boardId={card.boardId} item={i} />
             </li>
