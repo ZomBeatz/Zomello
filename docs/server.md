@@ -25,19 +25,19 @@ Your PC  ──git push──▶  GitHub  ──builds the image──▶  ghcr.
    git remote add origin git@github.com:YOUR-GITHUB-NAME/zomello.git
    git push -u origin main
    ```
-   This uses your SSH key. If GitHub doesn't know it yet, add `~/.ssh/id_ed25519.pub` under GitHub → Settings → SSH and GPG keys.
+   This uses your SSH key. If GitHub doesn't know it yet, add `~/.ssh/id_ed25519.pub` under GitHub > Settings > SSH and GPG keys.
 
 After that, `git push` uploads new changes whenever you want.
 
 ### Part 2: Let GitHub build the server image (automatic)
 
-Every push starts **Actions → Server image**. It builds Zomello Server for normal PCs/VPSes and for Raspberry Pis, then publishes it as `ghcr.io/your-github-name/zomello-server`. The first build takes a while, roughly 30–60 minutes, because the Raspberry Pi version is built under emulation. Later builds reuse the unchanged parts.
+Every push starts **Actions > Server image**. It builds Zomello Server for normal PCs/VPSes and for Raspberry Pis, then publishes it as `ghcr.io/your-github-name/zomello-server`. The first build takes a while, roughly 30 to 60 minutes, because the Raspberry Pi version is built under emulation. Later builds reuse the unchanged parts.
 
 When it shows a green check, the image is under **Packages** on your GitHub profile.
 
 **If the repository is private**, the image is private too. Pick one:
-- **Make just the image public:** Packages → zomello-server → Package settings → Change visibility → Public. The code stays private; only the built app is public.
-- **Keep it private:** the server signs in once. Make a token on GitHub (Settings → Developer settings → Personal access tokens → Tokens (classic)) with only the `read:packages` box ticked, then on the server run:
+- **Make just the image public:** Packages > zomello-server > Package settings > Change visibility > Public. The code stays private; only the built app is public.
+- **Keep it private:** the server signs in once. Make a token on GitHub (Settings > Developer settings > Personal access tokens > Tokens (classic)) with only the `read:packages` box ticked, then on the server run:
   ```bash
   docker login ghcr.io -u YOUR-GITHUB-NAME
   ```
@@ -58,7 +58,7 @@ When it shows a green check, the image is under **Packages** on your GitHub prof
    docker compose up -d
    ```
 5. **Open** `http://<server-address>:7311` in a browser. It asks you to create the **admin account**.
-6. **Add people:** sidebar → **Admin** → **Add a person**. Send them the sign-in details it gives you.
+6. **Add people:** sidebar > **Admin** > **Add a person**. Send them the sign-in details it gives you.
 7. **Phones and tablets:** to install Zomello as an app they need https. See *https: pick one* below. Tailscale is the easiest.
 
 **Updating** after you push changes and the GitHub build finishes:
@@ -87,7 +87,7 @@ The image builds on x86-64 and on arm64 (Raspberry Pi 4/5) alike. It's about 46 
 
 ## Install on Windows, macOS or Linux (no Docker)
 
-Zomello Server is also a single program, like Plex Media Server. GitHub builds it for you: **Actions → Server downloads**, then pick the file for your computer from the run's **Artifacts** (a version tag also puts them on the release page):
+Zomello Server is also a single program, like Plex Media Server. GitHub builds it for you: **Actions > Server downloads**, then pick the file for your computer from the run's **Artifacts** (a version tag also puts them on the release page):
 
 | Computer | File |
 |---|---|
@@ -97,7 +97,7 @@ Zomello Server is also a single program, like Plex Media Server. GitHub builds i
 | Linux PC, NAS or VPS | `zomello-server-linux-x64` |
 | Raspberry Pi 4/5 (64-bit OS) | `zomello-server-linux-arm64` |
 
-1. **Run it.** On Windows, double-click it; if SmartScreen warns, choose **More info → Run anyway**. On Mac or Linux, open a terminal in its folder, run `chmod +x zomello-server-*`, then run the file. Macs may refuse an unsigned download the first time: right-click → **Open**, or allow it in System Settings → Privacy & Security.
+1. **Run it.** On Windows, double-click it; if SmartScreen warns, choose **More info > Run anyway**. On Mac or Linux, open a terminal in its folder, run `chmod +x zomello-server-*`, then run the file. Macs may refuse an unsigned download the first time: right-click > **Open**, or allow it in System Settings > Privacy & Security.
 2. **First run:** your browser opens to create the admin account. If it doesn't, go to `http://localhost:7311`.
 3. **Start it with the computer** (optional): run it once more with `install`, e.g. `zomello-server-windows-x64.exe install` from an **administrator** Command Prompt, or `./zomello-server-linux-x64 install`. The setup depends on the system:
    - **Windows:** a startup task that runs before anyone signs in, plus a firewall rule for port 7311.
@@ -136,7 +136,7 @@ Settings are environment variables. In `docker-compose.yml` they go under `envir
 | `ZOMELLO_TLS_CERT`, `ZOMELLO_TLS_KEY` | | PEM files for `files` |
 | `ZOMELLO_PUBLIC_URL` | | The address people use. It's shown on the Admin page. |
 | `ZOMELLO_NAME` | `Zomello on <computer name>` | The name the Zomello app shows when it finds this server on the network |
-| `ZOMELLO_DISCOVERY` | `on` (`off` in Docker) | Announce the server on the local network, so **Settings → Zomello Servers → Find servers on this network** in the app lists it. In Docker, it works only with `network_mode: host` plus `ZOMELLO_DISCOVERY: "on"`. |
+| `ZOMELLO_DISCOVERY` | `on` (`off` in Docker) | Announce the server on the local network, so **Settings > Zomello Servers > Find servers on this network** in the app lists it. In Docker, it works only with `network_mode: host` plus `ZOMELLO_DISCOVERY: "on"`. |
 
 ## https: pick one
 
@@ -157,15 +157,15 @@ Don't port-forward Zomello straight to the internet. Use option 1 or 2 instead.
 
 ## People and boards
 
-- **Adding people.** Admin → People → Add a person. Zomello suggests a temporary password and gives you sign-in details to copy and send. People change their password in Settings → Your account.
+- **Adding people.** Admin > People > Add a person. Zomello suggests a temporary password and gives you sign-in details to copy and send. People change their password in Settings > Your account.
 - **Admins** can make other people admins, rename them, reset passwords, turn accounts off (which signs them out everywhere), or delete them. A deleted person's boards are handed to you.
-- **Sharing.** A board's owner opens ⋯ → Share… and invites people by username. Everyone on a board can add, change and complete cards. Only the owner can invite, remove people, archive or delete the board, or make someone else the owner. Members can leave a board.
-- **Admins and boards.** Admin → Boards lists every board on the server. From there an admin can change a board's owner, add or remove people, or delete it.
+- **Sharing.** A board's owner opens ⋯ > Share… and invites people by username. Everyone on a board can add, change and complete cards. Only the owner can invite, remove people, archive or delete the board, or make someone else the owner. Members can leave a board.
+- **Admins and boards.** Admin > Boards lists every board on the server. From there an admin can change a board's owner, add or remove people, or delete it.
 - **Names.** A person's name is tied to their account. When it changes, cards assigned to them follow.
 
 ## Backups and recovery
 
-- **Daily backups** of the database land in `backups/` inside the data folder, and the last 14 are kept. **Admin → Download a backup now** gives you a copy at any time.
+- **Daily backups** of the database land in `backups/` inside the data folder, and the last 14 are kept. **Admin > Download a backup now** gives you a copy at any time.
 - **Backing up everything** (attachments included) means backing up the whole data folder or volume, e.g. `docker run --rm -v zomello-data:/data -v "$PWD":/out alpine tar czf /out/zomello-data.tgz -C /data .`
 - **Restoring:** stop Zomello, put the backup file in place as `zomello.db`, and start it again.
 - **Forgot the admin password:**
