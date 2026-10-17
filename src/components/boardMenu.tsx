@@ -10,6 +10,7 @@ import { isServer, leaveBoard, ownsBoard } from "../server";
 import { workOrder } from "../ai";
 import { copyText } from "./Markdown";
 import { exportBoard } from "../boardFile";
+import { isMobileApp } from "../storage";
 
 /** The right-click menu for a board, the same in the sidebar and on Home. */
 export function boardMenu(board: Board, opts: { onRename?: () => void } = {}): MenuEntry[] {
@@ -17,11 +18,9 @@ export function boardMenu(board: Board, opts: { onRename?: () => void } = {}): M
   return [
     { label: "Open", icon: <ExternalLink size={14} />, onClick: () => st.navigate({ page: "board", boardId: board.id }) },
     ...(isServer ? [{ label: ownsBoard(board) ? "Share…" : "People on this board…", icon: <Users size={14} />, onClick: () => st.setOverlay({ shareBoardId: board.id }) }] : []),
-    {
-      label: "Open in new window",
-      icon: <AppWindow size={14} />,
-      onClick: () => void openBoardWindow(board.id, board.title),
-    },
+    ...(isMobileApp
+      ? []
+      : [{ label: "Open in new window", icon: <AppWindow size={14} />, onClick: () => void openBoardWindow(board.id, board.title) }]),
     ...(opts.onRename ? [{ label: "Rename", icon: <Pencil size={14} />, onClick: opts.onRename }] : []),
     {
       label: board.category ? `Category: ${board.category}` : "Category…",

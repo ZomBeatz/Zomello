@@ -26,7 +26,7 @@ import { isServer, loadData as serverLoadData, RELOAD_EVENT, subscribe as server
 import { useInvites } from "./invites";
 import { AdminPage } from "./components/AdminPage";
 import { ShareDialog } from "./components/ShareDialog";
-import { inTauri } from "./storage";
+import { isDesktopApp } from "./storage";
 import { installLongPressMenus, useIsPhone } from "./mobile";
 import { installFileDropPolicy } from "./fileDrop";
 import { installHistorySync } from "./routing";
@@ -61,7 +61,7 @@ export default function App() {
 
   // Desktop app: turn the tray on if wanted. Started at login without it? Then show the window after all.
   useEffect(() => {
-    if (!loaded || !inTauri || isBoardWindow) return;
+    if (!loaded || !isDesktopApp || isBoardWindow) return;
     void (async () => {
       const { invoke } = await import("@tauri-apps/api/core");
       const bg = useStore.getState().data.settings.runInBackground;

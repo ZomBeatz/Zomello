@@ -1,0 +1,8 @@
+{
+  "app": {
+    "windows": [{ "title": "Zomello", "visible": true }]
+  },
+  "bundle": {
+    "android": { "minSdkVersion": 26 }
+  }
+}

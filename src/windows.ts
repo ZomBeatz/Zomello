@@ -1,4 +1,4 @@
-import { inTauri } from "./storage";
+import { inTauri, isMobileApp } from "./storage";
 import { isRemote, remoteSubscribe } from "./remote";
 import type { ID } from "./types";
 
@@ -22,6 +22,8 @@ if (inTauri)
   });
 
 export async function openBoardWindow(boardId: ID, title: string) {
+  // Phones and tablets have one window: just go to the board.
+  if (isMobileApp) return (await import("./store")).useStore.getState().navigate({ page: "board", boardId });
   if (inTauri) {
     const { invoke } = await import("@tauri-apps/api/core");
     return invoke("open_board_window", { boardId, title });

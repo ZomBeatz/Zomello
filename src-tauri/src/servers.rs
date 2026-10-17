@@ -6,6 +6,7 @@
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Mutex;
+#[cfg(desktop)]
 use tauri::{AppHandle, Manager};
 
 /// Window label → the one origin (scheme://host:port) that window may show.
@@ -73,7 +74,8 @@ pub async fn check_server(address: String) -> Result<ServerCheck, String> {
     Ok(out)
 }
 
-/// Open (or bring forward) a server's window.
+/// Open (or bring forward) a server's window (desktop; the phone apps open servers in the browser).
+#[cfg(desktop)]
 #[tauri::command]
 pub async fn open_server_window(app: AppHandle, id: String, address: String, name: String) -> Result<(), String> {
     let url = parse(&address)?;

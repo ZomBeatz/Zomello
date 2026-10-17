@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { exportBoard } from "../boardFile";
+import { isMobileApp } from "../storage";
 import { archiveBoard, deleteBoard as deleteBoardAction } from "../actions";
 import { isServer, leaveBoard, ownsBoard } from "../server";
 import {
@@ -181,7 +182,7 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
             <MenuItem icon={<Copy size={14} />} onClick={() => (close(), navigate({ page: "board", boardId: duplicateBoard(board.id) }))}>
               Duplicate board
             </MenuItem>
-            {!isBoardWindow && (
+            {!isBoardWindow && !isMobileApp && (
               <MenuItem
                 icon={<AppWindow size={14} />}
                 onClick={() => {
