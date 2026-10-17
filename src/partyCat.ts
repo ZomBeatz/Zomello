@@ -17,7 +17,7 @@ const VOICES: Record<Vowel, { formants: [number, number, number]; pitch: number 
 };
 
 let ctx: AudioContext | null = null;
-const CLIPS: Record<Vowel, string> = { O: "/sounds/pad-1.wav", I: "/sounds/pad-2.wav", A: "/sounds/pad-3.wav" };
+const CLIPS: Record<Vowel, string> = { O: `${import.meta.env.BASE_URL}sounds/pad-1.wav`, I: `${import.meta.env.BASE_URL}sounds/pad-2.wav`, A: `${import.meta.env.BASE_URL}sounds/pad-3.wav` };
 const buffers: Partial<Record<Vowel, AudioBuffer>> = {};
 let loading: Promise<void> | null = null;
 

@@ -15,6 +15,7 @@
   <a href="https://github.com/ZomBeatz/Zomello/releases/latest"><img alt="Download for Windows" src="https://img.shields.io/badge/Windows-Download-2580c3?style=for-the-badge&logo=windows&logoColor=white"></a>
   <a href="https://github.com/ZomBeatz/Zomello/releases/latest"><img alt="Download for Linux" src="https://img.shields.io/badge/Linux-Download-2580c3?style=for-the-badge&logo=linux&logoColor=white"></a>
   <a href="https://github.com/ZomBeatz/Zomello/releases/latest"><img alt="Download for Android" src="https://img.shields.io/badge/Android-APK-2580c3?style=for-the-badge&logo=android&logoColor=white"></a>
+  <a href="https://zombeatz.github.io/Zomello/"><img alt="Try the online demo" src="https://img.shields.io/badge/Try_it-Online_demo-22c55e?style=for-the-badge&logo=googlechrome&logoColor=white"></a>
   <a href="#zomello-server"><img alt="Zomello Server with Docker" src="https://img.shields.io/badge/Server-Docker-ec6a3f?style=for-the-badge&logo=docker&logoColor=white"></a>
 </p>
 
@@ -23,6 +24,8 @@
 </p>
 
 ## Quick start
+
+**Just want to look around?** Try the [online demo](https://zombeatz.github.io/Zomello/) in your browser. Nothing to install, and your changes only stay in your own browser.
 
 1. **Download** the file for your device from the [latest release](https://github.com/ZomBeatz/Zomello/releases/latest) (under **Assets** at the bottom):
 

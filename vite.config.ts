@@ -38,6 +38,8 @@ const devAttachments = {
 
 export default defineConfig({
   plugins: [react(), devAttachments],
+  // The online demo lives under /Zomello/ on GitHub Pages (see .github/workflows/demo.yml).
+  base: process.env.ZOMELLO_BASE ?? "/",
   // Shown in Settings → About.
   define: { __APP_VERSION__: JSON.stringify(JSON.parse(fs.readFileSync("package.json", "utf8")).version) },
   clearScreen: false,
