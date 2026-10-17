@@ -32,6 +32,8 @@ mod files;
 mod sharing;
 mod sync;
 mod tls;
+#[cfg(test)]
+mod tests;
 
 use axum::{
     extract::{DefaultBodyLimit, Request},
