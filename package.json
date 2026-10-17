@@ -13,7 +13,8 @@
     "bundle:windows": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis",
     "server": "npm run build && cargo build --release --manifest-path server/Cargo.toml",
     "server:docker": "docker build -t zomello-server .",
-    "android": "./scripts/android-install.sh"
+    "android": "./scripts/android-install.sh",
+    "android:release": "./scripts/android-release.sh"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
