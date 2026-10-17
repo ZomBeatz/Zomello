@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import type { ID } from "../types";
 import { useStore } from "../store";
-import { byOrder, describeRecurrence, PRIORITIES, PROGRESS, RECURRENCE_PRESETS, relatedSet, toISO } from "../utils";
+import { byOrder, describeRecurrence, PRIORITIES, PROGRESS, RECURRENCE_PRESETS, relatedSet, toISO, safeArea } from "../utils";
 import { Avatar } from "./ui";
 import { CardPicker, LabelPicker } from "./pickers";
 
@@ -115,11 +115,15 @@ function MenuPanel({
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    // Keep clear of the phone's status bar and gesture bar (zero on a computer).
+    const safe = safeArea();
+    el.style.maxHeight = `${window.innerHeight - safe.top - safe.bottom - 16}px`;
     const { offsetWidth: w, offsetHeight: h } = el;
     let left = x;
-    if (left + w > window.innerWidth - 8) left = flipFrom !== undefined ? flipFrom - w + 4 : window.innerWidth - w - 8;
-    const top = Math.max(8, Math.min(y, window.innerHeight - h - 8));
-    setPos({ left: Math.max(8, left), top, ready: true });
+    const right = window.innerWidth - safe.right - 8;
+    if (left + w > right) left = flipFrom !== undefined ? flipFrom - w + 4 : right - w;
+    const top = Math.max(safe.top + 8, Math.min(y, window.innerHeight - safe.bottom - h - 8));
+    setPos({ left: Math.max(safe.left + 8, left), top, ready: true });
   }, [x, y, flipFrom]);
 
   return (
