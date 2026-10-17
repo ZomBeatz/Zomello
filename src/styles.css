@@ -1551,3 +1551,5 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 .server-add input { min-width: 0; }
 .callout { border: 1px solid var(--border); border-left: 3px solid var(--warn, #eab308); border-radius: 8px; padding: 10px 12px; margin-top: 10px; background: var(--surface); }
 .callout p { margin: 0 0 8px; }
+.server-find { margin-top: 10px; }
+.server-find .server-list { margin-top: 8px; }

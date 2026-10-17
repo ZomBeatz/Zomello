@@ -135,6 +135,8 @@ Settings are environment variables. In `docker-compose.yml` they go under `envir
 | `ZOMELLO_HOSTS` | | Extra names/addresses for the `self` certificate, e.g. `zomello.lan,192.168.1.50` |
 | `ZOMELLO_TLS_CERT`, `ZOMELLO_TLS_KEY` | | PEM files for `files` |
 | `ZOMELLO_PUBLIC_URL` | | The address people use. It's shown on the Admin page. |
+| `ZOMELLO_NAME` | `Zomello on <computer name>` | The name the Zomello app shows when it finds this server on the network |
+| `ZOMELLO_DISCOVERY` | `on` (`off` in Docker) | Announce the server on the local network, so **Settings → Zomello Servers → Find servers on this network** in the app lists it. In Docker, it works only with `network_mode: host` plus `ZOMELLO_DISCOVERY: "on"`. |
 
 ## https: pick one
 

@@ -26,5 +26,11 @@ services:
       # ZOMELLO_TLS_CERT: /certs/fullchain.pem
       # ZOMELLO_TLS_KEY: /certs/privkey.pem
 
+      # Let the Zomello app find this server on your network ("Find servers on this network").
+      # Needs host networking: uncomment network_mode below too (and remove the ports: lines).
+      # ZOMELLO_DISCOVERY: "on"
+      # ZOMELLO_NAME: "Our Zomello"
+    # network_mode: host
+
 volumes:
   zomello-data:

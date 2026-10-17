@@ -10,7 +10,7 @@ Zomello comes in two kinds of programs, the way Plex does:
 Ways to work together:
 
 - **Board files (`.zomello`)** work without any server. On a board, open **⋯ → Save as board file…**. Send that file however you like: email, a USB stick, a chat. Whoever opens it gets their own copy of the board, attachments included. Double-clicking the file opens it in Zomello.
-- **A Zomello Server** keeps one board that everyone works on together, live. In the app, add servers under **Settings → Zomello Servers**. They then appear in the sidebar under *Servers*, and each one opens in its own window. On phones and tablets a server opens in the browser, where it can be installed as an app of its own.
+- **A Zomello Server** keeps one board that everyone works on together, live. In the app, add servers under **Settings → Zomello Servers**, either by address or with **Find servers on this network**, which lists Zomello Servers on your Wi-Fi the way Plex finds its servers. They then appear in the sidebar under *Servers*, and each one opens in its own window. On phones and tablets a server opens in the browser, where it can be installed as an app of its own.
 - **Phone & tablet access** (desktop app only) lets your phone use the boards on your computer while you're on the same Wi-Fi. Set it up in Settings → Phones & tablets.
 
 ## Getting the apps

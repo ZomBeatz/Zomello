@@ -25,6 +25,7 @@ hyper-util = { version = "0.1", features = ["tokio", "service"] }
 http-body-util = "0.1"
 bytes = "1"
 webpki-roots = "1"
+mdns-sd = "0.21.5"
 
 [profile.release]
 codegen-units = 1
