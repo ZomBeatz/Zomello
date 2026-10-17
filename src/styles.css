@@ -1570,19 +1570,24 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 .computer-connect h4 { margin: 0; display: flex; align-items: center; gap: 6px; }
 .computer-steps { margin: 0; padding-left: 18px; display: grid; gap: 4px; line-height: 1.45; }
 
-/* Phones and tablets: the menu's boards, one folding section per place (This phone, My computer…). */
-.place-sections { display: grid; gap: 4px; margin-top: 10px; }
-.place-head { display: flex; align-items: center; color: var(--muted); }
-.place-fold { background: transparent; border: none; color: inherit; padding: 9px 4px 9px 10px; display: flex; }
-.place-name {
-  display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; padding: 9px 10px 9px 4px; border-radius: 8px;
-  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: inherit;
-  background: transparent; border: none; text-align: left;
+/* Phones and tablets: the menu's boards, OneNote style. Each place is a big heading that folds;
+   inside are its sections (categories) and boards, then + Board / + Section. */
+.place-sections { display: grid; gap: 6px; margin-top: 12px; }
+.place-head {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 10px 8px; border: none; border-radius: 10px;
+  background: transparent; color: var(--text-2, var(--muted)); text-align: left;
+  font-size: 19px; font-weight: 600; letter-spacing: -.01em;
 }
-.place-section.here > .place-head { color: var(--accent); }
-.place-head .count { font-weight: 600; text-transform: none; letter-spacing: 0; }
-.place-section .nav-boards { padding-left: 8px; border-left: 2px solid var(--border); margin-left: 16px; }
-.place-section.here .nav-boards { border-left-color: var(--accent-soft); }
-.nav-new-board { color: var(--muted); }
-.nav-category-head.static { cursor: default; }
-.place-empty { margin: 4px 10px; }
+.place-section.here > .place-head { color: var(--text); }
+.place-section.here > .place-head svg:first-child { color: var(--accent); }
+.place-head .count { font-size: 12px; font-weight: 600; }
+.place-head:active { background: var(--surface-2); }
+.place-tree { padding: 0 0 6px 8px; margin-left: 14px; border-left: 2px solid var(--border); }
+.place-section.here .place-tree { border-left-color: var(--accent-soft); }
+.place-elsewhere .nav-item { opacity: .85; }
+.nav-category-row { display: flex; align-items: center; gap: 2px; }
+.nav-category-row .nav-category-head { flex: 1; min-width: 0; }
+.place-subhead { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 10px 10px 4px; }
+.place-actions { display: flex; gap: 6px; padding: 6px 4px 0; }
+.place-actions .btn { color: var(--muted); }
+.place-empty { margin: 2px 10px 6px 28px; }

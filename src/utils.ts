@@ -490,8 +490,9 @@ export function relatedSet(id: string, cards: Record<string, Card>, deep: boolea
 export const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
 
 /** Category names in use by these boards, A–Z. */
-export function boardCategories(boards: { category?: string | null }[]): string[] {
-  return [...new Set(boards.map((b) => b.category).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b));
+/** Every category: those boards are in, plus empty ones made as sections (`extra`). */
+export function boardCategories(boards: { category?: string | null }[], extra: string[] = []): string[] {
+  return [...new Set([...boards.map((b) => b.category), ...extra].filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b));
 }
 
 /**

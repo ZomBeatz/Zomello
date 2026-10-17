@@ -428,6 +428,8 @@ interface State {
   /** Take every board out of a category; the boards themselves stay. */
   removeCategory(name: string): void;
   toggleCategoryCollapsed(name: string): void;
+  /** Make a category on its own (a "section"), even before any board is in it. */
+  addCategory(name: string): void;
 }
 
 const progressPatch = (prev: Card, patch: Partial<Card>): Partial<Card> => {
@@ -1250,15 +1252,29 @@ export const useStore = create<State>((set, get) => {
         const boards = { ...d.boards };
         for (const b of Object.values(boards)) if (b.category === from) boards[b.id] = { ...b, category: to };
         const collapsed = d.settings.collapsedCategories.map((x) => (x === from ? to : x));
-        return { ...d, boards, settings: { ...d.settings, collapsedCategories: [...new Set(collapsed)] } };
+        const sections = (d.settings.sections ?? []).map((x) => (x === from ? to : x));
+        return { ...d, boards, settings: { ...d.settings, collapsedCategories: [...new Set(collapsed)], sections: [...new Set(sections)] } };
       });
     },
     removeCategory(name) {
       mut((d) => {
         const boards = { ...d.boards };
         for (const b of Object.values(boards)) if (b.category === name) boards[b.id] = { ...b, category: null };
-        return { ...d, boards, settings: { ...d.settings, collapsedCategories: d.settings.collapsedCategories.filter((x) => x !== name) } };
+        return {
+          ...d,
+          boards,
+          settings: {
+            ...d.settings,
+            collapsedCategories: d.settings.collapsedCategories.filter((x) => x !== name),
+            sections: (d.settings.sections ?? []).filter((x) => x !== name),
+          },
+        };
       });
+    },
+    addCategory(name) {
+      const n = name.trim();
+      const cur = get().data.settings.sections ?? [];
+      if (n && !cur.includes(n)) get().updateSettings({ sections: [...cur, n] });
     },
     toggleCategoryCollapsed(name) {
       const cur = get().data.settings.collapsedCategories;

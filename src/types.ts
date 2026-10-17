@@ -318,6 +318,8 @@ export interface Settings {
   onboarded: boolean;
   /** Board categories folded shut in the sidebar. */
   collapsedCategories: string[];
+  /** Categories ("sections") made on their own, so they show even before a board is in them. */
+  sections?: string[];
   /** Party Cat's cat sings now and then (and when clicked). */
   catSings?: boolean;
   /** Desktop app: closing the window keeps Zomello running in the tray. */
