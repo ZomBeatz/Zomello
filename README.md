@@ -1,9 +1,69 @@
-# Zomello
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="branding/zomello-logo-dark.png">
+    <img src="branding/zomello-logo.png" alt="Zomello by ZomBeatz Media" width="460">
+  </picture>
+</p>
 
-A local-first kanban + planner (Kanri × Trello × Microsoft Planner) by ZomBeatz Media, built with Tauri 2,
-React and TypeScript. Your boards stay on your own devices, or on your own Zomello Server.
+<p align="center">
+  <b>A planner for any occasion.</b><br>
+  Boards, lists and cards for your projects, chores and big ideas — on your computer, your phone, or your own server.
+</p>
 
-## Features
+<p align="center">
+  <a href="https://github.com/ZomBeatz/Zomello/releases/latest"><img alt="Download for Windows" src="https://img.shields.io/badge/Windows-Download-2580c3?style=for-the-badge&logo=windows&logoColor=white"></a>
+  <a href="https://github.com/ZomBeatz/Zomello/releases/latest"><img alt="Download for Linux" src="https://img.shields.io/badge/Linux-Download-2580c3?style=for-the-badge&logo=linux&logoColor=white"></a>
+  <a href="https://github.com/ZomBeatz/Zomello/releases/latest"><img alt="Download for Android" src="https://img.shields.io/badge/Android-APK-2580c3?style=for-the-badge&logo=android&logoColor=white"></a>
+  <a href="#-zomello-server-for-teams-and-families"><img alt="Zomello Server with Docker" src="https://img.shields.io/badge/Server-Docker-ec6a3f?style=for-the-badge&logo=docker&logoColor=white"></a>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/board.png" alt="A Zomello board with buckets and cards" width="900">
+</p>
+
+## ⚡ Quick start
+
+1. **Download** the file for your device from the [latest release](https://github.com/ZomBeatz/Zomello/releases/latest) (under **Assets** at the bottom):
+
+   | Your device | File to download | Then |
+   |---|---|---|
+   | 🪟 **Windows 10/11** | `Zomello_…_x64-setup.exe` | Open it. If Windows says *"Windows protected your PC"*, click **More info → Run anyway**. |
+   | 🐧 **Linux** | `.deb` (Ubuntu, Mint, Debian), `.rpm` (Fedora, openSUSE) or `.AppImage` (any) | Open it with your software installer. For the AppImage: right-click → Properties → allow running, then open it. |
+   | 🤖 **Android** | `Zomello.apk` | Open it on the phone and allow installing from your browser or Files app when asked. |
+
+2. **Open Zomello.** A *Getting started* board walks you through the basics.
+3. **That's it.** No account, no sign-up. Your boards are saved on your own device.
+
+> Want several people working on the same boards? Set up a [Zomello Server](#-zomello-server-for-teams-and-families).
+
+## ✨ What it does
+
+Zomello is like Trello and Microsoft Planner, but it runs on **your** devices and keeps your data with you.
+
+| | |
+|---|---|
+| 📋 **Boards, buckets and cards** | Drag cards between columns like *To do → Doing → Done*. Group boards into sections like *Work* and *Home*. |
+| ✅ **Everything a task needs** | Checklists, due dates, priorities, labels, people, notes, files and pictures, reminders and repeating tasks. |
+| 📅 **See it your way** | Board, list, calendar, timeline and chart views. A Home page shows what's late, due today and coming up. |
+| 📱 **Phone and computer together** | The Android app has its own boards, and on the same Wi‑Fi it can open your computer's boards too (encrypted). |
+| 📤 **Share without a server** | Save any board as a `.zomello` file and send it by email or chat. Whoever opens it gets their own copy. |
+| 👥 **Your own server for a team or family** | Accounts, shared boards, live updates and an Admin page. Runs on a PC, NAS, Raspberry Pi or with Docker. |
+| 🎨 **Make it yours** | Themes, colors, backgrounds, icons and compact layouts, plus focus timer, time tracking and undo for everything. |
+| 🔒 **Private by design** | No ads, no tracking, no cloud account. Automatic backups keep your work safe. |
+
+<table>
+  <tr>
+    <td width="66%"><img src="docs/screenshots/calendar.png" alt="Calendar view"></td>
+    <td rowspan="2" width="34%"><img src="docs/screenshots/phone.png" alt="Zomello on a phone"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/home.png" alt="Home page with late, due today and upcoming tasks"></td>
+  </tr>
+</table>
+
+<details>
+<summary><b>The full feature list</b></summary>
+
 - **Boards → buckets → cards** with drag-and-drop, WIP limits, collapsible buckets, Planner-style
   "Completed" section under each bucket
 - **Rich cards**: Markdown description and notes with a formatting toolbar (code blocks get a Copy button), checklist (items can link to / spin off into tasks on any
@@ -40,39 +100,78 @@ React and TypeScript. Your boards stay on your own devices, or on your own Zomel
   week start, default view, collapsible sidebar
 - **Right-click menu** on cards everywhere
 - **Data safety**: atomic writes, automatic rolling backups, JSON export/import, single running instance
+</details>
 
-## Get it
-| | |
-|---|---|
-| **Windows 10/11** | `Zomello_x.y.z_x64-setup.exe` from [Releases](../../releases) |
-| **Linux** | `.AppImage`, `.deb` or `.rpm` from [Releases](../../releases) |
-| **Android** | `Zomello.apk` from [Releases](../../releases) |
-| **Zomello Server** | Docker image or a single program for Windows, Linux and macOS. See below |
+## 👥 Zomello Server (for teams and families)
 
-Install notes, phone pairing and building it yourself: [docs/apps.md](docs/apps.md).
+Zomello Server is like a Plex server for your boards: one always-on computer hosts them, and everyone signs in from
+their browser, phone or the Zomello app.
 
-Boards can be passed around as `.zomello` files (⋯ → Save as board file), no server needed.
+- Everyone gets their **own account** and boards.
+- Boards can be **shared** by invitation, and changes show up **live** for everyone.
+- Admins add people, reset passwords and manage boards from the **Admin** page.
+- **Daily backups** happen automatically.
 
-## Zomello Server (several people, on a server)
-Run Zomello on a home server, NAS, Raspberry Pi or VPS. Everyone gets their own account and boards, boards can be
-shared by invitation, changes show up live, and admins manage people and boards from the Admin page.
+**With Docker** (home servers, NAS, Unraid, TrueNAS, Synology, Raspberry Pi 4/5):
 
-**Docker:**
 ```bash
 curl -O https://raw.githubusercontent.com/ZomBeatz/Zomello/main/deploy/docker-compose.yml
-docker compose up -d      # then open http://<server>:7311 and create the admin account
+docker compose up -d
 ```
-The image (`ghcr.io/zombeatz/zomello-server`) runs on x86-64 and arm64 (Raspberry Pi 4/5).
 
-**Without Docker:** download `zomello-server-…` for your system from [Releases](../../releases), run it, and
-`zomello-server install` starts it with the computer (Windows task, systemd service or macOS LaunchAgent).
+Then open `http://<your-server>:7311` and create the admin account.
 
-Settings, https options, backups and password recovery: [docs/server.md](docs/server.md).
+**Without Docker** (Windows, Linux or macOS): download `zomello-server-…` for your system from the
+[latest release](https://github.com/ZomBeatz/Zomello/releases/latest) and open it. Your browser opens to set up the admin account. To start it with the computer,
+run it once with `install` (for example `zomello-server-windows-x64.exe install` from an administrator Command Prompt).
 
-## Development
+👉 Full guide, https options, backups and password recovery: **[docs/server.md](docs/server.md)**
+
+## ❓ Questions
+
+<details>
+<summary><b>Where are my boards saved?</b></summary>
+
+On your own device: `%APPDATA%\com.zombeatz.zomello` on Windows, `~/.local/share/com.zombeatz.zomello` on Linux,
+and inside the app on Android. Zomello keeps rolling backups next to them. **Settings → Data** can export everything.
+</details>
+
+<details>
+<summary><b>How do I see my computer's boards on my phone?</b></summary>
+
+On the computer, open **Settings → Phones & tablets** and follow the steps. Then in the phone app, open
+**Settings → Servers → Boards on your computer**. Both have to be on the same Wi‑Fi. Details: [docs/apps.md](docs/apps.md).
+</details>
+
+<details>
+<summary><b>Can I bring my boards from Trello or Planner?</b></summary>
+
+Yes. **Settings → Data → Import** takes Trello exports (`.json`) and Microsoft Planner exports (`.xlsx` / `.csv`).
+</details>
+
+<details>
+<summary><b>Windows says "Windows protected your PC". Is it safe?</b></summary>
+
+That warning appears for apps that aren't signed with a paid certificate yet. Click **More info → Run anyway**.
+The installer is built by GitHub straight from the code in this repository.
+</details>
+
+<details>
+<summary><b>The window is blank on Linux (NVIDIA / Wayland)</b></summary>
+
+Zomello already works around the common cause. If it still happens, start it with `GDK_BACKEND=x11 zomello`.
+</details>
+
+## 🛠️ For developers
+
+<details>
+<summary><b>Building and project layout</b></summary>
+
+Built with Tauri 2, React and TypeScript; the server is Rust with SQLite. Needs Node.js 20+ and Rust.
+
 ```bash
 npm install
-npm run app        # Tauri dev window (hot reload)
+npm run app        # dev window with hot reload
 npm run bundle     # release bundles → src-tauri/target/release/bundle/ (AppImage, deb, rpm)
 npm run android    # build and install on a USB-connected Android phone
 npm run server     # build Zomello Server → server/target/release/zomello-server
@@ -80,19 +179,14 @@ npm run dev        # browser-only UI at http://localhost:1420 (data in localStor
 ./scripts/install-desktop.sh   # Linux: build and install into the app menu
 ```
 
-Data: `~/.local/share/com.zombeatz.zomello/` on Linux, `%APPDATA%\com.zombeatz.zomello` on Windows (the data file,
-`backups/` and `attachments/`).
+More in [docs/apps.md](docs/apps.md#building-it-yourself).
 
-Blank window on NVIDIA/Wayland: the app sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` itself; if it still happens,
-try launching with `GDK_BACKEND=x11`.
-
-## Layout
-- `src-tauri/src/lib.rs` – load/save/backup/export, attachments, legacy migration
-- `src/store.ts` – Zustand store, all mutations, undo/redo, activity log, autosave
-- `src/utils.ts` – filtering, grouping, dates, recurrence, durations
-- `src/shortcuts.ts`, `src/reminders.ts` – keyboard shortcuts, desktop notifications
-- `src/components/` – pages, card modal, pickers, context menu and `views/`
+- `src-tauri/src/` – desktop and Android app (storage, backups, phone & tablet access)
+- `src/store.ts` – app state, all changes, undo/redo, autosave
+- `src/components/` – pages, card window, views
 - `server/` – Zomello Server (Rust, SQLite), `deploy/` – compose file for servers
+</details>
 
-## Contact
-ZomBeatz Media · [info@zombeatzmedia.com](mailto:info@zombeatzmedia.com)
+## 📬 Contact
+
+Made by **ZomBeatz Media** · [info@zombeatzmedia.com](mailto:info@zombeatzmedia.com)
