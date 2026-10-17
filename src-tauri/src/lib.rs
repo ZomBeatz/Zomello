@@ -606,3 +606,23 @@ pub fn run() {
             }
         });
 }
+
+#[cfg(test)]
+mod command_permissions {
+    /// Every command the app registers must be listed in build.rs (and so get a permission), or the
+    /// app's own pages are refused it ("Command not found"). Catches a forgotten one at `cargo test`.
+    #[test]
+    fn every_command_has_a_permission() {
+        let lib = include_str!("lib.rs").split("mod command_permissions").next().unwrap();
+        let build = include_str!("../build.rs");
+        let default = include_str!("../capabilities/default.json");
+        for list in lib.split("tauri::generate_handler![").skip(1) {
+            for cmd in list.split(']').next().unwrap().split(',').map(|c| c.trim()).filter(|c| !c.is_empty()) {
+                let name = cmd.rsplit("::").next().unwrap();
+                assert!(build.contains(&format!("\"{name}\"")), "{name} is missing from build.rs");
+                let perm = format!("\"allow-{}\"", name.replace('_', "-"));
+                assert!(default.contains(&perm), "{perm} is missing from capabilities/default.json");
+            }
+        }
+    }
+}
