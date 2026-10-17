@@ -1,0 +1,6 @@
+{
+  "_help": "Copy these three from Partner Center → your app (Zomello) → Product management → Product identity.",
+  "name": "PASTE Package/Identity/Name, e.g. 12345ZomBeatzMedia.Zomello",
+  "publisher": "PASTE Package/Identity/Publisher, e.g. CN=1A2B3C4D-....",
+  "publisherDisplayName": "ZomBeatz Media"
+}

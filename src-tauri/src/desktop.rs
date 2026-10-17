@@ -131,11 +131,29 @@ pub fn show_main_window(app: AppHandle) {
 
 #[tauri::command]
 pub fn get_autostart(app: AppHandle) -> bool {
+    if is_store_package() {
+        return false;
+    }
     app.autolaunch().is_enabled().unwrap_or(false)
+}
+
+/// Installed from the Microsoft Store (an MSIX package lives under WindowsApps). Such an app can't add
+/// itself to start at login, but its package declares a startup entry the person turns on in Windows;
+/// its firewall rule for phones comes with the package too.
+pub fn is_store_package() -> bool {
+    cfg!(windows) && std::env::current_exe().is_ok_and(|p| p.to_string_lossy().to_ascii_lowercase().contains("\\windowsapps\\"))
+}
+
+#[tauri::command]
+pub fn store_package() -> bool {
+    is_store_package()
 }
 
 #[tauri::command]
 pub fn set_autostart(app: AppHandle, enabled: bool) -> Result<(), String> {
+    if is_store_package() {
+        return Err("Turn it on in Windows: Settings → Apps → Startup → Zomello.".into());
+    }
     let l = app.autolaunch();
     if enabled { l.enable() } else { l.disable() }.map_err(|e| e.to_string())
 }

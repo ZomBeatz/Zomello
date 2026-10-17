@@ -7,10 +7,13 @@ import { useStore } from "../store";
 export function DesktopPanel() {
   const bg = useStore((s) => s.data.settings.runInBackground);
   const [autostart, setAutostart] = useState<boolean | null>(null);
+  /** Installed from the Microsoft Store: Windows' own Startup list decides. */
+  const [store, setStore] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     void invoke<boolean>("get_autostart").then(setAutostart).catch(() => setAutostart(false));
+    void invoke<boolean>("store_package").then(setStore).catch(() => setStore(false));
   }, []);
 
   const setBackground = async (on: boolean) => {
@@ -47,13 +50,19 @@ export function DesktopPanel() {
           </small>
         </span>
       </label>
-      <label className="check-row">
-        <input type="checkbox" checked={!!autostart} disabled={autostart === null} onChange={(e) => void setLogin(e.target.checked)} />
-        <span>
-          Start Zomello when I log in
-          <small className="muted">{bg ? "It starts quietly in the tray." : "Turn on the option above to have it start quietly in the tray."}</small>
-        </span>
-      </label>
+      {store ? (
+        <p className="small muted">
+          <b>Start Zomello when I log in:</b> turn it on in Windows: Settings → Apps → Startup → Zomello.
+        </p>
+      ) : (
+        <label className="check-row">
+          <input type="checkbox" checked={!!autostart} disabled={autostart === null} onChange={(e) => void setLogin(e.target.checked)} />
+          <span>
+            Start Zomello when I log in
+            <small className="muted">{bg ? "It starts quietly in the tray." : "Turn on the option above to have it start quietly in the tray."}</small>
+          </span>
+        </label>
+      )}
       {error && <p className="small danger-text">{error}</p>}
     </section>
   );

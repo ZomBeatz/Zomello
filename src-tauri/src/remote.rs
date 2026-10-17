@@ -888,6 +888,10 @@ fn firewall_command(kind: &str, port: u16) -> Option<String> {
 /// Is Zomello already let through? Windows and macOS can tell; Linux rules need root to read, so
 /// there we remember having done it.
 fn firewall_allowed(kind: &str, port: u16, remembered: bool) -> bool {
+    // The Microsoft Store package brings its own firewall rule for the usual port.
+    if crate::desktop::is_store_package() && port == DEFAULT_PORT {
+        return true;
+    }
     match kind {
         "none" => true,
         "windows" => quiet("netsh")

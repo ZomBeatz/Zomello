@@ -68,6 +68,7 @@
     "allow-linked-send",
     "allow-open-device-window",
     "allow-places-save-link",
-    "allow-link-ops-ack"
+    "allow-link-ops-ack",
+    "allow-store-package"
   ]
 }

@@ -107,6 +107,31 @@ See *Google Play* below to publish it on the Play Store.
 
 **Your test copy:** the copy you installed by cable is signed with a different key, so Android won't update it with the Play version. Uninstall it first, which deletes the boards stored on the phone. Save any you want to keep beforehand: use a board's **⋯ → Save as board file**, or keep them on your computer.
 
+## Microsoft Store (Windows PCs and tablets)
+
+The Store version is an **MSIX package**. The Store signs it for you, so there is no certificate to buy.
+
+1. **Account:** sign up at partner.microsoft.com → **Apps and games** as an individual developer.
+2. **Reserve the name:** Partner Center → **Apps and games → New product → MSIX or PWA app**, and reserve **Zomello**.
+3. **Identity:** open the app → **Product management → Product identity** and copy these three values into `src-tauri/msix/store-identity.json`, then commit and push:
+   - `Package/Identity/Name`
+   - `Package/Identity/Publisher` (starts with `CN=`)
+   - `Package/Properties/PublisherDisplayName`
+4. **Build:** GitHub → Actions → **Build apps** → Run workflow. The run's artifacts include **zomello-microsoft-store**, which contains `Zomello_x.y.z.0_x64.msix`.
+5. **Submission:** in Partner Center, start one and upload the `.msix` under **Packages**.
+   - **Store listing:** reuse the descriptions in `docs/google-play/play-console-answers.md`, plus Windows screenshots.
+   - **Privacy policy:** the same link as for Google Play.
+   - **Age rating:** the questionnaire is like Google's.
+   - **runFullTrust question:** Partner Center asks why the app needs it. Answer: "Desktop app (Tauri): stores the user's boards locally and runs an optional home-network server for the user's phone."
+6. **Submit:** certification usually takes a few days.
+
+**Store version vs. installer:**
+- **Start at login:** a Store install can't turn this on itself. Windows' own list does it, under **Settings → Apps → Startup → Zomello**, and the app's Settings says so.
+- **Phone access:** the firewall rule for phones is included in the package, so there's no admin prompt.
+- **Data:** the Store version keeps its data separately from a copy installed with the `.exe`.
+
+**Updates:** raise the version in `src-tauri/tauri.conf.json`, run the build again, and upload the new `.msix` as a new submission.
+
 ## Mac app signing (your Apple developer account)
 
 Unsigned Mac apps need the right-click → Open step, and some Macs refuse them. With your Apple Developer membership, GitHub can sign and notarize the app so it opens normally.
