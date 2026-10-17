@@ -5,7 +5,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager};
 
 mod calendar;
+#[cfg(desktop)]
 mod desktop;
+#[cfg(desktop)]
 mod remote;
 mod servers;
 
@@ -111,6 +113,7 @@ fn attachment_path(app: &AppHandle, rel: &str) -> Result<PathBuf, String> {
 }
 
 /// The data file's contents ("" if there is none yet).
+#[cfg(desktop)]
 fn read_data(app: &AppHandle) -> Result<String, String> {
     let path = data_dir(app)?.join(DATA_FILE);
     if !path.exists() {
@@ -149,6 +152,7 @@ fn load_data(app: AppHandle) -> Result<Option<String>, String> {
 #[tauri::command]
 fn save_data(app: AppHandle, data: String) -> Result<(), String> {
     write_data(&app, &data)?;
+    #[cfg(desktop)]
     remote::notify_desktop_save(&app, &data);
     Ok(())
 }
@@ -195,6 +199,7 @@ fn unused_path(dir: &Path, name: &str) -> PathBuf {
 static OPENED: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
 
 /// Board files among launch arguments (Windows/Linux pass the file as an argument; it may be a file:// URL).
+#[cfg(any(desktop, target_os = "ios"))]
 fn board_files_in(args: impl IntoIterator<Item = String>) -> Vec<String> {
     args.into_iter()
         .map(|a| match a.strip_prefix("file://") {
@@ -206,11 +211,13 @@ fn board_files_in(args: impl IntoIterator<Item = String>) -> Vec<String> {
 }
 
 /// Queue files for the page and tell it (if it's already running it picks them up right away).
+#[cfg(any(desktop, target_os = "ios"))]
 fn hand_over_files(app: &AppHandle, files: Vec<String>) {
     if files.is_empty() {
         return;
     }
     OPENED.lock().unwrap().extend(files);
+    #[cfg(desktop)]
     desktop::show_main(app);
     use tauri::Emitter;
     let _ = app.emit("zomello://open-files", ());
@@ -401,6 +408,7 @@ fn percent_decode(s: &str) -> String {
 }
 
 /// Linux: turn on WebKitGTK's spell checker for a window (Windows' WebView2 has it built in).
+#[cfg(desktop)]
 pub(crate) fn enable_spellcheck(window: &tauri::WebviewWindow) {
     #[cfg(target_os = "linux")]
     let _ = window.with_webview(|webview| {
@@ -422,6 +430,7 @@ pub(crate) fn enable_spellcheck(window: &tauri::WebviewWindow) {
 
 /// Open a board in its own window (or focus it if it's already open).
 /// Async so window creation doesn't block the main thread (required on Windows).
+#[cfg(desktop)]
 #[tauri::command]
 async fn open_board_window(app: AppHandle, board_id: String, title: String) -> Result<(), String> {
     let id: String = board_id.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '-').collect();
@@ -449,7 +458,10 @@ pub fn run() {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     }
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // Desktop: one running copy, start at login, and the tray (closing the window can keep it running).
+    #[cfg(desktop)]
+    let builder = builder
         // Must be first: a second launch just focuses the running window, so two
         // processes never write the same data file.
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
@@ -471,6 +483,66 @@ pub fn run() {
                 }
             }
         })
+        .manage(remote::Remote::new());
+
+    #[cfg(desktop)]
+    let handlers: Box<dyn Fn(tauri::ipc::Invoke) -> bool + Send + Sync> = Box::new(tauri::generate_handler![
+        load_data,
+        save_data,
+        export_data,
+        export_bytes,
+        take_opened_files,
+        servers::check_server,
+        servers::open_server_window,
+        list_backups,
+        read_backup,
+        data_location,
+        save_attachment,
+        store_file_from_path,
+        open_board_window,
+        read_dropped_file,
+        attachment_abs_path,
+        list_attachments,
+        delete_attachment,
+        remote::remote_status,
+        remote::remote_set_enabled,
+        remote::remote_start_pairing,
+        remote::remote_cancel_pairing,
+        remote::remote_unlink,
+        remote::remote_rename,
+        calendar::fetch_calendar,
+        desktop::set_background_mode,
+        desktop::show_main_window,
+        desktop::get_autostart,
+        desktop::set_autostart,
+        remote::remote_open_firewall,
+        remote::remote_set_address,
+        remote::remote_regenerate_cert,
+        remote::remote_export_cert,
+        remote::remote_qr
+    ]);
+    // Phones and tablets: the same app with its own boards, minus windows, tray and the phone server.
+    #[cfg(mobile)]
+    let handlers: Box<dyn Fn(tauri::ipc::Invoke) -> bool + Send + Sync> = Box::new(tauri::generate_handler![
+        load_data,
+        save_data,
+        export_data,
+        export_bytes,
+        take_opened_files,
+        servers::check_server,
+        list_backups,
+        read_backup,
+        data_location,
+        save_attachment,
+        store_file_from_path,
+        read_dropped_file,
+        attachment_abs_path,
+        list_attachments,
+        delete_attachment,
+        calendar::fetch_calendar
+    ]);
+
+    builder
         // Safety net: the app window only ever shows the app itself. Links open in the browser
         // instead, and a stray dropped file can never replace the UI.
         .plugin(
@@ -493,53 +565,23 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .invoke_handler(tauri::generate_handler![
-            load_data,
-            save_data,
-            export_data,
-            export_bytes,
-            take_opened_files,
-            servers::check_server,
-            servers::open_server_window,
-            list_backups,
-            read_backup,
-            data_location,
-            save_attachment,
-            store_file_from_path,
-            open_board_window,
-            read_dropped_file,
-            attachment_abs_path,
-            list_attachments,
-            delete_attachment,
-            remote::remote_status,
-            remote::remote_set_enabled,
-            remote::remote_start_pairing,
-            remote::remote_cancel_pairing,
-            remote::remote_unlink,
-            remote::remote_rename,
-            calendar::fetch_calendar,
-            desktop::set_background_mode,
-            desktop::show_main_window,
-            desktop::get_autostart,
-            desktop::set_autostart,
-            remote::remote_open_firewall,
-            remote::remote_set_address,
-            remote::remote_regenerate_cert,
-            remote::remote_export_cert,
-            remote::remote_qr
-        ])
-        .manage(remote::Remote::new())
+        .invoke_handler(handlers)
         .setup(|app| {
-            if let Some(window) = app.get_webview_window("main") {
-                enable_spellcheck(&window);
-                // Started at login: stay in the tray until opened (the page turns the tray on).
-                if !desktop::started_hidden() {
-                    let _ = window.show();
+            #[cfg(desktop)]
+            {
+                if let Some(window) = app.get_webview_window("main") {
+                    enable_spellcheck(&window);
+                    // Started at login: stay in the tray until opened (the page turns the tray on).
+                    if !desktop::started_hidden() {
+                        let _ = window.show();
+                    }
                 }
+                remote::init(app.handle());
+                // Opened by double-clicking a board file (Windows/Linux).
+                OPENED.lock().unwrap().extend(board_files_in(std::env::args().skip(1)));
             }
-            remote::init(app.handle());
-            // Opened by double-clicking a board file (Windows/Linux).
-            OPENED.lock().unwrap().extend(board_files_in(std::env::args().skip(1)));
+            #[cfg(mobile)]
+            let _ = app;
             Ok(())
         })
         .build(tauri::generate_context!())

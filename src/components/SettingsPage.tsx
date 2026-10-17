@@ -4,7 +4,7 @@ import { Accessibility, Bell, Download, FileUp, Minus, Plus, Eraser, LayoutTempl
 import type { Settings, ViewMode } from "../types";
 import { normalize, useStore } from "../store";
 import {
-  cleanupStoredFiles, dataLocation, exportFile, inTauri, listBackups, notify, readBackup, type BackupInfo,
+  cleanupStoredFiles, dataLocation, exportFile, inTauri, isDesktopApp, listBackups, notify, readBackup, type BackupInfo,
 } from "../storage";
 import { PALETTE } from "../utils";
 import { SHORTCUTS } from "../shortcuts";
@@ -104,7 +104,7 @@ export function SettingsPage() {
           ["reminders", "Reminders"],
           ["templates", "Templates"],
           ...(!isServer && !isRemote ? [["servers", "Servers"]] : []),
-          ...(inTauri ? [["desktop", "Desktop app"], ["devices", "Phones & tablets"]] : []),
+          ...(isDesktopApp ? [["desktop", "Desktop app"], ["devices", "Phones & tablets"]] : []),
           ["data", "Data & backups"],
           ["about", "About"],
           ["shortcuts", "Shortcuts"],
@@ -369,8 +369,8 @@ export function SettingsPage() {
       </section>
 
       {!isServer && !isRemote && <ServersPanel />}
-      {inTauri && <DesktopPanel />}
-      {inTauri && <DevicesPanel />}
+      {isDesktopApp && <DesktopPanel />}
+      {isDesktopApp && <DevicesPanel />}
 
       <section className="panel" id="set-data">
         <h3>Data</h3>

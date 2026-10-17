@@ -11,6 +11,9 @@ export const isMobileApp =
   typeof navigator !== "undefined" &&
   (/Android|iPhone|iPad/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
 
+/** The Windows / macOS / Linux app: windows, tray, start at login, phone & tablet access. */
+export const isDesktopApp = inTauri && !isMobileApp;
+
 const LS_KEY = "zomello-data";
 const LEGACY_LS_KEY = "planwise-data";
 

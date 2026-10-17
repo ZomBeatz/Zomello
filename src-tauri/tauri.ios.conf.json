@@ -1,0 +1,8 @@
+{
+  "app": {
+    "windows": [{ "title": "Zomello", "visible": true }]
+  },
+  "bundle": {
+    "iOS": { "minimumSystemVersion": "15.0" }
+  }
+}
