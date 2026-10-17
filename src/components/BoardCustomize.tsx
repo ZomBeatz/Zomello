@@ -451,7 +451,7 @@ function AboutBoard({ board }: { board: Board }) {
     <textarea
       rows={3}
       className="about-board"
-      placeholder="e.g. Zomello is my Tauri + React task app, code in ~/claude/test. Bugs go in Bugs, ideas in Brainstorm."
+      placeholder="e.g. Zomello is my Tauri + React task app, code in ~/projects/zomello. Bugs go in Bugs, ideas in Brainstorm."
       value={text}
       onChange={(e) => setText(e.target.value)}
       onBlur={save}
