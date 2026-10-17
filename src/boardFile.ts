@@ -1,6 +1,6 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import type { Board, Card, ID, List } from "./types";
-import { inTauri, storeFile, storedSrc } from "./storage";
+import { inTauri, isDesktopApp, isMobileApp, storeFile, storedSrc } from "./storage";
 import { invoke } from "@tauri-apps/api/core";
 import { uid } from "./utils";
 import { useStore } from "./store";
@@ -60,8 +60,37 @@ export async function buildBoardFile(data: { boards: Record<ID, Board>; lists: R
   return { bytes, name, missing };
 }
 
-/** Save a board file: Downloads folder in the desktop app, a normal download in a browser. */
+/**
+ * Phones and tablets: hand the file to the system share sheet (Messages, Mail, Files, AirDrop…) when
+ * there is one. "later" means the browser wants a fresh tap first (preparing the file took a while).
+ */
+async function shareFile(bytes: Uint8Array, name: string): Promise<"shared" | "unsupported" | "later"> {
+  const file = new File([bytes as BlobPart], name, { type: "application/x-zomello" });
+  if (!navigator.canShare?.({ files: [file] })) return "unsupported";
+  try {
+    await navigator.share({ files: [file], title: name });
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "NotAllowedError") return "later";
+    if (!(e instanceof DOMException && e.name === "AbortError")) throw e; // AbortError: closed the sheet
+  }
+  return "shared";
+}
+
+const SHARE_LATER = "\u0000share-later";
+
+/**
+ * Save a board file: Downloads folder in the desktop app, the share sheet on phones and tablets that
+ * have one, a normal download in a browser. Returns where it went ("" when it was shared).
+ */
 export async function saveBoardFile(bytes: Uint8Array, name: string): Promise<string> {
+  if (isMobileApp || (!inTauri && navigator.maxTouchPoints > 0)) {
+    const r = await shareFile(bytes, name);
+    if (r === "shared") return "";
+    if (r === "later") {
+      useStore.getState().toast(`“${name}” is ready.`, { key: "board-file", action: { label: "Share", run: () => void shareFile(bytes, name) } });
+      return SHARE_LATER;
+    }
+  }
   if (inTauri) return invoke<string>("export_bytes", bytes, { headers: { "x-name": encodeURIComponent(name) } });
   const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/x-zomello" }));
   const a = Object.assign(document.createElement("a"), { href: url, download: name });
@@ -163,10 +192,14 @@ export async function exportBoard(boardId: ID): Promise<void> {
     const { bytes, name, missing } = await buildBoardFile(st.data, boardId);
     const where = await saveBoardFile(bytes, name);
     const extra = missing ? ` (${missing} attached ${missing === 1 ? "file" : "files"} couldn't be included)` : "";
-    st.toast(inTauri ? `Saved ${where}${extra}. Send it to anyone with Zomello; opening it adds the board.` : `Downloaded ${name}${extra}`, {
-      key: "board-file",
-      ...(inTauri ? { action: { label: "Show", run: () => void revealPath(where) } } : {}),
-    });
+    if (where === SHARE_LATER) return;
+    if (!where) st.dismissToast(st.toasts.find((t) => t.key === "board-file")?.id ?? "");
+    else if (isDesktopApp)
+      st.toast(`Saved ${where}${extra}. Send it to anyone with Zomello; opening it adds the board.`, {
+        key: "board-file",
+        action: { label: "Show", run: () => void revealPath(where) },
+      });
+    else st.toast(inTauri ? `Saved ${where}${extra}` : `Downloaded ${name}${extra}`, { key: "board-file" });
   } catch (e) {
     st.toast(`Couldn't save the board: ${e instanceof Error ? e.message : e}`, { key: "board-file" });
   }
