@@ -1,10 +1,8 @@
-# Builds the Zomello apps on GitHub's machines: Windows, Linux, macOS and Android.
+# Builds the Zomello apps on GitHub's machines: Windows, Linux and Android.
 # Run it from the Actions tab ("Run workflow"), or push a tag like v0.2.0.
 # Every run keeps the files under the run's "Artifacts"; a tag also makes a draft release with them.
 #
-# Optional secrets (Settings → Secrets and variables → Actions), see docs/apps.md:
-#   macOS signing:   APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY,
-#                    and for notarizing APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID
+# Optional secrets (Settings → Secrets and variables → Actions):
 #   Android signing: ANDROID_KEYSTORE (base64), ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS
 name: Build apps
 
@@ -27,9 +25,6 @@ jobs:
           - platform: ubuntu-22.04
             name: linux
             args: ""
-          - platform: macos-latest
-            name: macos
-            args: "--target universal-apple-darwin"
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
@@ -46,32 +41,12 @@ jobs:
           cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.name == 'macos' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
 
       - run: npm ci
-
-      # Sign (and notarize) the Mac app only when the Apple secrets exist; otherwise it's built unsigned.
-      - name: Apple signing (if set up)
-        if: matrix.name == 'macos'
-        shell: bash
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          for v in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
-            if [ -n "${!v}" ]; then
-              { echo "$v<<ZOMELLO_EOF"; echo "${!v}"; echo "ZOMELLO_EOF"; } >> "$GITHUB_ENV"
-            fi
-          done
 
       - uses: tauri-apps/tauri-action@v0
         env:
@@ -91,7 +66,6 @@ jobs:
             src-tauri/target/release/bundle/appimage/*.AppImage
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/rpm/*.rpm
-            src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: error
 
   # Microsoft Store package (.msix). Upload it in Partner Center; the Store signs it, no certificate needed.
@@ -123,7 +97,7 @@ jobs:
         run: |
           $id = Get-Content src-tauri/msix/store-identity.json -Raw | ConvertFrom-Json
           if ($id.name -like "PASTE*" -or $id.publisher -like "PASTE*") {
-            Write-Output "::warning::src-tauri/msix/store-identity.json still has placeholders: fill it in from Partner Center (see docs/apps.md). Skipping the .msix."
+            Write-Output "::warning::src-tauri/msix/store-identity.json still has placeholders (fill it in from Partner Center). Skipping the .msix."
             exit 0
           }
           $version = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
@@ -205,7 +179,7 @@ jobs:
           else
             # No signing key set up yet: sign with a throwaway key so the APK installs for testing.
             # (Phones won't update it over a copy signed with a different key; uninstall first.)
-            echo "::warning::No ANDROID_KEYSTORE secret: this APK is test-signed. See docs/apps.md to set up your own key."
+            echo "::warning::No ANDROID_KEYSTORE secret: this APK is test-signed. Add the ANDROID_KEYSTORE secrets to sign with your own key."
             PASS=zomello-test; ALIAS=zomello
             keytool -genkeypair -keystore release.jks -storepass $PASS -keypass $PASS -alias $ALIAS \
               -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Zomello test"

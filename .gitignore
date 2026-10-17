@@ -4,3 +4,6 @@ src-tauri/target
 src-tauri/gen/schemas
 server/target
 server/data
+
+# Local editor/assistant settings
+.claude/

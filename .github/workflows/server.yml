@@ -94,7 +94,7 @@ jobs:
           [ -f "$src.exe" ] && src="$src.exe"
           cp "$src" "out/${{ matrix.file }}"
 
-      # Mac: sign and notarize with the same Apple secrets as the app (docs/apps.md), so macOS opens
+      # Mac: sign and notarize with Apple secrets (APPLE_CERTIFICATE, APPLE_ID, …) if they are set, so macOS opens
       # the download without complaint. Skipped until those secrets exist.
       - name: Sign and notarize (Mac)
         if: runner.os == 'macOS'

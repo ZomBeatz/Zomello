@@ -23,7 +23,7 @@ Your PC  ──git push──▶  GitHub  ──builds the image──▶  ghcr.
 2. In the Zomello folder, connect it and upload. Swap in your username:
    ```bash
    git remote add origin git@github.com:YOUR-GITHUB-NAME/zomello.git
-   git push -u origin master
+   git push -u origin main
    ```
    This uses your SSH key. If GitHub doesn't know it yet, add `~/.ssh/id_ed25519.pub` under GitHub → Settings → SSH and GPG keys.
 
@@ -49,7 +49,7 @@ When it shows a green check, the image is under **Packages** on your GitHub prof
 2. **Make a folder** and put in it the file [`deploy/docker-compose.yml`](../deploy/docker-compose.yml) from this repository:
    ```bash
    mkdir ~/zomello && cd ~/zomello
-   curl -O https://raw.githubusercontent.com/YOUR-GITHUB-NAME/zomello/master/deploy/docker-compose.yml
+   curl -O https://raw.githubusercontent.com/YOUR-GITHUB-NAME/zomello/main/deploy/docker-compose.yml
    ```
    For a private repository, download the file from GitHub in a browser and copy it over.
 3. **Edit** `docker-compose.yml` and replace `YOUR-GITHUB-NAME` with your username **in lowercase**.
