@@ -49,10 +49,10 @@ When it shows a green check, the image is under **Packages** on your GitHub prof
 2. **Make a folder** and put in it the file [`deploy/docker-compose.yml`](../deploy/docker-compose.yml) from this repository:
    ```bash
    mkdir ~/zomello && cd ~/zomello
-   curl -O https://raw.githubusercontent.com/YOUR-GITHUB-NAME/zomello/main/deploy/docker-compose.yml
+   curl -O https://raw.githubusercontent.com/ZomBeatz/Zomello/main/deploy/docker-compose.yml
    ```
    For a private repository, download the file from GitHub in a browser and copy it over.
-3. **Edit** `docker-compose.yml` and replace `YOUR-GITHUB-NAME` with your username **in lowercase**.
+3. **Using your own copy?** If you built the image from your own fork, change `zombeatz` in `docker-compose.yml` to your GitHub name, in lowercase.
 4. **Start it:**
    ```bash
    docker compose up -d

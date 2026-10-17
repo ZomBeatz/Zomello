@@ -1,13 +1,12 @@
-# Zomello Server, using the image GitHub builds for you (no source code needed on the server).
+# Zomello Server, using the published image (no source code needed on the server).
 #
-# 1. Replace YOUR-GITHUB-NAME below with your GitHub username, in lowercase.
-# 2. docker compose up -d
-# 3. Open http://<this-server>:7311 and create the admin account.
+# 1. docker compose up -d
+# 2. Open http://<this-server>:7311 and create the admin account.
 #
 # Update later with:  docker compose pull && docker compose up -d
 services:
   zomello:
-    image: ghcr.io/YOUR-GITHUB-NAME/zomello-server:latest
+    image: ghcr.io/zombeatz/zomello-server:latest
     container_name: zomello
     restart: unless-stopped
     ports:

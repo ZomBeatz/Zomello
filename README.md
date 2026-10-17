@@ -59,10 +59,10 @@ shared by invitation, changes show up live, and admins manage people and boards 
 
 **Docker:**
 ```bash
-curl -O https://raw.githubusercontent.com/<owner>/zomello/main/deploy/docker-compose.yml
+curl -O https://raw.githubusercontent.com/ZomBeatz/Zomello/main/deploy/docker-compose.yml
 docker compose up -d      # then open http://<server>:7311 and create the admin account
 ```
-The image (`ghcr.io/<owner>/zomello-server`) runs on x86-64 and arm64 (Raspberry Pi 4/5).
+The image (`ghcr.io/zombeatz/zomello-server`) runs on x86-64 and arm64 (Raspberry Pi 4/5).
 
 **Without Docker:** download `zomello-server-…` for your system from [Releases](../../releases), run it, and
 `zomello-server install` starts it with the computer (Windows task, systemd service or macOS LaunchAgent).
