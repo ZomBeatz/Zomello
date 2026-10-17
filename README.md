@@ -65,6 +65,11 @@ Zomello runs on Windows 10/11 too (it uses the built-in Edge WebView2). Ways to 
 The installer is unsigned, so Windows SmartScreen will say "Windows protected your PC" — click **More info → Run anyway**.
 It installs per-user (no admin needed); data lives in `%APPDATA%\com.zombeatz.zomello`.
 
+## Apps for every device
+Zomello runs on Windows, macOS, Linux, Android, iPhone and iPad, each with its own boards. Boards can be passed around
+as `.zomello` files, and every app can also open Zomello Servers. GitHub builds the apps (Actions → *Build apps*);
+installing, Android signing and the Apple/iPhone steps are in [docs/apps.md](docs/apps.md).
+
 ## Zomello Server (several people, on a server)
 Run Zomello on a home server, NAS, Raspberry Pi or VPS. Everyone gets their own account and boards, boards can be
 shared by invitation, and admins manage people and boards from the Admin page.
