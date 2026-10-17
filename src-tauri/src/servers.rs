@@ -46,12 +46,23 @@ pub struct ServerCheck {
     error: Option<String>,
 }
 
-/// Is there a Zomello Server at this address?
+/// Is there a Zomello Server at this address? Without `http://` or `https://`, https is tried first,
+/// then plain http (home servers often run without https).
 #[tauri::command]
 pub async fn check_server(address: String) -> Result<ServerCheck, String> {
     let url = parse(&address)?;
-    let base = origin_of(&url);
-    let mut out = ServerCheck { url: base.clone(), ok: false, version: None, setup_needed: false, cert_problem: false, error: None };
+    let first = probe(&origin_of(&url)).await;
+    if first.ok || first.cert_problem || address.contains("://") {
+        return Ok(first);
+    }
+    let mut http = url.clone();
+    let _ = http.set_scheme("http");
+    let second = probe(&origin_of(&http)).await;
+    Ok(if second.ok { second } else { first })
+}
+
+async fn probe(base: &str) -> ServerCheck {
+    let mut out = ServerCheck { url: base.to_string(), ok: false, version: None, setup_needed: false, cert_problem: false, error: None };
     match crate::calendar::fetch_text(&format!("{base}/api/session")).await {
         Ok(body) => match serde_json::from_str::<serde_json::Value>(&body) {
             Ok(v) if v.get("setupNeeded").is_some() => {
@@ -67,11 +78,11 @@ pub async fn check_server(address: String) -> Result<ServerCheck, String> {
             out.error = Some(if out.cert_problem {
                 "This server uses its own certificate, which this computer doesn't trust yet.".into()
             } else {
-                e
+                format!("Couldn't reach a Zomello Server there ({e}).")
             });
         }
     }
-    Ok(out)
+    out
 }
 
 /// Open (or bring forward) a server's window (desktop; the phone apps open servers in the browser).
@@ -105,6 +116,10 @@ mod tests {
     #[ignore]
     async fn finds_a_local_server() {
         let r = super::check_server("http://localhost:7400/".into()).await.unwrap();
+        assert!(r.ok, "{:?}", r.error);
+        assert_eq!(r.url, "http://localhost:7400");
+        // No scheme typed: https fails against this plain-http server, so it falls back to http.
+        let r = super::check_server("localhost:7400".into()).await.unwrap();
         assert!(r.ok, "{:?}", r.error);
         assert_eq!(r.url, "http://localhost:7400");
         let r = super::check_server("http://localhost:1".into()).await.unwrap();
