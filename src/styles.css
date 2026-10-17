@@ -495,7 +495,7 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 .ctx-menu {
   position: fixed; z-index: 200; min-width: 200px; max-width: 340px; padding: 5px;
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg);
-  font-size: 13.5px; animation: fade .08s;
+  font-size: 13.5px; animation: fade .08s; overflow-y: auto; overscroll-behavior: contain;
 }
 .ctx-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border-radius: 6px; text-align: left; }
 .ctx-item:hover, .ctx-item.open { background: var(--surface-2); }

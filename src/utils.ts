@@ -493,3 +493,18 @@ export const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n 
 export function boardCategories(boards: { category?: string | null }[]): string[] {
   return [...new Set(boards.map((b) => b.category).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b));
 }
+
+/**
+ * The parts of the screen covered by the phone's status bar, notch and gesture bar (all 0 on a
+ * computer), so menus and pop-ups can stay clear of them.
+ */
+export function safeArea(): { top: number; bottom: number; left: number; right: number } {
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position:fixed;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)";
+  document.body.append(probe);
+  const cs = getComputedStyle(probe);
+  const r = { top: parseFloat(cs.paddingTop) || 0, bottom: parseFloat(cs.paddingBottom) || 0, left: parseFloat(cs.paddingLeft) || 0, right: parseFloat(cs.paddingRight) || 0 };
+  probe.remove();
+  return r;
+}

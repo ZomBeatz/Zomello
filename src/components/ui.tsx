@@ -2,7 +2,7 @@ import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type
 import { createPortal } from "react-dom";
 import { Check, CheckCircle2, CircleDashed, CircleDot, CirclePause, Hourglass, X } from "lucide-react";
 import type { Priority, Progress } from "../types";
-import { colorFor, initials, PALETTE, priorityMeta } from "../utils";
+import { colorFor, initials, PALETTE, priorityMeta, safeArea } from "../utils";
 
 export function Modal({
   onClose,
@@ -52,10 +52,12 @@ export function Popover({
     const r = anchor.current.getBoundingClientRect();
     const w = panel.current?.offsetWidth ?? 240;
     const h = panel.current?.offsetHeight ?? 0;
+    // Keep clear of the phone's status bar and gesture bar (zero on a computer).
+    const safe = safeArea();
     let left = align === "right" ? r.right - w : r.left;
-    left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+    left = Math.max(safe.left + 8, Math.min(left, window.innerWidth - safe.right - w - 8));
     let top = r.bottom + 4;
-    if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 4);
+    if (top + h > window.innerHeight - safe.bottom - 8) top = Math.max(safe.top + 8, r.top - h - 4);
     setPos({ top, left });
   }, [open, align]);
 
