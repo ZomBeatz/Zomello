@@ -158,13 +158,13 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 .board-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
 .nav-input { margin: 4px 0; width: 100%; }
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; position: relative; }
-.page { padding: 28px 36px 60px; overflow-y: auto; height: 100%; }
+.page { padding: 28px 36px 60px; overflow-y: auto; flex: 1; min-height: 0; }
 .save-error { background: var(--danger); color: #fff; padding: 6px 14px; font-size: 13px; }
 .fatal { padding: 40px; max-width: 700px; }
 .fatal pre { white-space: pre-wrap; background: var(--surface-2); padding: 12px; border-radius: 8px; }
 
 /* ---------- board ---------- */
-.board-page { display: flex; flex-direction: column; height: 100%; }
+.board-page { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .board-header {
   display: flex; align-items: center; gap: 10px; padding: 12px 20px;
   background: var(--surface); border-bottom: 1px solid var(--border);
@@ -262,7 +262,8 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 /* ---------- list view ---------- */
 .list-view { padding: 16px 20px; }
 .list-add { display: flex; align-items: center; gap: 8px; padding: 4px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; margin-bottom: 12px; color: var(--muted); }
-.list-add input { border: none; flex: 1; background: transparent; box-shadow: none; }
+.list-add input { border: none; flex: 1; min-width: 0; background: transparent; box-shadow: none; }
+.list-add select { min-width: 0; max-width: 45%; flex-shrink: 1; text-overflow: ellipsis; }
 .table { width: 100%; min-width: 1150px; border-collapse: collapse; background: var(--surface); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
 .table th {
   text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 9px 10px;
@@ -1095,6 +1096,12 @@ body[data-filedrag="card"] .drop-hint { display: flex; }
   .app.phone .nav-item { padding: 10px 10px; }
 
   .page { padding: 16px 14px 80px; }
+  /* Settings-style rows: label on its own line, controls wrap instead of pushing the page sideways. */
+  .page { overflow-x: hidden; }
+  .field-row { flex-wrap: wrap; row-gap: 6px; }
+  .field-row > label { min-width: 0; flex-basis: 100%; }
+  .field-row > * { max-width: 100%; }
+  .seg { flex-wrap: wrap; }
   .board-header { padding: 8px 12px; }
   .toolbar { padding: 6px 12px; flex-wrap: wrap; }
 
