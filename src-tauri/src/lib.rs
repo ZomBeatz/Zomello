@@ -9,6 +9,7 @@ mod calendar;
 mod desktop;
 #[cfg(desktop)]
 mod remote;
+mod places;
 mod servers;
 
 const DATA_FILE: &str = "zomello.json";
@@ -495,6 +496,9 @@ pub fn run() {
         servers::check_server,
         servers::find_servers,
         servers::allow_place,
+        places::places_read,
+        places::places_save_boards,
+        places::places_save_list,
         servers::open_server_window,
         list_backups,
         read_backup,
@@ -534,6 +538,9 @@ pub fn run() {
         servers::check_server,
         servers::find_servers,
         servers::allow_place,
+        places::places_read,
+        places::places_save_boards,
+        places::places_save_list,
         list_backups,
         read_backup,
         data_location,

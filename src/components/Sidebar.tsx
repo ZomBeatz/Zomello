@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDragSensors, useIsPhone } from "../mobile";
 import {
   Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Shield, UserCog, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, UserCheck, Users, X, Zap, ExternalLink, Server as ServerIcon, Smartphone, Monitor,
@@ -21,7 +21,9 @@ import { SpinCat } from "./SpinCat";
 import { isServer, logout, me } from "../server";
 import { NO_SERVERS, openServer } from "../servers";
 import { isRemote } from "../remote";
-import { goToPhone, inZomelloApp } from "../places";
+import { goToPhone, inZomelloApp, takeNewBoardRequest } from "../places";
+import { placesMode } from "../placeLists";
+import { PlaceSections } from "./PlaceSections";
 import { isMobileApp } from "../storage";
 import { Avatar } from "./ui";
 
@@ -36,6 +38,15 @@ export function Sidebar() {
   const collapsed = phone ? false : isBoardWindow ? winCollapsed : savedCollapsed;
   const { navigate, createBoard, setOverlay, updateSettings } = useStore.getState();
   const [adding, setAdding] = useState(false);
+  // Came from another place's "New board" (phone menu): open the menu with the name box ready.
+  useEffect(() => {
+    if (!takeNewBoardRequest()) return;
+    const t = setTimeout(() => {
+      window.dispatchEvent(new Event("zomello-open-nav"));
+      setAdding(true);
+    }, 300);
+    return () => clearTimeout(t);
+  }, []);
   const [title, setTitle] = useState("");
 
   const live = useMemo(() => Object.values(boards).filter((b) => !b.archived).sort(byOrder), [boards]);
@@ -117,15 +128,9 @@ export function Sidebar() {
         </>
       )}
 
-      <div className="nav-heading">
-        <span className="label">Boards</span>
-        <button className="icon-btn tiny" title="New board" onClick={() => setAdding(true)}>
-          <Plus size={14} />
-        </button>
-      </div>
-      <div className="nav-boards">
-        <BoardList list={loose} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
-        {adding && (
+      {(() => {
+        const addInput = (
+          adding && (
           <input
             autoFocus
             className="nav-input"
@@ -151,7 +156,12 @@ export function Sidebar() {
               setAdding(false);
             }}
           />
-        )}
+        )
+        );
+        const tree = (
+          <>
+            <BoardList list={loose} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
+            {!placesMode && addInput}
         {!collapsed &&
           categories.map((cat) => {
             const inCat = live.filter((b) => b.category === cat);
@@ -175,11 +185,41 @@ export function Sidebar() {
               </div>
             );
           })}
-      </div>
+          </>
+        );
+        // Phones and tablets: one folding section per place, + New board at the bottom of each.
+        if (placesMode)
+          return (
+            <PlaceSections
+              here={
+                <div className="nav-boards">
+                  {tree}
+                  {addInput || (
+                    <button className="nav-item nav-new-board" onClick={() => setAdding(true)}>
+                      <Plus size={15} />
+                      <span className="label">New board</span>
+                    </button>
+                  )}
+                </div>
+              }
+            />
+          );
+        return (
+          <>
+            <div className="nav-heading">
+              <span className="label">Boards</span>
+              <button className="icon-btn tiny" title="New board" onClick={() => setAdding(true)}>
+                <Plus size={14} />
+              </button>
+            </div>
+            <div className="nav-boards">{tree}</div>
+          </>
+        );
+      })()}
 
-      {!isServer && !isRemote && <ServerNav collapsed={collapsed} />}
-      {inZomelloApp() && (
-        <button className="nav-item" onClick={goToPhone} title="Switch to the boards stored on this phone">
+      {!isServer && !isRemote && !placesMode && <ServerNav collapsed={collapsed} />}
+      {inZomelloApp() && !placesMode && (
+        <button className="nav-item" onClick={() => goToPhone()} title="Switch to the boards stored on this phone">
           <Smartphone size={16} />
           <span className="label">Boards on this phone</span>
         </button>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { installOpenedFiles } from "./boardFile";
 import { goToPlace, missedPlace } from "./places";
+import { installPlaceLists } from "./placeLists";
 import { Menu, Plus, Search, X } from "lucide-react";
 import { useStore } from "./store";
 import { Sidebar } from "./components/Sidebar";
@@ -143,6 +144,13 @@ export default function App() {
     (s) => s.helpOpen || s.welcomeOpen || s.searchOpen || s.quickAddOpen || s.importOpen || !!s.openCardId || !!s.customizeBoardId || !!s.shareBoardId,
   );
   useEffect(() => setNavOpen(false), [route, phone, overlayOpen]);
+  // "New board" from another place's section in the phone menu lands here: open the menu.
+  useEffect(() => {
+    const open = () => setNavOpen(true);
+    window.addEventListener("zomello-open-nav", open);
+    return () => window.removeEventListener("zomello-open-nav", open);
+  }, []);
+  useEffect(() => (loaded ? installPlaceLists() : undefined), [loaded]);
 
 
   // Theme, accent color and density live on <html> so every component picks them up.

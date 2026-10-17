@@ -13,6 +13,7 @@ const PLACE_KEY = "zomello-place";
 /** Saved by a computer/server page inside the app: where "Boards on this phone" goes back to. */
 const HOME_KEY = "zomello-app-home";
 const APP_PARAM = "zomello-app";
+const NEW_BOARD = "zomello-new-board";
 
 const read = (k: string) => {
   try {
@@ -87,19 +88,36 @@ export async function reachable(origin: string, ms = 4000): Promise<boolean> {
   }
 }
 
-/** Switch the app to another place's boards (optionally pairing with a code from the computer). */
-export async function goToPlace(origin: string, pairCode?: string | null): Promise<void> {
+/**
+ * Switch the app to another place's boards (optionally pairing with a code from the computer, or
+ * opening a board there: `at` is a page address like "#/board/<id>", or "new-board").
+ */
+export async function goToPlace(origin: string, pairCode?: string | null, at?: string): Promise<void> {
   if (isLocalAddress(origin) && !(await ensureLocalNetwork())) throw new Error(LOCAL_NETWORK_HELP);
   const allowed = await invoke<string>("allow_place", { address: origin });
   write(PLACE_KEY, allowed);
   const back = encodeURIComponent(location.origin);
-  location.href = `${allowed}/?${APP_PARAM}=${back}${pairCode ? `#pair=${pairCode}` : ""}`;
+  const extra = at === "new-board" ? `&${NEW_BOARD}=1` : "";
+  const hash = pairCode ? `#pair=${pairCode}` : at && at !== "new-board" ? at : "";
+  location.href = `${allowed}/?${APP_PARAM}=${back}${extra}${hash}`;
 }
 
-/** Back to the boards stored on this phone. */
-export function goToPhone(): void {
+/** Back to the boards stored on this phone (optionally to a board there, or to make a new one). */
+export function goToPhone(at?: string): void {
   const home = read(HOME_KEY);
-  if (home) location.href = `${home}/?local=1`;
+  if (!home) return;
+  const extra = at === "new-board" ? `&${NEW_BOARD}=1` : "";
+  location.href = `${home}/?local=1${extra}${at && at !== "new-board" ? at : ""}`;
+}
+
+/** Arrived with "make a new board here" (from another place's section)? Clears the request. */
+export function takeNewBoardRequest(): boolean {
+  const params = new URLSearchParams(location.search);
+  if (!params.has(NEW_BOARD)) return false;
+  params.delete(NEW_BOARD);
+  const q = params.toString();
+  history.replaceState(history.state, "", `${location.pathname}${q ? `?${q}` : ""}${location.hash}`);
+  return true;
 }
 
 /** On a computer's or server's page: are we inside the Zomello app (so there's a phone to go back to)? */
@@ -123,7 +141,10 @@ export async function placeStartup(): Promise<boolean> {
   if (!isMobileApp) return false;
   if (new URLSearchParams(location.search).has("local")) {
     write(PLACE_KEY, null);
-    history.replaceState(history.state, "", `${location.pathname}${location.hash}`);
+    const rest = new URLSearchParams(location.search);
+    rest.delete("local");
+    const q = rest.toString();
+    history.replaceState(history.state, "", `${location.pathname}${q ? `?${q}` : ""}${location.hash}`);
     return false;
   }
   const place = read(PLACE_KEY);
