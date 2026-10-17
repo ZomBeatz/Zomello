@@ -161,6 +161,66 @@ fn export_data(app: AppHandle, data: String, file_name: String) -> Result<String
     Ok(path.to_string_lossy().to_string())
 }
 
+/// Writes a binary export (a `.zomello` board file) to Downloads; raw body, name in `x-name`.
+/// Returns the full path, so the app can offer to show it in the file manager.
+#[tauri::command]
+fn export_bytes(app: AppHandle, request: tauri::ipc::Request) -> Result<String, String> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err("expected a raw file body".into());
+    };
+    let name = request.headers().get("x-name").and_then(|v| v.to_str().ok()).map(percent_decode).unwrap_or_else(|| "board.zomello".into());
+    let dir = app.path().download_dir().or_else(|_| data_dir(&app))?;
+    let path = unused_path(&dir, &safe_name(&name));
+    fs::write(&path, bytes).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().to_string())
+}
+
+/// `name.ext`, or `name (2).ext` etc. if that's taken, so an export never overwrites another file.
+fn unused_path(dir: &Path, name: &str) -> PathBuf {
+    let first = dir.join(name);
+    if !first.exists() {
+        return first;
+    }
+    let (stem, ext) = match name.rsplit_once('.') {
+        Some((s, e)) => (s.to_string(), format!(".{e}")),
+        None => (name.to_string(), String::new()),
+    };
+    (2..1000).map(|n| dir.join(format!("{stem} ({n}){ext}"))).find(|p| !p.exists()).unwrap_or(first)
+}
+
+// ---- Board files opened from the file manager ----
+
+/// `.zomello` files the system asked us to open that the page hasn't picked up yet.
+static OPENED: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+
+/// Board files among launch arguments (Windows/Linux pass the file as an argument; it may be a file:// URL).
+fn board_files_in(args: impl IntoIterator<Item = String>) -> Vec<String> {
+    args.into_iter()
+        .map(|a| match a.strip_prefix("file://") {
+            Some(rest) => percent_decode(rest.strip_prefix("localhost").unwrap_or(rest)),
+            None => a,
+        })
+        .filter(|a| a.to_ascii_lowercase().ends_with(".zomello") && Path::new(a).is_file())
+        .collect()
+}
+
+/// Queue files for the page and tell it (if it's already running it picks them up right away).
+fn hand_over_files(app: &AppHandle, files: Vec<String>) {
+    if files.is_empty() {
+        return;
+    }
+    OPENED.lock().unwrap().extend(files);
+    desktop::show_main(app);
+    use tauri::Emitter;
+    let _ = app.emit("zomello://open-files", ());
+}
+
+/// The page asks for (and clears) the files waiting to be opened.
+#[tauri::command]
+fn take_opened_files() -> Vec<String> {
+    std::mem::take(&mut *OPENED.lock().unwrap())
+}
+
 #[derive(Serialize)]
 struct BackupInfo {
     timestamp: u64,
@@ -391,9 +451,11 @@ pub fn run() {
     tauri::Builder::default()
         // Must be first: a second launch just focuses the running window, so two
         // processes never write the same data file.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             // Launching again brings the main window back (from the tray, or re-created if it was closed).
             desktop::show_main(app);
+            // Double-clicking a board file while Zomello runs arrives here.
+            hand_over_files(app, board_files_in(args.into_iter().skip(1)));
         }))
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
@@ -426,6 +488,8 @@ pub fn run() {
             load_data,
             save_data,
             export_data,
+            export_bytes,
+            take_opened_files,
             list_backups,
             read_backup,
             data_location,
@@ -463,8 +527,18 @@ pub fn run() {
                 }
             }
             remote::init(app.handle());
+            // Opened by double-clicking a board file (Windows/Linux).
+            OPENED.lock().unwrap().extend(board_files_in(std::env::args().skip(1)));
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Zomello");
+        .build(tauri::generate_context!())
+        .expect("error while running Zomello")
+        .run(|_app, _event| {
+            // macOS hands over double-clicked files as an event instead of arguments.
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            if let tauri::RunEvent::Opened { urls } = _event {
+                let files = urls.into_iter().filter_map(|u| u.to_file_path().ok()).map(|p| p.to_string_lossy().to_string());
+                hand_over_files(_app, board_files_in(files));
+            }
+        });
 }

@@ -43,6 +43,15 @@
       "icons/icon.ico"
     ],
     "publisher": "ZomBeatz Media",
+    "fileAssociations": [
+      {
+        "ext": ["zomello"],
+        "name": "Zomello board",
+        "description": "Zomello board",
+        "mimeType": "application/x-zomello",
+        "role": "Editor"
+      }
+    ],
     "copyright": "\u00a9 ZomBeatz Media",
     "windows": {
       "nsis": {

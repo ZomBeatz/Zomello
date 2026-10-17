@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { exportBoard } from "../boardFile";
 import { archiveBoard, deleteBoard as deleteBoardAction } from "../actions";
 import { isServer, leaveBoard, ownsBoard } from "../server";
 import {
@@ -26,8 +27,7 @@ import {
   Trash2,
   Users,
   LogOut,
-  X,
-} from "lucide-react";
+  X, FileDown } from "lucide-react";
 import type { Board, DueFilter, Filter, GroupBy, ID, ViewMode } from "../types";
 import { useBoardUi, useStore } from "../store";
 import { byOrder, emptyFilter, filterIsActive, matchesFilter, PALETTE, PRIORITIES, PROGRESS, relatedSet, uid } from "../utils";
@@ -222,6 +222,15 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
               }}
             >
               New board with this layout
+            </MenuItem>
+            <MenuItem
+              icon={<FileDown size={14} />}
+              onClick={() => {
+                close();
+                void exportBoard(board.id);
+              }}
+            >
+              Save as board file…
             </MenuItem>
             {ownsBoard(board) ? (
               <>

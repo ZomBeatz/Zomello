@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { installOpenedFiles } from "./boardFile";
 import { Menu, Plus, Search, X } from "lucide-react";
 import { useStore } from "./store";
 import { Sidebar } from "./components/Sidebar";
@@ -119,6 +120,7 @@ export default function App() {
   }, [windowTitle]);
 
   useEffect(() => installFileDropPolicy(), []);
+  useEffect(() => (loaded && !isBoardWindow ? installOpenedFiles() : undefined), [loaded]);
   // The address bar follows the page and open card (Back button, refresh, bookmarks).
   useEffect(() => (loaded ? installHistorySync() : undefined), [loaded]);
   // Touch screens: press and hold opens the right-click menus.
@@ -310,6 +312,17 @@ function Toasts() {
       {toasts.map((t) => (
         <div key={t.id} className="toast">
           <span className="grow">{t.text}</span>
+          {t.action && (
+            <button
+              className="btn sm"
+              onClick={() => {
+                t.action!.run();
+                dismissToast(t.id);
+              }}
+            >
+              {t.action.label}
+            </button>
+          )}
           {t.undo && (
             <button
               className="btn sm"

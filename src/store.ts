@@ -298,6 +298,8 @@ export interface Toast {
   /** Show an Undo button that reverts the change. */
   undo?: boolean;
   key?: string;
+  /** An extra button, e.g. "Show" for a saved file. */
+  action?: { label: string; run: () => void };
 }
 
 interface State {
@@ -330,7 +332,7 @@ interface State {
   undo(): boolean;
   redo(): boolean;
   /** `key`: a new toast with the same key replaces the old one (e.g. zoom level). */
-  toast(text: string, opts?: { undo?: boolean; key?: string }): void;
+  toast(text: string, opts?: { undo?: boolean; key?: string; action?: Toast["action"] }): void;
   dismissToast(id: ID): void;
   setOverlay(
     patch: Partial<Pick<State, "quickAddOpen" | "helpOpen" | "welcomeOpen" | "customizeBoardId" | "shareBoardId" | "searchOpen" | "importOpen" | "aiDialog">>,
@@ -383,6 +385,8 @@ interface State {
   moveCardToList(id: ID, listId: ID): void;
   resetTime(cardId: ID): void;
   importBoard(b: ImportedBoard, opts: { addPeople: boolean }): ID;
+  /** Add a board that arrives complete (a .zomello board file), with its people. */
+  addBoardBundle(x: { board: Board; lists: List[]; cards: Card[]; people: string[] }): void;
   /** Set `order` by position for `ids` and apply `patch` to the moved card. */
   applyCardOrder(ids: ID[], movedId: ID, patch: Partial<Card>): void;
   linkCards(a: ID, b: ID, type: LinkType): void;
@@ -619,7 +623,7 @@ export const useStore = create<State>((set, get) => {
       return true;
     },
     toast(text, opts) {
-      const t: Toast = { id: uid(), text, undo: opts?.undo, key: opts?.key };
+      const t: Toast = { id: uid(), text, undo: opts?.undo, key: opts?.key, action: opts?.action };
       set((s) => ({ toasts: [...s.toasts.filter((x) => !t.key || x.key !== t.key).slice(-3), t] }));
       setTimeout(() => get().dismissToast(t.id), 6000);
     },
@@ -948,6 +952,15 @@ export const useStore = create<State>((set, get) => {
     },
     resetTime(cardId) {
       get().updateCard(cardId, { time: [] });
+    },
+    addBoardBundle({ board, lists, cards, people }) {
+      mut((d) => ({
+        ...d,
+        boards: { ...d.boards, [board.id]: board },
+        lists: { ...d.lists, ...Object.fromEntries(lists.map((l) => [l.id, l])) },
+        cards: { ...d.cards, ...Object.fromEntries(cards.map((c) => [c.id, c])) },
+        settings: { ...d.settings, people: [...new Set([...d.settings.people, ...people])] },
+      }));
     },
     importBoard(b, opts) {
       const st = get();
