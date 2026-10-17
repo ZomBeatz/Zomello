@@ -135,7 +135,7 @@ export function readBoardFile(bytes: Uint8Array): OpenedBoardFile {
  * Turn an opened file into new boards/lists/cards with fresh ids, copying its files into this
  * Zomello's storage. Links and sub-tasks between its cards are kept; links to anything else are dropped.
  */
-export async function prepareImport(opened: OpenedBoardFile, order: number): Promise<{ board: Board; lists: List[]; cards: Card[]; people: string[] }> {
+export async function prepareImport(opened: OpenedBoardFile, order: number, takenTitles: string[] = []): Promise<{ board: Board; lists: List[]; cards: Card[]; people: string[] }> {
   const { bundle, files, index } = opened;
   const newUrl = new Map<string, string>();
   for (const [oldUrl, path] of Object.entries(index)) {
@@ -149,8 +149,12 @@ export async function prepareImport(opened: OpenedBoardFile, order: number): Pro
   const listMap = new Map(bundle.lists.map((l) => [l.id, uid()]));
   const cardMap = new Map(bundle.cards.filter((c) => listMap.has(c.listId)).map((c) => [c.id, uid()]));
   const bg = bundle.board.background;
+  // "Garage build" again becomes "Garage build (2)", so the two can be told apart.
+  let title = bundle.board.title;
+  for (let n = 2; takenTitles.includes(title); n++) title = `${bundle.board.title} (${n})`;
   const board: Board = {
     ...bundle.board,
+    title,
     id: boardId,
     order,
     starred: false,
@@ -216,7 +220,8 @@ export async function openBoardFile(bytes: Uint8Array): Promise<void> {
   try {
     const opened = readBoardFile(bytes);
     const order = Math.max(-1, ...Object.values(st.data.boards).map((b) => b.order)) + 1;
-    const prepared = await prepareImport(opened, order);
+    const taken = Object.values(st.data.boards).map((b) => b.title);
+    const prepared = await prepareImport(opened, order, taken);
     useStore.getState().addBoardBundle(prepared);
     useStore.getState().navigate({ page: "board", boardId: prepared.board.id });
     useStore.getState().toast(`Added “${prepared.board.title}” (${prepared.cards.length} ${prepared.cards.length === 1 ? "card" : "cards"})`, { undo: true });
