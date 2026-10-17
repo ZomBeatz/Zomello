@@ -7,8 +7,17 @@ import { fileUrl as serverFileUrl, isServer, loadData as serverLoad, upload as s
  * The app's own page has Tauri's bridge. So may a computer's or server's page shown inside the phone app,
  * but that page isn't the app (its boards live elsewhere), so it doesn't count as "in Tauri" here.
  */
-export const hasAppBridge = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-export const inTauri = hasAppBridge && !("__ZOMELLO_REMOTE__" in window) && !("__ZOMELLO_SERVER__" in window);
+export const hasAppBridge = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+export const inTauri = hasAppBridge() && !("__ZOMELLO_REMOTE__" in window) && !("__ZOMELLO_SERVER__" in window);
+
+/**
+ * On a page loaded from your computer or a server, Android adds the app's bridge a moment after the
+ * page starts. Wait for it (briefly) before deciding we're not inside the app.
+ */
+export async function waitForAppBridge(ms = 3000): Promise<boolean> {
+  for (let waited = 0; !hasAppBridge() && waited < ms; waited += 100) await new Promise((r) => setTimeout(r, 100));
+  return hasAppBridge();
+}
 
 /** The Android / iPhone / iPad app (one window, no tray, no phone server). */
 export const isMobileApp =
