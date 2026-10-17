@@ -6,7 +6,7 @@ import { useStore } from "../store";
 import { byOrder } from "../utils";
 import { isServer, loadData, updateProfile } from "../server";
 import { LogoMark } from "./Logo";
-import { isDesktopApp, isMobileApp } from "../storage";
+import { isDesktopApp, isMobileApp, isPhoneOrTablet } from "../storage";
 import { Modal } from "./ui";
 
 type Start = "explore" | "empty" | "import";
@@ -90,7 +90,7 @@ export function WelcomeGuide({ onClose }: { onClose: () => void }) {
               <div className="seg">
                 {(["system", "light", "dark"] as const).map((t) => (
                   <button key={t} className={settings.theme === t ? "active" : ""} onClick={() => useStore.getState().updateSettings({ theme: t })}>
-                    {t === "system" ? "Match my computer" : t[0].toUpperCase() + t.slice(1)}
+                    {t === "system" ? (isPhoneOrTablet ? "Match my phone" : "Match my computer") : t[0].toUpperCase() + t.slice(1)}
                   </button>
                 ))}
               </div>
@@ -124,43 +124,83 @@ export function WelcomeGuide({ onClose }: { onClose: () => void }) {
               <li>
                 <MousePointerClick size={18} />
                 <span>
-                  <b>Click a card</b> to open it. Esc or clicking outside closes it; everything saves as you go.
+                  {isPhoneOrTablet ? (
+                    <>
+                      <b>Tap a card</b> to open it. The back button closes it; everything saves as you go.
+                    </>
+                  ) : (
+                    <>
+                      <b>Click a card</b> to open it. Esc or clicking outside closes it; everything saves as you go.
+                    </>
+                  )}
                 </span>
               </li>
               <li>
                 <Move size={18} />
                 <span>
-                  <b>Drag</b> cards between buckets, and buckets by their title.
+                  <b>Drag</b> cards between buckets, and buckets by their title.{isPhoneOrTablet ? " Swipe sideways to see the next bucket." : ""}
                 </span>
               </li>
               <li>
                 <LayoutGrid size={18} />
                 <span>
-                  <b>Right-click</b> cards, buckets and boards for their options. On a phone or tablet, press and hold.
+                  {isPhoneOrTablet ? (
+                    <>
+                      <b>Press and hold</b> cards, buckets and boards for their options.
+                    </>
+                  ) : (
+                    <>
+                      <b>Right-click</b> cards, buckets and boards for their options. On a phone or tablet, press and hold.
+                    </>
+                  )}
                 </span>
               </li>
               <li>
                 <Zap size={18} />
                 <span>
-                  <b>N</b> adds a task from anywhere (Quick add).
+                  {isPhoneOrTablet ? (
+                    <>
+                      <b>+</b> at the top adds a task from anywhere (Quick add).
+                    </>
+                  ) : (
+                    <>
+                      <b>N</b> adds a task from anywhere (Quick add).
+                    </>
+                  )}
                 </span>
               </li>
               <li>
                 <Search size={18} />
                 <span>
-                  <b>Ctrl+K</b> searches every board, checklist and note.
+                  <b>{isPhoneOrTablet ? "The magnifier" : "Ctrl+K"}</b> searches every board, checklist and note.
                 </span>
               </li>
               <li>
                 <Undo2 size={18} />
                 <span>
-                  <b>Ctrl+Z</b> undoes anything, even a delete.
+                  {isPhoneOrTablet ? (
+                    <>
+                      <b>Undo</b> on the message that pops up brings back anything, even a delete.
+                    </>
+                  ) : (
+                    <>
+                      <b>Ctrl+Z</b> undoes anything, even a delete.
+                    </>
+                  )}
                 </span>
               </li>
             </ul>
             <p className="muted small">
-              <Keyboard size={13} className="inline-icon" /> Press <kbd>?</kbd> any time for every shortcut, or open
-              <b> Help</b> in the sidebar to see this guide again.
+              {isPhoneOrTablet ? (
+                <>
+                  Open <b>Help</b> in the menu (☰) to see this guide again.
+                </>
+              ) : (
+                <>
+                  <Keyboard size={13} className="inline-icon" /> Press <kbd>?</kbd> any time for every shortcut, or open
+                  <b> Help</b> in the sidebar to see this guide again.
+                </>
+              )}
             </p>
           </section>
         )}

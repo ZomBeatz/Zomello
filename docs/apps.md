@@ -30,6 +30,20 @@ iPhone and iPad builds are made on your Mac (see below), because Apple only sign
 
 ## Android
 
+### Build it on your PC and put it on your phone
+
+Use this for testing; it's quicker than waiting for GitHub.
+
+1. **Android Studio:** `paru -S android-studio` on Arch/CachyOS, or download it from developer.android.com. Open it once and finish its setup, accepting the licenses. Then go to **More Actions → SDK Manager → SDK Tools**, tick **NDK (Side by side)** and **Android SDK Command-line Tools**, and click Apply.
+2. **The phone:** Settings → About phone → Software information, and tap **Build number** 7 times. Then Settings → Developer options → turn on **USB debugging**. Plug the phone in and tap **Allow**.
+3. **Build and install:**
+   ```bash
+   npm run android
+   ```
+   It finds Android Studio's tools by itself, builds the app, installs it on the phone and opens it. Run it again after any change; the phone keeps your boards.
+
+The first run sets up the Android project in `src-tauri/gen/android` and takes several minutes; later runs take a minute or two. `npm run android -- --debug` makes a much bigger build that lets a computer inspect the app over USB (Chrome's `chrome://inspect`).
+
 ### Installing the APK
 
 1. Copy `Zomello.apk` to the phone (or download it there from GitHub).

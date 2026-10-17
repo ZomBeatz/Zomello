@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { addDays, differenceInCalendarDays } from "date-fns";
-import { loadRaw, saveRaw } from "./storage";
+import { isPhoneOrTablet, loadRaw, saveRaw } from "./storage";
 import type {
   Activity, AppData, BadgeMode, Board, BoardDisplay, BoardUi, Card, CardTemplate, Filter, FocusTimer, ID, LinkType, List, Route, Settings,
 } from "./types";
@@ -173,13 +173,16 @@ function sampleData(): AppData {
       dueDate: d(2),
       priority: "important",
     }),
-    newCard(board.id, todo.id, "Right-click me", 2, {
-      description:
-        "Cards, buckets and boards all have a right-click menu with their options. On a phone or tablet, press and hold instead.",
+    newCard(board.id, todo.id, isPhoneOrTablet ? "Press and hold me" : "Right-click me", 2, {
+      description: isPhoneOrTablet
+        ? "Cards, buckets and boards all have a menu with their options: press and hold them. (On a computer, right-click.)"
+        : "Cards, buckets and boards all have a right-click menu with their options. On a phone or tablet, press and hold instead.",
       labelIds: [design.id],
     }),
-    newCard(board.id, todo.id, "Press N to add a task from anywhere", 3, {
-      description: "Quick add puts a task on any board without leaving what you're doing. **Ctrl+Z** undoes anything, even a delete.",
+    newCard(board.id, todo.id, isPhoneOrTablet ? "Tap + to add a task from anywhere" : "Press N to add a task from anywhere", 3, {
+      description: isPhoneOrTablet
+        ? "Quick add (the **+** at the top) puts a task on any board without leaving what you're doing. **Undo** on the message that pops up brings back anything, even a delete."
+        : "Quick add puts a task on any board without leaving what you're doing. **Ctrl+Z** undoes anything, even a delete.",
       labelIds: [research.id],
     }),
     newCard(board.id, doing.id, "Try the Calendar and Timeline views", 0, {
@@ -188,7 +191,7 @@ function sampleData(): AppData {
       startDate: d(-2),
       dueDate: d(4),
     }),
-    newCard(board.id, doing.id, "Press Ctrl+K to search everything", 1, {
+    newCard(board.id, doing.id, isPhoneOrTablet ? "Tap the magnifier to search everything" : "Press Ctrl+K to search everything", 1, {
       description: "Search finds cards on every board, including their checklists and notes. This card is late on purpose: see how it shows up on Home.",
       progress: "inProgress",
       dueDate: d(-1),
