@@ -85,39 +85,50 @@ Updating never touches the volume, so your data stays put.
 
 The image builds on x86-64 and on arm64 (Raspberry Pi 4/5) alike. It's about 46 MB and runs as a non-root user with no shell inside.
 
-## Install without Docker
+## Install on Windows, macOS or Linux (no Docker)
 
-You'll need Node 20+ and Rust. Build it with:
+Zomello Server is also a single program, like Plex Media Server. GitHub builds it for you: **Actions → Server downloads**, then pick the file for your computer from the run's **Artifacts** (a version tag also puts them on the release page):
 
-```bash
-npm ci
-npm run server
-```
+| Computer | File |
+|---|---|
+| Windows | `zomello-server-windows-x64.exe` |
+| Mac with Apple Silicon (M1 and newer) | `zomello-server-macos-apple-silicon` |
+| Mac with Intel | `zomello-server-macos-intel` |
+| Linux PC, NAS or VPS | `zomello-server-linux-x64` |
+| Raspberry Pi 4/5 (64-bit OS) | `zomello-server-linux-arm64` |
 
-That builds the web app into one program, `server/target/release/zomello-server`. Copy it anywhere and run it. It keeps its data in `./data` unless you set `ZOMELLO_DATA`. A systemd unit could look like this:
+1. **Run it.** On Windows, double-click it; if SmartScreen warns, choose **More info → Run anyway**. On Mac or Linux, open a terminal in its folder, run `chmod +x zomello-server-*`, then run the file. Macs may refuse an unsigned download the first time: right-click → **Open**, or allow it in System Settings → Privacy & Security.
+2. **First run:** your browser opens to create the admin account. If it doesn't, go to `http://localhost:7311`.
+3. **Start it with the computer** (optional): run it once more with `install`, e.g. `zomello-server-windows-x64.exe install` from an **administrator** Command Prompt, or `./zomello-server-linux-x64 install`. The setup depends on the system:
+   - **Windows:** a startup task that runs before anyone signs in, plus a firewall rule for port 7311.
+   - **Mac:** a LaunchAgent that starts when you sign in.
+   - **Linux:** a systemd service. Run it with `sudo` for a system-wide one; without `sudo` it's for your user, and `sudo loginctl enable-linger $USER` keeps it running while you're signed out.
 
-```ini
-[Unit]
-Description=Zomello Server
-After=network-online.target
+   `uninstall` undoes this. Your data stays.
 
-[Service]
-ExecStart=/opt/zomello/zomello-server
-Environment=ZOMELLO_DATA=/var/lib/zomello
-User=zomello
-Restart=on-failure
+Where it keeps everything:
 
-[Install]
-WantedBy=multi-user.target
-```
+| System | Data folder |
+|---|---|
+| Windows | `C:\ProgramData\Zomello Server` |
+| macOS | `~/Library/Application Support/Zomello Server` |
+| Linux | `~/.local/share/zomello-server` (or `/var/lib/zomello-server` when run as root) |
+
+Settings go in **`settings.env`** inside that folder. Zomello creates the file with every setting listed, so you only remove the `#` from the ones you want and restart. The server prints the file's location when it starts.
+
+**The Zomello desktop app uses port 7311 too** (for phone & tablet access). To run both on one computer, give the server another port in `settings.env`, e.g. `ZOMELLO_PORT=7312`.
+
+### Building it yourself
+
+You'll need Node 20+ and Rust. Run `npm ci && npm run server`. The program lands in `server/target/release/zomello-server`.
 
 ## Settings
 
-Settings are environment variables. In `docker-compose.yml` they go under `environment:`.
+Settings are environment variables. In `docker-compose.yml` they go under `environment:`. Without Docker, put them in `settings.env` in the data folder (environment variables win if both are set).
 
 | Variable | Default | What it does |
 |---|---|---|
-| `ZOMELLO_DATA` | `./data` (`/data` in Docker) | Where everything is stored |
+| `ZOMELLO_DATA` | the system's data folder (`/data` in Docker) | Where everything is stored |
 | `ZOMELLO_PORT` | `7311` | Port to listen on |
 | `ZOMELLO_BIND` | `0.0.0.0` | Address to listen on (`127.0.0.1` when a proxy on the same machine is in front) |
 | `ZOMELLO_TLS` | `off` | `off`, `self` or `files` (see below) |

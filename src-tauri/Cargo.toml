@@ -31,7 +31,7 @@ hyper-util = { version = "0.1", features = ["tokio", "service"] }
 # Desktop only (Windows, macOS, Linux): tray icon, start at login, one running copy, and the
 # phone & tablet server. The Android and iPhone/iPad apps leave these out.
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
-tauri = { version = "2", features = ["tray-icon"] }
+tauri = { version = "2", features = ["protocol-asset", "tray-icon"] }
 tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "json"] }

@@ -389,7 +389,7 @@ export function SettingsPage() {
             </button>
           )}
           <button className="btn" onClick={() => useStore.getState().setOverlay({ importOpen: true })}>
-            <FileUp size={14} /> Import from Trello / Planner
+            <FileUp size={14} /> Import a board (file, Trello, Planner)
           </button>
           {inTauri && (
             <button className="btn" onClick={cleanup} title="Delete stored files no card or board uses any more">
