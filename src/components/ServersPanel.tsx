@@ -5,7 +5,7 @@ import { canFindServers, checkServer, findServers, nameFromUrl, NO_SERVERS, open
 import { uid } from "../utils";
 import { ask, InlineEdit } from "./ui";
 import { isMobileApp, openExternal } from "../storage";
-import { goToPlace, placeFromInput, reachable } from "../places";
+import { ensureLocalNetwork, goToPlace, LOCAL_NETWORK_HELP, placeFromInput, reachable } from "../places";
 
 /** Settings → Zomello Servers: add the servers you use (yours or other people's) and open them. */
 export function ServersPanel() {
@@ -113,6 +113,11 @@ export function ServersPanel() {
             disabled={looking}
             onClick={async () => {
               setLooking(true);
+              if (!(await ensureLocalNetwork())) {
+                setLooking(false);
+                setError(LOCAL_NETWORK_HELP);
+                return;
+              }
               setFound(await findServers().catch(() => []));
               setLooking(false);
             }}
@@ -199,6 +204,10 @@ function ComputerConnect() {
     setError("");
     try {
       const { origin, code } = placeFromInput(text);
+      if (!(await ensureLocalNetwork())) {
+        setError(LOCAL_NETWORK_HELP);
+        return;
+      }
       if (!(await reachable(origin))) {
         setError(
           "Couldn't reach your computer there over a secure connection. Check that Zomello is open on it with Phones & tablets turned on, that this phone is on the same Wi‑Fi, and that its Zomello certificate is installed on this phone (Settings → Phones & tablets on the computer shows how).",

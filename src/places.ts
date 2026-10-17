@@ -39,6 +39,36 @@ export function placeFromInput(text: string): { origin: string; code: string | n
   return { origin: u.origin, code };
 }
 
+interface AndroidBridge {
+  hasLocalNetwork(): boolean;
+  requestLocalNetwork(): void;
+}
+const android = () => (window as unknown as { ZomelloAndroid?: AndroidBridge }).ZomelloAndroid;
+
+/** Is the address on the home network (where Android 17+ wants the "local network" permission)? */
+const isLocalAddress = (origin: string) =>
+  /^https?:\/\/(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|\[?fe80|[^/:]+\.local(:|$)|[^/.:]+(:|$))/i.test(origin);
+
+/**
+ * Android 17+: apps need permission to reach devices on the home network. Asks (once) when it's
+ * needed; resolves true when it's allowed (or not needed on this phone).
+ */
+export async function ensureLocalNetwork(): Promise<boolean> {
+  const a = android();
+  if (!a || a.hasLocalNetwork()) return true;
+  return new Promise((resolve) => {
+    const on = (e: Event) => {
+      window.removeEventListener("zomello-local-network", on);
+      resolve(!!(e as CustomEvent<boolean>).detail);
+    };
+    window.addEventListener("zomello-local-network", on);
+    a.requestLocalNetwork();
+  });
+}
+
+export const LOCAL_NETWORK_HELP =
+  "Zomello needs permission to reach devices on your Wi‑Fi. Allow it in the phone's Settings → Apps → Zomello → Permissions → Nearby devices (or Local network), then try again.";
+
 /** Is the place there, with a certificate this phone trusts? (An opaque reply is enough to know.) */
 export async function reachable(origin: string, ms = 4000): Promise<boolean> {
   const ctl = new AbortController();
@@ -55,6 +85,7 @@ export async function reachable(origin: string, ms = 4000): Promise<boolean> {
 
 /** Switch the app to another place's boards (optionally pairing with a code from the computer). */
 export async function goToPlace(origin: string, pairCode?: string | null): Promise<void> {
+  if (isLocalAddress(origin) && !(await ensureLocalNetwork())) throw new Error(LOCAL_NETWORK_HELP);
   const allowed = await invoke<string>("allow_place", { address: origin });
   write(PLACE_KEY, allowed);
   const back = encodeURIComponent(location.origin);
@@ -93,7 +124,10 @@ export async function placeStartup(): Promise<boolean> {
   }
   const place = read(PLACE_KEY);
   if (!place) return false;
-  if (!(await reachable(place, 3000))) {
+  // Without the local network permission (Android 17+) don't ask at start-up: the message offers
+  // "Try again", which asks.
+  const needsPermission = isLocalAddress(place) && android() !== undefined && !android()!.hasLocalNetwork();
+  if (needsPermission || !(await reachable(place, 3000))) {
     // Computer off, or not on the same Wi-Fi: open this phone's boards and say so.
     sessionStorage.setItem("zomello-place-missed", place);
     return false;
