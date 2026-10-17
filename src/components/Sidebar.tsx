@@ -11,7 +11,8 @@ import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { CSS } from "@dnd-kit/utilities";
 import { openContextMenu } from "./ContextMenu";
 import { boardMenu, categoryMenu } from "./boardMenu";
-import { isBoardWindow, openBoardWindow } from "../windows";
+import { isBoardWindow, isDeviceWindow, isExtraWindow, openBoardWindow, windowDeviceId } from "../windows";
+import { DeviceBanner, PhoneNav } from "./PhoneNav";
 import { boardCategories, byOrder, formatDuration, parseDuration } from "../utils";
 import { Popover } from "./ui";
 import { LogoMark, Wordmark } from "./Logo";
@@ -24,7 +25,7 @@ import { isRemote } from "../remote";
 import { goToPhone, inZomelloApp, takeAddRequest } from "../places";
 import { placesMode } from "../placeLists";
 import { PlaceSections } from "./PlaceSections";
-import { isMobileApp } from "../storage";
+import { isDesktopApp, isMobileApp } from "../storage";
 import { Avatar } from "./ui";
 
 export function Sidebar() {
@@ -138,6 +139,7 @@ export function Sidebar() {
         </>
       )}
 
+      {isDeviceWindow && windowDeviceId && <DeviceBanner id={windowDeviceId} />}
       {(() => {
         // A new board, optionally straight into a section (phones: each section has its own +).
         const commitNew = (name: string) => {
@@ -283,7 +285,8 @@ export function Sidebar() {
         );
       })()}
 
-      {!isServer && !isRemote && !placesMode && <ServerNav collapsed={collapsed} />}
+      {isDesktopApp && !isExtraWindow && <PhoneNav collapsed={collapsed} />}
+      {!isServer && !isRemote && !placesMode && !isDeviceWindow && <ServerNav collapsed={collapsed} />}
       {inZomelloApp() && !placesMode && (
         <button className="nav-item" onClick={() => goToPhone()} title="Switch to the boards stored on this phone">
           <Smartphone size={16} />
@@ -303,7 +306,9 @@ export function Sidebar() {
       {isServer && me?.isAdmin && (
         <NavItem icon={<Shield size={16} />} label="Admin" on={route.page === "admin"} onClick={() => navigate({ page: "admin" })} />
       )}
-      <NavItem icon={<Settings size={16} />} label="Settings" on={route.page === "settings"} onClick={() => navigate({ page: "settings" })} />
+      {!isDeviceWindow && (
+        <NavItem icon={<Settings size={16} />} label="Settings" on={route.page === "settings"} onClick={() => navigate({ page: "settings" })} />
+      )}
       <NavItem icon={<CircleHelp size={16} />} label="Help" kbd="?" onClick={() => setOverlay({ helpOpen: true })} />
       {isServer && me && <AccountButton collapsed={collapsed} />}
     </aside>

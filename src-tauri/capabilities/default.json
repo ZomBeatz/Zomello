@@ -4,7 +4,8 @@
   "description": "Capabilities for the main window",
   "windows": [
     "main",
-    "board-*"
+    "board-*",
+    "device-*"
   ],
   "permissions": [
     "core:default",
@@ -60,6 +61,13 @@
     "allow-remote-regenerate-cert",
     "allow-remote-export-cert",
     "allow-remote-qr",
-    "allow-places-save-look"
+    "allow-places-save-look",
+    "allow-remote-show-boards",
+    "allow-linked-devices",
+    "allow-linked-data",
+    "allow-linked-send",
+    "allow-open-device-window",
+    "allow-places-save-link",
+    "allow-link-ops-ack"
   ]
 }

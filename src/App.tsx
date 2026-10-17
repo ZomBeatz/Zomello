@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { installOpenedFiles } from "./boardFile";
 import { goToPlace, missedPlace } from "./places";
 import { installPlaceLists } from "./placeLists";
-import { Menu, Plus, Search, X } from "lucide-react";
+import { Menu, Plus, Search, Smartphone, X } from "lucide-react";
 import { useStore } from "./store";
 import { Sidebar } from "./components/Sidebar";
 import { BoardPage } from "./components/BoardPage";
@@ -22,13 +22,15 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { startReminders } from "./reminders";
 import { applyZoom, installZoomControls } from "./zoom";
 import { startFocusWatcher } from "./focus";
-import { isBoardWindow, onOtherWindowData, setWindowTitle } from "./windows";
+import { isBoardWindow, isDeviceWindow, isExtraWindow, onOtherWindowData, setWindowTitle } from "./windows";
+import { DEVICE_OFFLINE, onDeviceData } from "./deviceWindow";
+import type { Ops } from "./server";
 import { isRemote } from "./remote";
 import { isServer, loadData as serverLoadData, RELOAD_EVENT, subscribe as serverSubscribe } from "./server";
 import { useInvites } from "./invites";
 import { AdminPage } from "./components/AdminPage";
 import { ShareDialog } from "./components/ShareDialog";
-import { inTauri, isDesktopApp, isPhoneOrTablet } from "./storage";
+import { inTauri, isDesktopApp, isMobileApp, isPhoneOrTablet } from "./storage";
 import { installLongPressMenus, useIsPhone } from "./mobile";
 import { installFileDropPolicy } from "./fileDrop";
 import { installHistorySync } from "./routing";
@@ -43,6 +45,7 @@ const DENSITY = { compact: "13px", normal: "14px", comfortable: "15.5px" };
 export default function App() {
   const loaded = useStore((s) => s.loaded);
   const loadError = useStore((s) => s.loadError);
+  const deviceOffline = useStore((s) => s.deviceOffline);
   const saveError = useStore((s) => s.saveError);
   const route = useStore((s) => s.route);
   const openCardId = useStore((s) => s.openCardId);
@@ -63,7 +66,7 @@ export default function App() {
 
   // Desktop app: turn the tray on if wanted. Started at login without it? Then show the window after all.
   useEffect(() => {
-    if (!loaded || !isDesktopApp || isBoardWindow) return;
+    if (!loaded || !isDesktopApp || isExtraWindow) return;
     void (async () => {
       const { invoke } = await import("@tauri-apps/api/core");
       const bg = useStore.getState().data.settings.runInBackground;
@@ -74,7 +77,7 @@ export default function App() {
 
   useEffect(() => {
     // Reminders and the focus timer's alarm run in the main window only (no double notifications).
-    if (!loaded || isBoardWindow || isRemote) return;
+    if (!loaded || isExtraWindow || isRemote) return;
     const a = startReminders();
     const b = startFocusWatcher();
     return () => (a(), b());
@@ -131,7 +134,36 @@ export default function App() {
       action: { label: "Try again", run: () => void goToPlace(missed) },
     });
   }, [loaded]);
-  useEffect(() => (loaded && !isBoardWindow ? installOpenedFiles() : undefined), [loaded]);
+  useEffect(() => (loaded && !isExtraWindow ? installOpenedFiles() : undefined), [loaded]);
+  // This computer's window onto a phone: follow the phone's changes; say so when it goes away.
+  useEffect(() => {
+    if (!isDeviceWindow) return;
+    return onDeviceData((json) => {
+      if (json === null) return useStore.setState({ deviceOffline: true });
+      useStore.setState({ deviceOffline: false });
+      const st = useStore.getState();
+      if (st.loaded) st.applyRemoteData(json);
+      else location.reload();
+    });
+  }, []);
+  // Phone app: edits made to this phone's boards on your computer arrive here.
+  useEffect(() => {
+    if (!isMobileApp || !loaded) return;
+    let un: (() => void) | undefined;
+    let gone = false;
+    void import("@tauri-apps/api/event").then(async ({ listen }) => {
+      const u = await listen<{ seq: number; ops: Ops }>("zomello://link-ops", (e) => {
+        useStore.getState().applyLinkOps(e.payload.ops);
+        void import("@tauri-apps/api/core").then(({ invoke }) => invoke("link_ops_ack", { seq: e.payload.seq }));
+      });
+      if (gone) u();
+      else un = u;
+    });
+    return () => {
+      gone = true;
+      un?.();
+    };
+  }, [loaded]);
   // The address bar follows the page and open card (Back button, refresh, bookmarks).
   useEffect(() => (loaded ? installHistorySync() : undefined), [loaded]);
   // Touch screens: press and hold opens the right-click menus.
@@ -188,6 +220,7 @@ export default function App() {
     };
   }, []);
 
+  if (isDeviceWindow && (deviceOffline || loadError === DEVICE_OFFLINE)) return <DeviceOffline />;
   if (loadError)
     return (
       <div className="fatal">
@@ -237,7 +270,7 @@ export default function App() {
       {customizeBoard && <BoardCustomize board={customizeBoard} />}
       {shareBoard && <ShareDialog board={shareBoard} onClose={() => useStore.getState().setOverlay({ shareBoardId: null })} />}
       {helpOpen && <HelpWindow />}
-      {(welcomeOpen || (!settings.onboarded && !isBoardWindow && !isRemote)) && (
+      {(welcomeOpen || (!settings.onboarded && !isExtraWindow && !isRemote)) && (
         <WelcomeGuide onClose={() => useStore.getState().setOverlay({ welcomeOpen: false })} />
       )}
       <DropOverlay />
@@ -398,6 +431,23 @@ function Toasts() {
           </button>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** A phone's window on this computer, while the phone isn't connected. */
+function DeviceOffline() {
+  return (
+    <div className="pair-screen">
+      <Smartphone size={36} className="muted" />
+      <h2>Your phone isn't connected right now</h2>
+      <p className="muted">
+        Its boards show here while it's on the same Wi‑Fi as this computer, with Zomello open. They're on the phone, not here, so
+        nothing is lost.
+      </p>
+      <button className="btn" onClick={() => void import("@tauri-apps/api/window").then(({ getCurrentWindow }) => getCurrentWindow().close())}>
+        Close this window
+      </button>
     </div>
   );
 }

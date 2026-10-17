@@ -8,7 +8,10 @@ mod calendar;
 #[cfg(desktop)]
 mod desktop;
 #[cfg(desktop)]
+mod link;
+#[cfg(desktop)]
 mod remote;
+mod link_client;
 mod places;
 mod servers;
 
@@ -114,7 +117,6 @@ fn attachment_path(app: &AppHandle, rel: &str) -> Result<PathBuf, String> {
 }
 
 /// The data file's contents ("" if there is none yet).
-#[cfg(desktop)]
 fn read_data(app: &AppHandle) -> Result<String, String> {
     let path = data_dir(app)?.join(DATA_FILE);
     if !path.exists() {
@@ -155,6 +157,8 @@ fn save_data(app: AppHandle, data: String) -> Result<(), String> {
     write_data(&app, &data)?;
     #[cfg(desktop)]
     remote::notify_desktop_save(&app, &data);
+    // Phones: a computer showing this phone's boards gets the change.
+    link_client::data_changed();
     Ok(())
 }
 
@@ -484,7 +488,8 @@ pub fn run() {
                 }
             }
         })
-        .manage(remote::Remote::new());
+        .manage(remote::Remote::new())
+        .manage(link::Links::default());
 
     #[cfg(desktop)]
     let handlers: Box<dyn Fn(tauri::ipc::Invoke) -> bool + Send + Sync> = Box::new(tauri::generate_handler![
@@ -500,6 +505,8 @@ pub fn run() {
         places::places_save_boards,
         places::places_save_list,
         places::places_save_look,
+        places::places_save_link,
+        link_client::link_ops_ack,
         servers::open_server_window,
         list_backups,
         read_backup,
@@ -526,7 +533,12 @@ pub fn run() {
         remote::remote_set_address,
         remote::remote_regenerate_cert,
         remote::remote_export_cert,
-        remote::remote_qr
+        remote::remote_qr,
+        remote::remote_show_boards,
+        link::linked_devices,
+        link::linked_data,
+        link::linked_send,
+        link::open_device_window
     ]);
     // Phones and tablets: the same app with its own boards, minus windows, tray and the phone server.
     #[cfg(mobile)]
@@ -543,6 +555,8 @@ pub fn run() {
         places::places_save_boards,
         places::places_save_list,
         places::places_save_look,
+        places::places_save_link,
+        link_client::link_ops_ack,
         list_backups,
         read_backup,
         data_location,
@@ -593,8 +607,9 @@ pub fn run() {
                 // Opened by double-clicking a board file (Windows/Linux).
                 OPENED.lock().unwrap().extend(board_files_in(std::env::args().skip(1)));
             }
+            // Phones and tablets: share this phone's boards with your computer while on the same network.
             #[cfg(mobile)]
-            let _ = app;
+            link_client::start(app.handle().clone());
             Ok(())
         })
         .build(tauri::generate_context!())

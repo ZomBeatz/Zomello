@@ -163,7 +163,7 @@ export const getBase = () => base;
 const userDoc = (d: AppData) => ({ settings: d.settings, ui: d.ui, templates: d.templates, savedFilters: d.savedFilters });
 
 /** What changed since the server last heard from us. Data is immutable, so a changed object is a new object. */
-function diff(prev: AppData, next: AppData) {
+export function diff(prev: AppData, next: AppData) {
   const upserts: Partial<Record<Kind, Entity[]>> = {};
   const deletes: Partial<Record<Kind, ID[]>> = {};
   let any = false;

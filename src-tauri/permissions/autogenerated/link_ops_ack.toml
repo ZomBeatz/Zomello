@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-link-ops-ack"
+description = "Enables the link_ops_ack command without any pre-configured scope."
+commands.allow = ["link_ops_ack"]
+
+[[permission]]
+identifier = "deny-link-ops-ack"
+description = "Denies the link_ops_ack command without any pre-configured scope."
+commands.deny = ["link_ops_ack"]

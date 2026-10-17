@@ -1596,3 +1596,9 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 .drop-into { background: var(--accent-soft); border-radius: 8px; outline: 1px dashed var(--accent); outline-offset: -1px; }
 .no-section-drop { margin: 4px 6px; padding: 10px; border: 1px dashed var(--border); border-radius: 8px; font-size: 12px; color: var(--muted); text-align: center; }
 .no-section-drop.drop-into { color: var(--accent); }
+
+/* Desktop: phones connected now, with their boards. */
+.phone-nav-head { justify-content: space-between; }
+.phone-nav-head .link-plain { color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit; background: none; border: none; padding: 0; min-width: 0; }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok, #22c55e); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok, #22c55e) 25%, transparent); flex-shrink: 0; }
+.device-banner { display: flex; align-items: center; gap: 8px; margin: 6px 4px 2px; padding: 8px 10px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 600; }
