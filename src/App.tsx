@@ -128,7 +128,11 @@ export default function App() {
 
   const phone = useIsPhone();
   const [navOpen, setNavOpen] = useState(false);
-  useEffect(() => setNavOpen(false), [route, phone]);
+  // Phones: the menu closes when you go somewhere, or open a window from it (Help, Search, a card…).
+  const overlayOpen = useStore(
+    (s) => s.helpOpen || s.welcomeOpen || s.searchOpen || s.quickAddOpen || s.importOpen || !!s.openCardId || !!s.customizeBoardId || !!s.shareBoardId,
+  );
+  useEffect(() => setNavOpen(false), [route, phone, overlayOpen]);
 
 
   // Theme, accent color and density live on <html> so every component picks them up.

@@ -1,3 +1,4 @@
+import { isMobileApp } from "./storage";
 import { useStore } from "./store";
 import type { ID, Route } from "./types";
 
@@ -44,10 +45,12 @@ type CloseWatcherCtor = new () => CloseWatcherLike;
  * Installed apps: Android's Back button exits instead of using the page's history, but it does tell
  * a "close watcher" first. While there's something to go back from (a window, a card, a page other than
  * Home) we keep one watching, and Back steps back one thing at a time, inside the app.
+ * The Android app (Tauri) reports Back as its own event instead; the same steps apply, and Back on
+ * Home closes the app.
  */
 function installBackButton(): () => void {
   const Ctor = (window as unknown as { CloseWatcher?: CloseWatcherCtor }).CloseWatcher;
-  if (!Ctor) return () => {};
+  if (!Ctor && !isMobileApp) return () => {};
   const trail: Route[] = [];
   let watcher: CloseWatcherLike | null = null;
   let backing = false;
@@ -79,7 +82,21 @@ function installBackButton(): () => void {
       backing = false;
     }
   };
+  // The Android app: every Back press comes here; nothing left to close means leave the app.
+  let tauriBack: { unregister: () => Promise<void> } | null = null;
+  let stopped = false;
+  if (isMobileApp) {
+    void import("@tauri-apps/api/app").then(async ({ onBackButtonPress, exit }) => {
+      const l = await onBackButtonPress(() => {
+        if (needed()) back();
+        else void exit(0);
+      });
+      if (stopped) void l.unregister();
+      else tauriBack = l;
+    });
+  }
   const sync = () => {
+    if (isMobileApp || !Ctor) return;
     if (needed() && !watcher) {
       try {
         const w = new Ctor();
@@ -123,6 +140,8 @@ function installBackButton(): () => void {
     window.removeEventListener("pointerdown", onTap, true);
     window.removeEventListener("keydown", onKey, true);
     watcher?.destroy();
+    stopped = true;
+    void tauriBack?.unregister();
   };
 }
 
@@ -130,7 +149,7 @@ function installBackButton(): () => void {
 export function installHistorySync(): () => void {
   // In an installed app only the address is kept up to date (for reopening where you were); Back is
   // handled by installBackButton, not by history steps.
-  const installed = isInstalledApp();
+  const installed = isInstalledApp() || isMobileApp;
   const stopBack = installed ? installBackButton() : () => {};
   let applying = false;
   const st = useStore.getState();
