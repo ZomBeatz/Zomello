@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-places-save-look"
+description = "Enables the places_save_look command without any pre-configured scope."
+commands.allow = ["places_save_look"]
+
+[[permission]]
+identifier = "deny-places-save-look"
+description = "Denies the places_save_look command without any pre-configured scope."
+commands.deny = ["places_save_look"]

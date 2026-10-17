@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useStore } from "./store";
 import { isMobileApp, waitForAppBridge } from "./storage";
 import { inZomelloApp } from "./places";
+import { noteSettings } from "./deviceLook";
 import type { ServerEntry } from "./types";
 
 /**
@@ -88,7 +89,10 @@ export function installPlaceLists(): () => void {
     }
   };
   save();
+  noteSettings(useStore.getState().data.settings);
   const unsub = useStore.subscribe((s, prev) => {
+    // The look (theme, style…) belongs to the phone; keep the phone's copy current.
+    if (s.data.settings !== prev.data.settings) noteSettings(s.data.settings);
     if (s.data.boards === prev.data.boards && s.data.settings.servers === prev.data.settings.servers && s.data.settings.sections === prev.data.settings.sections) return;
     clearTimeout(timer);
     timer = setTimeout(save, 600);

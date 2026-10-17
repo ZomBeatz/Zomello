@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { addDays, differenceInCalendarDays } from "date-fns";
 import { isPhoneOrTablet, loadRaw, saveRaw } from "./storage";
+import { loadDeviceLook, withDeviceLook, withPlaceLook } from "./deviceLook";
 import type {
   Activity, AppData, BadgeMode, Board, BoardDisplay, BoardUi, Card, CardTemplate, Filter, FocusTimer, ID, LinkType, List, Route, Settings,
 } from "./types";
@@ -643,6 +644,7 @@ export const useStore = create<State>((set, get) => {
       try {
         const raw = await loadRaw();
         lastJson = raw;
+        await loadDeviceLook();
         let data = raw ? normalize(JSON.parse(raw)) : sampleData();
         if (isServer) {
           setBase(data);
@@ -652,6 +654,8 @@ export const useStore = create<State>((set, get) => {
             data = { ...data, boards: sample.boards, lists: sample.lists, cards: sample.cards };
           }
         }
+        // Your computer's boards in the phone app: shown with the phone's own look.
+        data = withDeviceLook(data);
         const first = Object.values(data.boards).filter((b) => !b.archived).sort(byOrder)[0];
         const route: Route =
           windowBoardId && data.boards[windowBoardId]
@@ -697,7 +701,9 @@ export const useStore = create<State>((set, get) => {
     applyServerUserDoc(doc) {
       applyingRemote = true;
       try {
-        set((s) => ({ data: { ...s.data, ...doc, settings: { ...s.data.settings, ...doc.settings, me: s.data.settings.me, people: s.data.settings.people } } }));
+        set((s) => ({
+          data: withDeviceLook({ ...s.data, ...doc, settings: { ...s.data.settings, ...doc.settings, me: s.data.settings.me, people: s.data.settings.people } }),
+        }));
       } finally {
         applyingRemote = false;
       }
@@ -710,6 +716,7 @@ export const useStore = create<State>((set, get) => {
         return;
       }
       setBase(data);
+      data = withDeviceLook(data);
       past = [];
       future = [];
       applyingRemote = true;
@@ -729,7 +736,7 @@ export const useStore = create<State>((set, get) => {
       lastJson = json;
       let data: AppData;
       try {
-        data = normalize(JSON.parse(json));
+        data = withDeviceLook(normalize(JSON.parse(json)));
       } catch {
         return;
       }
@@ -1315,10 +1322,10 @@ async function flush() {
   saving = true;
   try {
     if (isServer) {
-      // Only what changed goes to the server.
-      await pushChanges(snapshot);
+      // Only what changed goes to the server (with its own look, not the phone's).
+      await pushChanges(withPlaceLook(snapshot));
     } else {
-      const json = JSON.stringify(snapshot);
+      const json = JSON.stringify(withPlaceLook(snapshot));
       await saveRaw(json);
       lastJson = json;
       void broadcastData(json);
