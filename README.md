@@ -102,6 +102,17 @@ Zomello works a lot like Trello or Microsoft Planner, except it runs on your own
 - **Data safety**: atomic writes, automatic rolling backups, JSON export/import, single running instance
 </details>
 
+## What people use it for
+
+| | |
+|---|---|
+| **Home and family** | Chores and cleaning schedules, meal planning and grocery lists, home repairs and renovations, moving house, the family calendar and kids' activities, garden planning |
+| **Personal** | Trips and vacations, fitness and health goals, reading, watching and gaming lists, budgets and bills, weddings, parties and other events, hobbies and side projects |
+| **School** | Homework and due dates, exam study plans, group projects with classmates, lesson planning for teachers |
+| **Work** | Team projects and deadlines, client work for freelancers, small business to-do lists and orders, content calendars for social posts, videos and blogs, bug and feature tracking for software, hiring and onboarding checklists |
+| **Groups** | Clubs, churches and volunteer groups, sports teams and coaching, game nights and tabletop campaigns, shared boards for roommates |
+| **Creative** | Music releases and studio sessions, writing a book or screenplay, video production and editing |
+
 ## Zomello Server
 
 Zomello Server is for a team or family sharing boards. It runs on one always-on computer (a bit like a Plex server),
