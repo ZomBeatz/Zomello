@@ -90,7 +90,7 @@ Add these GitHub secrets (Settings → Secrets and variables → Actions):
 | `APPLE_PASSWORD` | the app-specific password from step 4 |
 | `APPLE_TEAM_ID` | your Team ID |
 
-The next **Build apps** run signs and notarizes the `.dmg`.
+The next **Build apps** run signs and notarizes the `.dmg`. The **Server downloads** for Mac get signed and notarized the same way.
 
 ## iPhone and iPad
 
@@ -135,5 +135,4 @@ To avoid picking the team every time, put it in `src-tauri/tauri.ios.conf.json`:
 - **Opening files by tapping (Android, iPhone):** tapping a `.zomello` file doesn't open Zomello yet. On phones, use **Settings → Data → Import a board** instead.
 - **Saving board files on Android:** the Android app's built-in browser has no share sheet, so a saved board file lands in Zomello's folder under *Android/data*, which is awkward to find. iPhone, iPad and Chrome on Android use the share sheet. A proper Android share button is planned.
 - **Finding servers on Android:** "Find servers on this network" may find nothing in the Android app, which needs extra permission to listen for network announcements. Add the server by its address instead.
-- **Mac server downloads:** these aren't signed yet, so macOS asks for the right-click → Open step the first time.
 - **Phone & tablet access in the mobile apps:** the Android and iPhone apps don't offer it; they are the phone.
