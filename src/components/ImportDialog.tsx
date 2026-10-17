@@ -6,6 +6,7 @@ import { Modal } from "./ui";
 import { registerDropZone } from "../fileDrop";
 import { fileFromPath, inTauri } from "../storage";
 import { plural } from "../utils";
+import { isBoardFile, openBoardFile } from "../boardFile";
 
 export function ImportDialog() {
   const close = () => useStore.getState().setOverlay({ importOpen: false });
@@ -20,6 +21,11 @@ export function ImportDialog() {
   const load = async (f: File) => {
     setBusy(true);
     setError("");
+    if (isBoardFile(f.name)) {
+      // A Zomello board file needs no preview: it opens as a new board as-is.
+      close();
+      return openBoardFile(new Uint8Array(await f.arrayBuffer()));
+    }
     try {
       const b = await parseImportFile(f);
       setBoard(b);
@@ -68,11 +74,11 @@ export function ImportDialog() {
         >
           <FileUp size={28} />
           <b>{busy ? "Reading…" : "Choose or drop an export file"}</b>
-          <span className="muted small">Trello .json · Planner .xlsx or .csv</span>
+          <span className="muted small">Zomello board file · Trello .json · Planner .xlsx or .csv</span>
           <input
             ref={fileRef}
             type="file"
-            accept=".json,.xlsx,.csv,application/json,text/csv"
+            accept=".zomello,.json,.xlsx,.csv,application/json,text/csv"
             hidden
             onChange={(e) => {
               const f = e.target.files?.[0];
@@ -131,6 +137,10 @@ export function ImportDialog() {
 
         <details className="import-help">
           <summary>How do I export from Trello or Planner?</summary>
+          <p>
+            <b>Zomello:</b> on the board, <i>⋯</i> → <i>Save as board file</i>. Anyone with Zomello can open that file to get a copy of
+            the board, attachments included.
+          </p>
           <p>
             <b>Trello:</b> open the board → <i>⋯ Menu</i> → <i>Print, export, and share</i> → <i>Export as JSON</i>, then save the page
             as a .json file.

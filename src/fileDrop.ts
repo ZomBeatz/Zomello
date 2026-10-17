@@ -3,6 +3,7 @@ import { useStore } from "./store";
 import { attachToCard, dropIsEmpty, readDrop } from "./attachments";
 import type { ID } from "./types";
 import { inTauri, isWindows } from "./storage";
+import { isBoardFile, openBoardFile, openBoardFilePath } from "./boardFile";
 
 /**
  * Things dragged in from outside the app (files, web links):
@@ -80,6 +81,16 @@ function clearZoneHighlight() {
 
 /** Deliver dropped things to whatever is under the pointer. */
 function deliver(state: DropState, files: File[], paths: string[], links: string[]) {
+  // Board files open as boards (unless dropped onto a card, where they're just an attachment).
+  if (!state.cardId) {
+    const boardFiles = files.filter((f) => isBoardFile(f.name));
+    const boardPaths = paths.filter(isBoardFile);
+    if (boardFiles.length || boardPaths.length) {
+      for (const f of boardFiles) void f.arrayBuffer().then((b) => openBoardFile(new Uint8Array(b)));
+      for (const p of boardPaths) void openBoardFilePath(p);
+      return;
+    }
+  }
   if (state.mode === "zone" && state.zone) zones.get(state.zone)?.({ files, paths });
   else if (state.cardId) {
     const payload = { files, paths, links };

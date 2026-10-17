@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AppWindow, Archive, Bot, Check, ClipboardCopy, Copy, ExternalLink, FolderOpen, FolderX, LayoutTemplate, LogOut, Palette, Pencil, Plus, Star, Trash2, Users } from "lucide-react";
+import { AppWindow, Archive, Bot, Check, ClipboardCopy, Copy, ExternalLink, FileDown, FolderOpen, FolderX, LayoutTemplate, LogOut, Palette, Pencil, Plus, Star, Trash2, Users } from "lucide-react";
 import { boardCategories } from "../utils";
 import type { Board } from "../types";
 import { useStore } from "../store";
@@ -9,6 +9,7 @@ import type { MenuEntry } from "./ContextMenu";
 import { isServer, leaveBoard, ownsBoard } from "../server";
 import { workOrder } from "../ai";
 import { copyText } from "./Markdown";
+import { exportBoard } from "../boardFile";
 
 /** The right-click menu for a board, the same in the sidebar and on Home. */
 export function boardMenu(board: Board, opts: { onRename?: () => void } = {}): MenuEntry[] {
@@ -65,6 +66,11 @@ export function boardMenu(board: Board, opts: { onRename?: () => void } = {}): M
       icon: <LayoutTemplate size={14} />,
       onClick: () =>
         st.navigate({ page: "board", boardId: st.duplicateBoard(board.id, { title: `New ${board.title}`, withCards: false }) }),
+    },
+    {
+      label: "Save as board file…",
+      icon: <FileDown size={14} />,
+      onClick: () => void exportBoard(board.id),
     },
     // On a shared server, only a board's owner archives or deletes it; others can leave it.
     ...(ownsBoard(board)

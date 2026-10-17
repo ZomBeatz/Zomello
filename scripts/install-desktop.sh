@@ -32,13 +32,31 @@ Type=Application
 Name=Zomello
 GenericName=Task Planner
 Comment=Local-first kanban & planner
-Exec=$BIN
+Exec=$BIN %f
 Icon=$NAME
 Terminal=false
 Categories=Office;ProjectManagement;
 Keywords=kanban;tasks;todo;planner;trello;
 StartupWMClass=$NAME
+MimeType=application/x-zomello;
 DESKTOP
+
+# .zomello board files: a file type of their own, opened by Zomello on double-click.
+MIME="$HOME/.local/share/mime"
+install -Dm644 /dev/stdin "$MIME/packages/zomello.xml" <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-zomello">
+    <comment>Zomello board</comment>
+    <icon name="zomello"/>
+    <glob pattern="*.zomello"/>
+  </mime-type>
+</mime-info>
+XML
+install -Dm644 src-tauri/icons/128x128.png "$ICONS/128x128/mimetypes/application-x-zomello.png"
+install -Dm644 app-icon.svg "$ICONS/scalable/mimetypes/application-x-zomello.svg"
+update-mime-database "$MIME" 2>/dev/null || true
+xdg-mime default "$NAME.desktop" application/x-zomello 2>/dev/null || true
 
 # Clean up entries from when the app was called Planwise.
 rm -f "$APPS/com.zombeatz.planwise.desktop" "$HOME/.local/bin/planwise"
