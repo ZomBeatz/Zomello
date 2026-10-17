@@ -3,6 +3,7 @@ import { useStore } from "./store";
 import { isMobileApp, waitForAppBridge } from "./storage";
 import { inZomelloApp } from "./places";
 import { noteSettings } from "./deviceLook";
+import { isRemote } from "./remote";
 import type { ServerEntry } from "./types";
 
 /**
@@ -59,6 +60,26 @@ export function usePlaces(): Places | null {
   return p;
 }
 
+/**
+ * Your computer's page inside the phone app: link the phone with this computer, so the phone's boards
+ * show here while both are on the same network. The token comes from the computer (we're signed in to
+ * it), and its certificate from this same secure page, so the app trusts exactly this computer.
+ */
+async function linkWithComputer(): Promise<void> {
+  if (!isRemote || isMobileApp) return;
+  try {
+    const p = await call<{ linked?: string; list: PlaceInfo[] }>("places_read");
+    if (p.linked === location.origin || !p.list.some((x) => x.origin === location.origin && x.kind === "computer")) return;
+    const res = await fetch("/api/link/token", { method: "POST", credentials: "same-origin" });
+    if (!res.ok) return;
+    const { token } = (await res.json()) as { token: string };
+    const ca = await (await fetch("/zomello-ca.crt", { credentials: "same-origin" })).text();
+    await call("places_save_link", { token, ca });
+  } catch {
+    /* try again next time */
+  }
+}
+
 /** Keep this place's saved board list (and, in the app's own page, the list of places) up to date. */
 export function installPlaceLists(): () => void {
   if (!placesMode) return () => {};
@@ -90,6 +111,7 @@ export function installPlaceLists(): () => void {
   };
   save();
   noteSettings(useStore.getState().data.settings);
+  void linkWithComputer();
   const unsub = useStore.subscribe((s, prev) => {
     // The look (theme, style…) belongs to the phone; keep the phone's copy current.
     if (s.data.settings !== prev.data.settings) noteSettings(s.data.settings);

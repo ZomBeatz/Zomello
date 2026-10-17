@@ -6,7 +6,8 @@ import type {
   Activity, AppData, BadgeMode, Board, BoardDisplay, BoardUi, Card, CardTemplate, Filter, FocusTimer, ID, LinkType, List, Route, Settings,
 } from "./types";
 import type { ImportedBoard } from "./importers";
-import { broadcastData, isBoardWindow, windowBoardId } from "./windows";
+import { broadcastData, isDeviceWindow, isExtraWindow, windowBoardId } from "./windows";
+import { sendDeviceChanges, setDeviceBase } from "./deviceWindow";
 import { isRemote } from "./remote";
 import { isServer, mergeOps, pushChanges, rebaseSnapshot, setBase, type Ops } from "./server";
 import {
@@ -389,6 +390,10 @@ interface State {
   moveCardToList(id: ID, listId: ID): void;
   resetTime(cardId: ID): void;
   importBoard(b: ImportedBoard, opts: { addPeople: boolean }): ID;
+  /** Phone app: edits made on your computer to this phone's boards (applied here, then saved). */
+  applyLinkOps(ops: Ops): void;
+  /** This computer's window onto a phone: the phone went away (or came back). */
+  deviceOffline: boolean;
   /** Add a board that arrives complete (a .zomello board file), with its people. */
   addBoardBundle(x: { board: Board; lists: List[]; cards: Card[]; people: string[] }): void;
   /** Set `order` by position for `ids` and apply `patch` to the moved card. */
@@ -656,6 +661,7 @@ export const useStore = create<State>((set, get) => {
         }
         // Your computer's boards in the phone app: shown with the phone's own look.
         data = withDeviceLook(data);
+        if (isDeviceWindow) setDeviceBase(data);
         const first = Object.values(data.boards).filter((b) => !b.archived).sort(byOrder)[0];
         const route: Route =
           windowBoardId && data.boards[windowBoardId]
@@ -747,6 +753,7 @@ export const useStore = create<State>((set, get) => {
       applyingRemote = true;
       try {
         set((s) => ({ data: { ...data, ui: s.data.ui } }));
+        if (isDeviceWindow) setDeviceBase(get().data);
       } finally {
         applyingRemote = false;
       }
@@ -965,6 +972,14 @@ export const useStore = create<State>((set, get) => {
     resetTime(cardId) {
       get().updateCard(cardId, { time: [] });
     },
+    applyLinkOps(ops) {
+      // Like any change made here (so it's saved, and Undo works), on top of whatever is on screen.
+      mut((d) => rebaseSnapshot(d, ops));
+      const st = get();
+      if (st.openCardId && !st.data.cards[st.openCardId]) set({ openCardId: null });
+      if (st.route.page === "board" && !st.data.boards[st.route.boardId]) set({ route: { page: "home" } });
+    },
+    deviceOffline: false,
     addBoardBundle({ board, lists, cards, people }) {
       mut((d) => ({
         ...d,
@@ -1323,7 +1338,10 @@ async function flush() {
   pending = null;
   saving = true;
   try {
-    if (isServer) {
+    if (isDeviceWindow) {
+      // A phone's boards on this computer: what changed goes to the phone.
+      await sendDeviceChanges(snapshot);
+    } else if (isServer) {
       // Only what changed goes to the server (with its own look, not the phone's).
       await pushChanges(withPlaceLook(snapshot));
     } else {
@@ -1348,7 +1366,7 @@ useStore.subscribe((s, prev) => {
   if (applyingRemote) return;
   if (!s.loaded || s.data === prev.data || !prev.loaded) {
     // The very first load also counts as a change worth saving (writes the sample board).
-    if (s.loaded && !prev.loaded && !isBoardWindow && !isRemote) {
+    if (s.loaded && !prev.loaded && !isExtraWindow && !isRemote) {
       pending = s.data;
       void flush();
     }

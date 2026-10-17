@@ -40,6 +40,13 @@ fn place_of(webview: &Webview) -> Result<String, String> {
 #[tauri::command]
 pub fn places_read(app: AppHandle, webview: Webview) -> Value {
     let mut v = read(&app);
+    // The link token stays in the app; pages only learn which computer it's linked with.
+    if let Some(origin) = v["link"]["origin"].as_str().map(str::to_string) {
+        v["linked"] = Value::String(origin);
+    }
+    if let Some(m) = v.as_object_mut() {
+        m.remove("link");
+    }
     if let Ok(me) = place_of(&webview) {
         v["me"] = Value::String(me);
     }
@@ -87,6 +94,44 @@ pub fn places_save_list(app: AppHandle, webview: Webview, list: Value) -> Result
     if let Some(b) = v["boards"].as_object_mut() {
         b.retain(|k, _| k == "phone" || keep.contains(k));
     }
+    if v["link"]["origin"].as_str().is_some_and(|o| !keep.iter().any(|k| k == o)) {
+        // The computer was removed from the list: stop sharing with it.
+        if let Some(m) = v.as_object_mut() {
+            m.remove("link");
+        }
+    }
     v["list"] = list;
     write(&app, &v)
+}
+
+/// Your computer's page in the app: link this phone with it, so its boards show there while
+/// both are on the same network. Only a computer in the list can, and only for itself.
+#[tauri::command]
+pub fn places_save_link(app: AppHandle, webview: Webview, token: String, ca: String) -> Result<(), String> {
+    let me = place_of(&webview)?;
+    let mut v = read(&app);
+    let is_computer = v["list"].as_array().into_iter().flatten().any(|p| p["origin"] == me.as_str() && p["kind"] == "computer");
+    if !is_computer {
+        return Err("Only your computer can link with this phone".into());
+    }
+    if token.len() < 32 || !token.chars().all(|c| c.is_ascii_hexdigit()) || !ca.contains("BEGIN CERTIFICATE") {
+        return Err("That isn't a link from Zomello".into());
+    }
+    v["link"] = json!({ "origin": me, "token": token, "ca": ca });
+    write(&app, &v)
+}
+
+/// The link details (for link_client.rs).
+pub fn link(app: &AppHandle) -> Option<Value> {
+    Some(read(app).get("link")?.clone()).filter(Value::is_object)
+}
+
+/// Forget the link (the computer no longer knows this phone).
+pub fn forget_link(app: &AppHandle) {
+    let mut v = read(app);
+    if let Some(m) = v.as_object_mut() {
+        if m.remove("link").is_some() {
+            let _ = write(app, &v);
+        }
+    }
 }

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-linked-send"
+description = "Enables the linked_send command without any pre-configured scope."
+commands.allow = ["linked_send"]
+
+[[permission]]
+identifier = "deny-linked-send"
+description = "Denies the linked_send command without any pre-configured scope."
+commands.deny = ["linked_send"]

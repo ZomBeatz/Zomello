@@ -53,6 +53,8 @@ const LS_KEY = "zomello-data";
 const LEGACY_LS_KEY = "planwise-data";
 
 export async function loadRaw(): Promise<string | null> {
+  // This computer's window onto a phone's boards.
+  if (new URLSearchParams(location.search).has("device")) return (await import("./deviceWindow")).loadDeviceData();
   if (isServer) return serverLoad();
   if (isRemote) return remoteLoad();
   if (inTauri) {

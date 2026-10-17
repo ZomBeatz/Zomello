@@ -11,6 +11,11 @@ const params = new URLSearchParams(location.search);
 /** Set when this window was opened for one board. */
 export const windowBoardId: ID | null = params.get("board");
 export const isBoardWindow = !!windowBoardId;
+/** Set in the window showing a phone's boards on this computer (`index.html?device=<id>`). */
+export const windowDeviceId: string | null = params.get("device");
+export const isDeviceWindow = !!windowDeviceId;
+/** Any window but the main one (no tray, reminders, welcome guide…). */
+export const isExtraWindow = isBoardWindow || isDeviceWindow;
 
 const SYNC_EVENT = "zomello://data-changed";
 const LS_SYNC_KEY = "zomello-data"; // browser dev: the data itself lives here, so `storage` events carry it
@@ -22,8 +27,9 @@ if (inTauri)
   });
 
 export async function openBoardWindow(boardId: ID, title: string) {
-  // Phones and tablets have one window: just go to the board.
-  if (isMobileApp) return (await import("./store")).useStore.getState().navigate({ page: "board", boardId });
+  // Phones and tablets have one window, and a phone's window on this computer shows only its boards:
+  // just go to the board.
+  if (isMobileApp || isDeviceWindow) return (await import("./store")).useStore.getState().navigate({ page: "board", boardId });
   if (inTauri) {
     const { invoke } = await import("@tauri-apps/api/core");
     return invoke("open_board_window", { boardId, title });

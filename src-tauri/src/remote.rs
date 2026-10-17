@@ -39,6 +39,55 @@ struct Device {
     token_hash: String,
     created: u64,
     last_seen: u64,
+    /// The Zomello app on this device links with this (its boards show on this computer while it's
+    /// connected). Hashed, like the sign-in token.
+    #[serde(default)]
+    link_token_hash: Option<String>,
+    /// Show this device's boards on this computer while it's connected.
+    #[serde(default = "yes")]
+    show_boards: bool,
+}
+
+fn yes() -> bool {
+    true
+}
+
+/// A paired device, as the phone-link code needs it.
+pub struct DeviceRef {
+    pub id: String,
+    pub name: String,
+}
+
+/// The device whose app is linking with this token.
+pub fn device_by_link_token(app: &AppHandle, token: &str) -> Option<DeviceRef> {
+    let h = hash(token);
+    let r = app.state::<Remote>();
+    let inner = r.inner.lock().unwrap();
+    inner
+        .config
+        .devices
+        .iter()
+        .find(|d| d.link_token_hash.as_deref() == Some(h.as_str()))
+        .map(|d| DeviceRef { id: d.id.clone(), name: d.name.clone() })
+}
+
+/// A paired device (signed in with its cookie) asks for a token for its app to link with.
+pub fn new_link_token(app: &AppHandle, headers: &HeaderMap) -> Option<String> {
+    let dev = device(app, headers)?;
+    let token = random_hex(32);
+    let r = app.state::<Remote>();
+    let mut inner = r.inner.lock().unwrap();
+    let d = inner.config.devices.iter_mut().find(|d| d.id == dev.id)?;
+    d.link_token_hash = Some(hash(&token));
+    save_config(app, &inner.config);
+    Some(token)
+}
+
+/// Devices whose boards are hidden on this computer.
+pub fn hidden_devices(app: &AppHandle) -> Vec<String> {
+    let r = app.state::<Remote>();
+    let inner = r.inner.lock().unwrap();
+    inner.config.devices.iter().filter(|d| !d.show_boards).map(|d| d.id.clone()).collect()
 }
 
 #[derive(Serialize, Deserialize)]
@@ -114,7 +163,7 @@ impl Remote {
     }
 }
 
-fn random_hex(bytes: usize) -> String {
+pub fn random_hex(bytes: usize) -> String {
     let mut b = vec![0u8; bytes];
     getrandom::fill(&mut b).expect("system random source");
     b.iter().map(|x| format!("{x:02x}")).collect()
@@ -240,6 +289,11 @@ fn start(app: &AppHandle) {
         .route("/api/calendar/{board}/{feed}", get(calendar_feed))
         .route("/setup", get(setup_page))
         .route("/zomello-ca.crt", get(ca_cert))
+        // The phone app's boards on this computer (link.rs).
+        .route("/api/link/token", post(crate::link::link_token))
+        .route("/api/link/events", get(crate::link::link_events))
+        .route("/api/link/snapshot", axum::routing::put(crate::link::link_snapshot))
+        .route("/api/link/ping", post(crate::link::link_ping))
         .fallback(get(asset))
         .layer(DefaultBodyLimit::max(512 * 1024 * 1024))
         .with_state(app.clone());
@@ -250,7 +304,16 @@ fn start(app: &AppHandle) {
             serve(l, router, tls, rx).await;
         }
     });
-    tauri::async_runtime::spawn(follow_address(app2, watch_stop));
+    let app3 = app2.clone();
+    tauri::async_runtime::spawn(follow_address(app2, watch_stop.clone()));
+    // Phones that went away (no word for a while) drop off this computer's sidebar.
+    let mut stop_prune = watch_stop;
+    tauri::async_runtime::spawn(async move {
+        tokio::select! {
+            _ = crate::link::prune(app3.clone()) => {}
+            _ = stop_prune.changed() => crate::link::forget(&app3, None),
+        }
+    });
 }
 
 /// The PC's address can change (new router, no DHCP reservation). Check now and then and renew the
@@ -595,6 +658,8 @@ async fn pair(State(app): State<AppHandle>, Json(req): Json<PairReq>) -> Respons
         token_hash: hash(&token),
         created: now,
         last_seen: now,
+        link_token_hash: None,
+        show_boards: true,
     });
     save_config(&app, &inner.config);
     drop(inner);
@@ -727,6 +792,10 @@ pub struct DeviceInfo {
     name: String,
     created: u64,
     last_seen: u64,
+    /// Its boards show on this computer while it's connected.
+    show_boards: bool,
+    /// Its app has linked with this computer (it can share its boards).
+    can_link: bool,
 }
 
 // ---- Firewall ----
@@ -942,7 +1011,14 @@ fn status_of(app: &AppHandle) -> Status {
         devices: c
             .devices
             .iter()
-            .map(|d| DeviceInfo { id: d.id.clone(), name: d.name.clone(), created: d.created, last_seen: d.last_seen })
+            .map(|d| DeviceInfo {
+                id: d.id.clone(),
+                name: d.name.clone(),
+                created: d.created,
+                last_seen: d.last_seen,
+                show_boards: d.show_boards,
+                can_link: d.link_token_hash.is_some(),
+            })
             .collect(),
     }
 }
@@ -1067,8 +1143,24 @@ pub fn remote_unlink(app: AppHandle, id: String) -> Status {
         let mut inner = r.inner.lock().unwrap();
         inner.config.devices.retain(|d| d.id != id);
         save_config(&app, &inner.config);
-        let _ = r.tx.send(Msg::Revoked(id));
+        let _ = r.tx.send(Msg::Revoked(id.clone()));
     }
+    crate::link::forget(&app, Some(&id));
+    status_of(&app)
+}
+
+/// Show (or hide) a device's boards on this computer while it's connected.
+#[tauri::command]
+pub fn remote_show_boards(app: AppHandle, id: String, show: bool) -> Status {
+    {
+        let r = app.state::<Remote>();
+        let mut inner = r.inner.lock().unwrap();
+        if let Some(d) = inner.config.devices.iter_mut().find(|d| d.id == id) {
+            d.show_boards = show;
+        }
+        save_config(&app, &inner.config);
+    }
+    let _ = app.emit("zomello://linked-changed", serde_json::json!({ "id": id }));
     status_of(&app)
 }
 

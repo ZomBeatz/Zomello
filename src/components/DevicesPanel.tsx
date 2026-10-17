@@ -11,6 +11,10 @@ interface DeviceInfo {
   name: string;
   created: number;
   last_seen: number;
+  /** Its boards show on this computer while it's connected. */
+  show_boards: boolean;
+  /** The Zomello app on it has linked with this computer (it can share its boards). */
+  can_link: boolean;
 }
 interface RemoteStatus {
   enabled: boolean;
@@ -317,6 +321,16 @@ export function DevicesPanel() {
                   Paired {formatDistanceToNow(d.created * 1000, { addSuffix: true })} · last seen{" "}
                   {formatDistanceToNow(d.last_seen * 1000, { addSuffix: true })}
                 </span>
+                {d.can_link && (
+                  <label className="check-row small">
+                    <input
+                      type="checkbox"
+                      checked={d.show_boards}
+                      onChange={(e) => void run(() => invoke("remote_show_boards", { id: d.id, show: e.target.checked }))}
+                    />
+                    Show its boards on this computer while it's connected
+                  </label>
+                )}
               </span>
               <button className="btn sm" onClick={() => void unlink(d)}>
                 <Unlink size={14} /> Unlink

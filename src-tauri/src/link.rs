@@ -1,0 +1,232 @@
+//! Your phone's boards on this computer, live, while the phone is on the same network.
+//!
+//! The phone app (src/link_client.rs on the phone) connects here over the phone & tablet server's
+//! https, signed in with a link token it got while paired (see `link_token`). It sends its boards
+//! (`PUT /api/link/snapshot`) when it connects and whenever they change, and listens for edits made
+//! here (`GET /api/link/events`). Nothing is kept: when the phone goes away (no word from it for a
+//! little while), its boards disappear from this computer.
+
+use crate::remote;
+use axum::{
+    body::Bytes,
+    extract::State,
+    http::{header, HeaderMap, StatusCode},
+    response::{sse, IntoResponse, Response},
+    Json,
+};
+use futures_util::stream::{self, Stream};
+use serde_json::{json, Value};
+use std::{collections::HashMap, convert::Infallible, sync::Mutex, time::Duration};
+use tauri::{AppHandle, Emitter, Manager};
+use tokio::sync::mpsc;
+
+/// A phone connected right now.
+struct Linked {
+    name: String,
+    /// The phone's data file as it last sent it (None until the first snapshot arrives).
+    snapshot: Option<String>,
+    /// When we last heard from it (unix seconds).
+    last: u64,
+    /// This connection (a reconnect replaces it).
+    conn: String,
+    /// Edits made here, on their way to the phone.
+    tx: mpsc::UnboundedSender<String>,
+}
+
+#[derive(Default)]
+pub struct Links {
+    phones: Mutex<HashMap<String, Linked>>,
+}
+
+/// No word for this long: the phone has gone (out of range, app put away).
+const GONE_AFTER: u64 = 45;
+
+fn changed(app: &AppHandle, id: &str) {
+    let _ = app.emit("zomello://linked-changed", json!({ "id": id }));
+}
+
+/// The phone signed in with its link token (`Authorization: Bearer …`).
+fn phone(app: &AppHandle, headers: &HeaderMap) -> Option<remote::DeviceRef> {
+    let token = headers.get(header::AUTHORIZATION)?.to_str().ok()?.strip_prefix("Bearer ")?.trim();
+    remote::device_by_link_token(app, token)
+}
+
+/// `POST /api/link/token` (a paired device's own page): a token for its app to link with.
+pub async fn link_token(State(app): State<AppHandle>, headers: HeaderMap) -> Response {
+    match remote::new_link_token(&app, &headers) {
+        Some(token) => Json(json!({ "token": token })).into_response(),
+        None => (StatusCode::UNAUTHORIZED, "This device isn't paired with Zomello").into_response(),
+    }
+}
+
+/// Removes the phone when its connection ends (unless a newer connection replaced it).
+struct Leave {
+    app: AppHandle,
+    id: String,
+    conn: String,
+}
+impl Drop for Leave {
+    fn drop(&mut self) {
+        let links = self.app.state::<Links>();
+        let mut phones = links.phones.lock().unwrap();
+        if phones.get(&self.id).is_some_and(|p| p.conn == self.conn) {
+            phones.remove(&self.id);
+            drop(phones);
+            changed(&self.app, &self.id);
+        }
+    }
+}
+
+/// `GET /api/link/events`: the phone listens here for edits made on this computer.
+pub async fn link_events(State(app): State<AppHandle>, headers: HeaderMap) -> Response {
+    let Some(dev) = phone(&app, &headers) else { return StatusCode::UNAUTHORIZED.into_response() };
+    let (tx, rx) = mpsc::unbounded_channel::<String>();
+    let conn = remote::random_hex(8);
+    app.state::<Links>().phones.lock().unwrap().insert(
+        dev.id.clone(),
+        Linked { name: dev.name.clone(), snapshot: None, last: crate::now_secs(), conn: conn.clone(), tx },
+    );
+    let leave = Leave { app: app.clone(), id: dev.id, conn };
+    let s = stream::unfold((rx, leave), |(mut rx, leave)| async move {
+        let ops = rx.recv().await?;
+        Some((Ok::<_, Infallible>(sse::Event::default().event("ops").data(ops)), (rx, leave)))
+    });
+    let s: std::pin::Pin<Box<dyn Stream<Item = Result<sse::Event, Infallible>> + Send>> = Box::pin(s);
+    sse::Sse::new(s).keep_alive(sse::KeepAlive::new().interval(Duration::from_secs(15))).into_response()
+}
+
+/// `PUT /api/link/snapshot`: the phone's boards (its whole data file).
+pub async fn link_snapshot(State(app): State<AppHandle>, headers: HeaderMap, body: Bytes) -> Response {
+    let Some(dev) = phone(&app, &headers) else { return StatusCode::UNAUTHORIZED.into_response() };
+    let text = String::from_utf8_lossy(&body).into_owned();
+    if serde_json::from_str::<Value>(&text).is_err() {
+        return (StatusCode::BAD_REQUEST, "not JSON").into_response();
+    }
+    {
+        let links = app.state::<Links>();
+        let mut phones = links.phones.lock().unwrap();
+        let Some(p) = phones.get_mut(&dev.id) else { return StatusCode::CONFLICT.into_response() };
+        p.snapshot = Some(text);
+        p.last = crate::now_secs();
+    }
+    changed(&app, &dev.id);
+    StatusCode::NO_CONTENT.into_response()
+}
+
+/// `POST /api/link/ping`: still here.
+pub async fn link_ping(State(app): State<AppHandle>, headers: HeaderMap) -> Response {
+    let Some(dev) = phone(&app, &headers) else { return StatusCode::UNAUTHORIZED.into_response() };
+    match app.state::<Links>().phones.lock().unwrap().get_mut(&dev.id) {
+        Some(p) => {
+            p.last = crate::now_secs();
+            StatusCode::NO_CONTENT.into_response()
+        }
+        None => StatusCode::CONFLICT.into_response(),
+    }
+}
+
+/// Every few seconds: forget phones we haven't heard from (their connection may never say goodbye).
+pub async fn prune(app: AppHandle) {
+    loop {
+        tokio::time::sleep(Duration::from_secs(10)).await;
+        let now = crate::now_secs();
+        let gone: Vec<String> = {
+            let links = app.state::<Links>();
+            let mut phones = links.phones.lock().unwrap();
+            let gone: Vec<String> = phones.iter().filter(|(_, p)| now.saturating_sub(p.last) > GONE_AFTER).map(|(k, _)| k.clone()).collect();
+            for id in &gone {
+                phones.remove(id);
+            }
+            gone
+        };
+        for id in gone {
+            changed(&app, &id);
+        }
+    }
+}
+
+/// A device was unlinked (or the server stopped): its boards go.
+pub fn forget(app: &AppHandle, id: Option<&str>) {
+    let ids: Vec<String> = {
+        let links = app.state::<Links>();
+        let mut phones = links.phones.lock().unwrap();
+        let ids: Vec<String> = phones.keys().filter(|k| id.is_none_or(|i| i == k.as_str())).cloned().collect();
+        for i in &ids {
+            phones.remove(i);
+        }
+        ids
+    };
+    for i in ids {
+        changed(app, &i);
+    }
+}
+
+// ---- For this computer's windows ----
+
+/// Phones connected now, with their boards (for the sidebar). Hidden ones are left out.
+#[tauri::command]
+pub fn linked_devices(app: AppHandle) -> Vec<Value> {
+    let hidden = remote::hidden_devices(&app);
+    let links = app.state::<Links>();
+    let phones = links.phones.lock().unwrap();
+    let mut out: Vec<Value> = phones
+        .iter()
+        .filter(|(id, p)| p.snapshot.is_some() && !hidden.contains(id))
+        .map(|(id, p)| {
+            let d: Value = serde_json::from_str(p.snapshot.as_deref().unwrap_or("{}")).unwrap_or(Value::Null);
+            let mut boards: Vec<Value> = d["boards"]
+                .as_object()
+                .map(|m| {
+                    m.values()
+                        .filter(|b| b["archived"] != Value::Bool(true))
+                        .map(|b| json!({ "id": b["id"], "title": b["title"], "color": b["color"], "icon": b["icon"], "category": b["category"], "order": b["order"] }))
+                        .collect()
+                })
+                .unwrap_or_default();
+            boards.sort_by(|a, b| a["order"].as_f64().unwrap_or(0.0).total_cmp(&b["order"].as_f64().unwrap_or(0.0)));
+            json!({ "id": id, "name": p.name, "boards": boards, "sections": d["settings"]["sections"] })
+        })
+        .collect();
+    out.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
+    out
+}
+
+/// A connected phone's data (its whole file), or None if it isn't connected.
+#[tauri::command]
+pub fn linked_data(app: AppHandle, id: String) -> Option<String> {
+    app.state::<Links>().phones.lock().unwrap().get(&id).and_then(|p| p.snapshot.clone())
+}
+
+/// Send edits made here to the phone (boards, buckets and cards that changed or were deleted).
+#[tauri::command]
+pub fn linked_send(app: AppHandle, id: String, ops: Value) -> Result<(), String> {
+    let links = app.state::<Links>();
+    let phones = links.phones.lock().unwrap();
+    let p = phones.get(&id).ok_or("Your phone isn't connected right now.")?;
+    p.tx.send(ops.to_string()).map_err(|_| "Your phone isn't connected right now.".to_string())
+}
+
+/// Open a phone's boards in their own window (or bring it forward).
+#[tauri::command]
+pub async fn open_device_window(app: AppHandle, id: String, board: Option<String>) -> Result<(), String> {
+    let id: String = id.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '-').collect();
+    let name = app.state::<Links>().phones.lock().unwrap().get(&id).map(|p| p.name.clone()).ok_or("Your phone isn't connected right now.")?;
+    let label = format!("device-{id}");
+    let hash = board.map(|b| format!("#/board/{}", b.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '-').collect::<String>())).unwrap_or_default();
+    if let Some(w) = app.get_webview_window(&label) {
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+        if !hash.is_empty() {
+            let _ = w.eval(format!("location.hash = {:?}", hash.trim_start_matches('#')));
+        }
+        return Ok(());
+    }
+    let window = tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App(format!("index.html?device={id}{hash}").into()))
+        .title(format!("{name} — Zomello"))
+        .inner_size(1250.0, 840.0)
+        .min_inner_size(700.0, 500.0)
+        .build()
+        .map_err(|e| e.to_string())?;
+    crate::enable_spellcheck(&window);
+    Ok(())
+}
