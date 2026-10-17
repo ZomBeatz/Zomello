@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Merged into the iPhone/iPad app's Info.plist by Tauri. -->
+<plist version="1.0">
+<dict>
+  <!-- Shown when Zomello first reaches your computer or looks for Zomello Servers on your Wi-Fi. -->
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>Zomello connects to the Zomello app on your computer, and finds Zomello Servers, on your home network.</string>
+  <!-- "Find servers on this network" looks for this service. -->
+  <key>NSBonjourServices</key>
+  <array>
+    <string>_zomello._tcp</string>
+  </array>
+  <!-- Opens .zomello board files from Files, Mail and Messages. -->
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Zomello board</string>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>LSHandlerRank</key>
+      <string>Owner</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>com.zombeatz.zomello.board</string>
+      </array>
+    </dict>
+  </array>
+  <key>UTExportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>com.zombeatz.zomello.board</string>
+      <key>UTTypeDescription</key>
+      <string>Zomello board</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.data</string>
+        <string>public.archive</string>
+      </array>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>zomello</string>
+        </array>
+        <key>public.mime-type</key>
+        <string>application/x-zomello</string>
+      </dict>
+    </dict>
+  </array>
+  <!-- No encryption beyond Apple's own (https): answers App Store Connect's export question for you. -->
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
+</dict>
+</plist>
