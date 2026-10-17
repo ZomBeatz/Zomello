@@ -625,7 +625,7 @@ export const useStore = create<State>((set, get) => {
     toast(text, opts) {
       const t: Toast = { id: uid(), text, undo: opts?.undo, key: opts?.key, action: opts?.action };
       set((s) => ({ toasts: [...s.toasts.filter((x) => !t.key || x.key !== t.key).slice(-3), t] }));
-      setTimeout(() => get().dismissToast(t.id), 6000);
+      setTimeout(() => get().dismissToast(t.id), t.action ? 12000 : 6000);
     },
     dismissToast(id) {
       set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));

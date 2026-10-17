@@ -133,5 +133,5 @@ To avoid picking the team every time, put it in `src-tauri/tauri.ios.conf.json`:
 ## What's not there yet
 
 - Opening `.zomello` files by tapping them on Android or iPhone. On phones, use **Settings → Data → Import** instead.
-- On phones, saving a board file uses the app's own storage. Sharing it straight from the phone (share sheet) is planned.
+- Saving a board file on iPhone and iPad (and in Chrome on Android phones) opens the share sheet: Messages, Mail, Files, AirDrop and so on. The Android app's built-in browser has no share sheet, so there the file is saved in Zomello's folder under Android/data, which is awkward to find. A proper Android share button is planned.
 - The Android and iPhone apps don't have phone & tablet access themselves. They are the phone.
