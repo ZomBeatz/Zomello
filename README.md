@@ -7,7 +7,8 @@
 
 <p align="center">
   <b>A planner for any occasion.</b><br>
-  Boards, lists and cards for your projects, chores and ideas. Use it on your computer, your phone, or your own server.
+  A free kanban board and task planner, similar to Trello and Microsoft Planner.<br>
+  Use it on Windows, Linux and Android, or self-host it on your own server with Docker.
 </p>
 
 <p align="center">
