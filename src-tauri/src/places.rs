@@ -71,7 +71,7 @@ pub fn places_save_look(app: AppHandle, webview: Webview, look: Value) -> Result
         return Err("look must be an object".into());
     }
     let mut v = read(&app);
-    v["look"] = look;
+    v["phoneLook"] = look;
     write(&app, &v)
 }
 

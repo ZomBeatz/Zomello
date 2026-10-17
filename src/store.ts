@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { addDays, differenceInCalendarDays } from "date-fns";
 import { isPhoneOrTablet, loadRaw, saveRaw } from "./storage";
-import { loadDeviceLook, withDeviceLook, withPlaceLook } from "./deviceLook";
+import { loadDeviceLook, noteLookPatch, withDeviceLook, withPlaceLook } from "./deviceLook";
 import type {
   Activity, AppData, BadgeMode, Board, BoardDisplay, BoardUi, Card, CardTemplate, Filter, FocusTimer, ID, LinkType, List, Route, Settings,
 } from "./types";
@@ -1246,6 +1246,8 @@ export const useStore = create<State>((set, get) => {
       mut((d) => ({ ...d, savedFilters: d.savedFilters.filter((f) => f.id !== id) }));
     },
     updateSettings(patch) {
+      // On your computer's boards in the phone app, the look you change is the phone's.
+      noteLookPatch(patch, get().data.settings);
       mut((d) => ({ ...d, settings: { ...d.settings, ...patch } }));
     },
     setBoardCategory(boardId, category) {
