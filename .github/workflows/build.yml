@@ -94,6 +94,67 @@ jobs:
             src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: error
 
+  # Microsoft Store package (.msix). Upload it in Partner Center; the Store signs it, no certificate needed.
+  msix:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - run: npm ci
+
+      - name: Build the app
+        run: npx tauri build --no-bundle
+
+      - name: Package it for the Microsoft Store
+        shell: pwsh
+        run: |
+          $id = Get-Content src-tauri/msix/store-identity.json -Raw | ConvertFrom-Json
+          if ($id.name -like "PASTE*" -or $id.publisher -like "PASTE*") {
+            Write-Output "::warning::src-tauri/msix/store-identity.json still has placeholders: fill it in from Partner Center (see docs/apps.md). Skipping the .msix."
+            exit 0
+          }
+          $version = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $parts = $version.Split("-")[0].Split(".")
+          while ($parts.Count -lt 3) { $parts += "0" }
+          $msixVersion = "$($parts[0]).$($parts[1]).$($parts[2]).0"   # the Store wants the last number 0
+
+          $layout = "msix-layout"
+          New-Item -ItemType Directory -Force "$layout/Assets" | Out-Null
+          Copy-Item src-tauri/target/release/zomello.exe $layout/
+          foreach ($f in "StoreLogo.png", "Square44x44Logo.png", "Square71x71Logo.png", "Square150x150Logo.png", "Square310x310Logo.png") {
+            Copy-Item "src-tauri/icons/$f" "$layout/Assets/$f"
+          }
+          (Get-Content src-tauri/msix/AppxManifest.template.xml -Raw) `
+            -replace "{{NAME}}", $id.name `
+            -replace "{{PUBLISHER}}", $id.publisher `
+            -replace "{{PUBLISHER_DISPLAY_NAME}}", $id.publisherDisplayName `
+            -replace "{{VERSION}}", $msixVersion |
+            Set-Content -Encoding utf8 "$layout/AppxManifest.xml"
+
+          $makeappx = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\makeappx.exe" | Sort-Object FullName | Select-Object -Last 1
+          New-Item -ItemType Directory -Force out | Out-Null
+          & $makeappx.FullName pack /d $layout /p "out/Zomello_$($msixVersion)_x64.msix" /o
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zomello-microsoft-store
+          path: out/*.msix
+          if-no-files-found: warn
+
   android:
     runs-on: ubuntu-latest
     permissions:

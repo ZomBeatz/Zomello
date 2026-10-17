@@ -529,6 +529,7 @@ pub fn run() {
         desktop::show_main_window,
         desktop::get_autostart,
         desktop::set_autostart,
+        desktop::store_package,
         remote::remote_open_firewall,
         remote::remote_set_address,
         remote::remote_regenerate_cert,

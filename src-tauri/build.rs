@@ -44,6 +44,7 @@ fn main() {
                 "show_main_window",
                 "get_autostart",
                 "set_autostart",
+                "store_package",
                 "remote_open_firewall",
                 "remote_set_address",
                 "remote_regenerate_cert",
