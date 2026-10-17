@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useDragSensors, useIsPhone } from "../mobile";
 import {
-  Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Shield, UserCog, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, UserCheck, Users, X, Zap, ExternalLink, Server as ServerIcon,
+  Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Shield, UserCog, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, UserCheck, Users, X, Zap, ExternalLink, Server as ServerIcon, Smartphone, Monitor,
 } from "lucide-react";
 import { runningTimer, useStore } from "../store";
 import type { Board, ID, Route } from "../types";
@@ -21,6 +21,8 @@ import { SpinCat } from "./SpinCat";
 import { isServer, logout, me } from "../server";
 import { NO_SERVERS, openServer } from "../servers";
 import { isRemote } from "../remote";
+import { goToPhone, inZomelloApp } from "../places";
+import { isMobileApp } from "../storage";
 import { Avatar } from "./ui";
 
 export function Sidebar() {
@@ -176,6 +178,12 @@ export function Sidebar() {
       </div>
 
       {!isServer && !isRemote && <ServerNav collapsed={collapsed} />}
+      {inZomelloApp() && (
+        <button className="nav-item" onClick={goToPhone} title="Switch to the boards stored on this phone">
+          <Smartphone size={16} />
+          <span className="label">Boards on this phone</span>
+        </button>
+      )}
 
       <div className="grow" />
       {style === "partycat" && (
@@ -203,11 +211,17 @@ function ServerNav({ collapsed }: { collapsed: boolean }) {
   return (
     <>
       <div className="nav-heading">
-        <span className="label">Servers</span>
+        <span className="label">{isMobileApp ? "Places" : "Servers"}</span>
         <button className="icon-btn tiny" title="Add or manage servers" onClick={() => useStore.getState().navigate({ page: "settings" })}>
           <Plus size={14} />
         </button>
       </div>
+      {isMobileApp && (
+        <button className="nav-item active" title="The boards stored on this phone">
+          <Smartphone size={16} />
+          <span className="ellipsis label">This phone</span>
+        </button>
+      )}
       {servers.map((s) => (
         <button
           key={s.id}
@@ -226,7 +240,7 @@ function ServerNav({ collapsed }: { collapsed: boolean }) {
             ])
           }
         >
-          <ServerIcon size={16} />
+          {s.kind === "computer" ? <Monitor size={16} /> : <ServerIcon size={16} />}
           <span className="ellipsis label">{s.name}</span>
         </button>
       ))}

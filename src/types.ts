@@ -289,6 +289,8 @@ export interface ServerEntry {
   name: string;
   /** scheme://host:port */
   url: string;
+  /** "computer": a computer running the Zomello app with Phones & tablets on (phone app only). */
+  kind?: "server" | "computer";
 }
 
 export interface Settings {

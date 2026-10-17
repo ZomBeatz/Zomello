@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Zomello: connections to other devices are always encrypted (no plain http), and besides the usual
+  certificate authorities, the app trusts certificates you install on the phone yourself, such as the
+  Zomello certificate from your computer's "Phones & tablets" setup. Android apps ignore those
+  unless they say so here.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

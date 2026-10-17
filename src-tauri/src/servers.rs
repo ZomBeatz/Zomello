@@ -18,9 +18,33 @@ pub fn origin_of(url: &tauri::Url) -> String {
 
 /// Navigation rule for server windows: stay on the server. `None` means "not a server window".
 pub fn allows(label: &str, url: &tauri::Url) -> Option<bool> {
+    // The main window (phones and tablets) may also show your computer or a server, over https only.
+    if label == "main" {
+        let ok = url.scheme() == "https" && PLACES.lock().unwrap().iter().any(|o| *o == origin_of(url));
+        return ok.then_some(true);
+    }
     let map = ORIGINS.lock().unwrap();
     let origin = map.as_ref()?.get(label)?;
     Some(&origin_of(url) == origin)
+}
+
+/// Phones and tablets: https addresses (your computer, Zomello Servers) the main window may switch to.
+static PLACES: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+/// Let the main window show this https address (called just before switching to it). Plain http is
+/// refused: on a phone, boards from another device always travel encrypted.
+#[tauri::command]
+pub fn allow_place(address: String) -> Result<String, String> {
+    let url = parse(&address)?;
+    if url.scheme() != "https" {
+        return Err("Use the https address (it starts with https://), so your boards travel encrypted.".into());
+    }
+    let origin = origin_of(&url);
+    let mut places = PLACES.lock().unwrap();
+    if !places.contains(&origin) {
+        places.push(origin.clone());
+    }
+    Ok(origin)
 }
 
 fn parse(address: &str) -> Result<tauri::Url, String> {

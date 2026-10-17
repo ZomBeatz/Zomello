@@ -1,3 +1,4 @@
+import { goToPlace } from "./places";
 import { invoke } from "@tauri-apps/api/core";
 import { inTauri, isMobileApp, openExternal } from "./storage";
 import type { ServerEntry } from "./types";
@@ -46,6 +47,8 @@ export const canFindServers = inTauri;
 
 export async function openServer(s: ServerEntry): Promise<void> {
   if (inTauri && !isMobileApp) return invoke("open_server_window", { id: s.id, address: s.url, name: s.name });
+  // Phone app: https places open right in the app (encrypted); anything else goes to the browser.
+  if (isMobileApp && s.url.startsWith("https://")) return goToPlace(s.url);
   return openExternal(s.url);
 }
 
