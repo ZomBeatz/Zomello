@@ -6,6 +6,7 @@ import { useStore } from "../store";
 import { byOrder } from "../utils";
 import { isServer, loadData, updateProfile } from "../server";
 import { LogoMark } from "./Logo";
+import { isDesktopApp, isMobileApp } from "../storage";
 import { Modal } from "./ui";
 
 type Start = "explore" | "empty" | "import";
@@ -67,7 +68,7 @@ export function WelcomeGuide({ onClose }: { onClose: () => void }) {
                 <p className="muted">
                   {isServer
                     ? "Boards like Trello and task details like Planner, on your own Zomello Server. Make your own boards, or work on boards people share with you."
-                    : "Boards like Trello, task details like Planner, and everything stays on this computer. No account needed."}
+                    : `Boards like Trello, task details like Planner, and everything stays on this ${isMobileApp ? "device" : "computer"}. No account needed.`}
                 </p>
               </div>
             </div>
@@ -204,7 +205,9 @@ export function WelcomeGuide({ onClose }: { onClose: () => void }) {
               </label>
             </div>
             <p className="muted small">
-              Extras when you want them, in Settings: use it on your phone or tablet, backups, AI helpers and more.
+              {isDesktopApp
+                ? "Extras when you want them, in Settings: use it on your phone or tablet, Zomello Servers, backups, AI helpers and more."
+                : "Extras when you want them are in Settings: Zomello Servers, backups, AI helpers and more."}
             </p>
           </section>
         )}

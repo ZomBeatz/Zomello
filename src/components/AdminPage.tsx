@@ -10,6 +10,21 @@ import { copyText } from "./Markdown";
 const bytes = (n: number) => (n > 1e9 ? `${(n / 1e9).toFixed(1)} GB` : n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`);
 const ago = (secs: number | null) => (secs ? formatDistanceToNow(secs * 1000, { addSuffix: true }) : "never");
 
+/** What to send someone so they can sign in: the address, their account, and where to use it. */
+let publicUrl: string | null = null;
+function signInDetails(name: string, username: string, password: string) {
+  const address = publicUrl || location.origin;
+  return [
+    `Zomello sign-in for ${name}`,
+    `Address: ${address}`,
+    `Username: ${username}`,
+    `Password: ${password}`,
+    "",
+    `Open the address in a browser (on a phone you can then install it as an app), or in the Zomello app: Settings → Zomello Servers → add ${address}.`,
+    "You can change your password in Settings once you're in.",
+  ].join("\n");
+}
+
 /** A readable temporary password, e.g. "maple-river-4821". */
 function tempPassword() {
   const words = ["maple", "river", "comet", "tiger", "lemon", "harbor", "pixel", "cedar", "ember", "nova", "otter", "violet", "basil", "echo"];
@@ -31,6 +46,7 @@ export function AdminPage() {
       setUsers(u);
       setBoards(b);
       setInfo(i);
+      publicUrl = i.publicUrl;
       setError("");
     } catch (e) {
       setError(String(e instanceof Error ? e.message : e));
@@ -211,7 +227,7 @@ function UserRow({ user: u, isMe, act }: { user: AdminUser; isMe: boolean; act: 
               e.preventDefault();
               const pw = resetting;
               void act(() => admin.updateUser(u.id, { password: pw }), `New password set for ${u.displayName}`).then(() => {
-                void copyText(`Zomello sign-in for ${u.displayName}\nUsername: ${u.username}\nPassword: ${pw}`);
+                void copyText(signInDetails(u.displayName, u.username, pw));
                 setResetting(null);
               });
             }}
@@ -316,7 +332,7 @@ function AddUser({ onAdded }: { onAdded: () => Promise<void> }) {
         setError("");
         try {
           await admin.createUser({ username, displayName: name || username, password, isAdmin });
-          setCreated(`Zomello: ${location.origin}\nUsername: ${username.trim().toLowerCase()}\nPassword: ${password}`);
+          setCreated(signInDetails(name || username, username.trim().toLowerCase(), password));
           setOpen(false);
           setName("");
           setUsername("");
