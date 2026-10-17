@@ -4,8 +4,9 @@
 //! Admins manage accounts and boards from the app's Admin page. Data lives in one folder: a SQLite
 //! database plus attached files.
 //!
-//! Settings come from environment variables (handy in Docker):
-//!   ZOMELLO_DATA        data folder (default ./data)
+//! Settings come from environment variables (handy in Docker), or from `settings.env` in the data folder:
+//!   ZOMELLO_DATA        data folder (default: Windows C:\ProgramData\Zomello Server, macOS ~/Library/Application
+//!                       Support/Zomello Server, Linux ~/.local/share/zomello-server)
 //!   ZOMELLO_PORT        port (default 7311)
 //!   ZOMELLO_BIND        address to listen on (default 0.0.0.0)
 //!   ZOMELLO_TLS         off (default; e.g. behind Caddy) | files | self
@@ -18,11 +19,15 @@
 //!   zomello-server reset-password <user>    set a new password (prompts, or reads ZOMELLO_PASSWORD)
 //!   zomello-server create-admin <user>      add an admin account (same password prompt)
 //!   zomello-server health                   exit 0 if the server on ZOMELLO_PORT answers (Docker health check)
+//!   zomello-server install                  start with the computer (Windows startup task, macOS LaunchAgent,
+//!                                           Linux systemd service), and start now
+//!   zomello-server uninstall                stop starting with the computer (data stays)
 
 mod admin;
 mod auth;
 mod calendar;
 mod db;
+mod platform;
 mod files;
 mod sharing;
 mod sync;
@@ -128,8 +133,15 @@ pub fn stamp() -> String {
     format!("{y}{m:02}{d:02}-{:02}{:02}{:02}", s / 3600, s % 3600 / 60, s % 60)
 }
 
+/// Settings from `settings.env` in the data folder (environment variables win).
+static FILE_SETTINGS: std::sync::OnceLock<Vec<(String, String)>> = std::sync::OnceLock::new();
+
 fn env(name: &str) -> Option<String> {
-    std::env::var(name).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty())
+    std::env::var(name)
+        .ok()
+        .or_else(|| FILE_SETTINGS.get()?.iter().find(|(k, _)| k == name).map(|(_, v)| v.clone()))
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
 }
 
 /// State-changing requests must come from this site's own pages (a simple guard against other
@@ -268,7 +280,7 @@ fn command(conn: &rusqlite::Connection, args: &[String]) -> bool {
             true
         }
         Some(other) => {
-            eprintln!("Unknown command: {other}. Commands: reset-password <user>, create-admin <user>, health.");
+            eprintln!("Unknown command: {other}. Commands: install, uninstall, reset-password <user>, create-admin <user>, health.");
             std::process::exit(2);
         }
         None => false,
@@ -297,18 +309,25 @@ async fn main() {
     if std::env::args().nth(1).as_deref() == Some("health") {
         health();
     }
-    let data_dir = PathBuf::from(env("ZOMELLO_DATA").unwrap_or_else(|| "data".into()));
-    std::fs::create_dir_all(&data_dir).expect("can't create the data folder");
-    let conn = db::open(&data_dir.join("zomello.db")).expect("can't open the database");
+    let data_dir = env("ZOMELLO_DATA").map(PathBuf::from).unwrap_or_else(platform::default_data_dir);
+    std::fs::create_dir_all(&data_dir).unwrap_or_else(|e| panic!("can't create the data folder {}: {e}", data_dir.display()));
+    let _ = FILE_SETTINGS.set(platform::read_settings(&data_dir));
+    let port: u16 = env("ZOMELLO_PORT").and_then(|p| p.parse().ok()).unwrap_or(7311);
 
     let args: Vec<String> = std::env::args().skip(1).collect();
+    match args.first().map(String::as_str) {
+        Some("install") => std::process::exit(if platform::install(&data_dir, port) { 0 } else { 1 }),
+        Some("uninstall") => std::process::exit(if platform::uninstall() { 0 } else { 1 }),
+        _ => {}
+    }
+    let conn = db::open(&data_dir.join("zomello.db")).expect("can't open the database");
     if command(&conn, &args) {
         return;
     }
 
     let tls_mode = env("ZOMELLO_TLS").unwrap_or_else(|| "off".into()).to_lowercase();
     let config = Config {
-        port: env("ZOMELLO_PORT").and_then(|p| p.parse().ok()).unwrap_or(7311),
+        port,
         bind: env("ZOMELLO_BIND").unwrap_or_else(|| "0.0.0.0".into()),
         tls: tls_mode != "off",
         self_cert: tls_mode == "self",
@@ -326,7 +345,18 @@ async fn main() {
 
     tokio::spawn(daily_backups(app.clone()));
     let addr = format!("{}:{}", app.config.bind, app.config.port);
-    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap_or_else(|e| panic!("can't listen on {addr}: {e}"));
+    let listener = match tokio::net::TcpListener::bind(&addr).await {
+        Ok(l) => l,
+        Err(e) => {
+            eprintln!("Can't use port {} ({e}).", app.config.port);
+            if e.kind() == std::io::ErrorKind::AddrInUse {
+                eprintln!("Something else is using it: another Zomello Server, or the Zomello app's phone & tablet access.");
+                eprintln!("Pick another port with ZOMELLO_PORT in {}", data_dir.join(platform::SETTINGS_FILE).display());
+            }
+            platform::pause_before_closing();
+            std::process::exit(1);
+        }
+    };
     let users = db::user_count(&app.db.lock().unwrap()).unwrap_or(0);
     println!(
         "Zomello Server {} on {}://{addr}  (data: {})",
@@ -334,8 +364,10 @@ async fn main() {
         if tls_config.is_some() { "https" } else { "http" },
         data_dir.display()
     );
+    println!("Settings: {}", data_dir.join(platform::SETTINGS_FILE).display());
     if users == 0 {
         println!("First run: open it in a browser to create the admin account.");
+        platform::maybe_open_browser(&format!("{}://localhost:{}", if tls_config.is_some() { "https" } else { "http" }, app.config.port));
     }
     let router = router(app);
     match tls_config {
