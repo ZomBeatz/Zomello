@@ -85,7 +85,27 @@ On GitHub, open the repository → **Settings → Secrets and variables → Acti
 
 From then on, every APK is signed with your key and installs as an update over the last one.
 
-To publish on the Google Play Store later, you'd also need a Play Console account ($25 once) and an `.aab` bundle (`npx tauri android build --aab`).
+See *Google Play* below to publish it on the Play Store.
+
+## Google Play
+
+1. **Build:** run `npm run android:release`. The first time, it makes your **upload key** in `~/zomello-keys/` and asks for a password. Back that folder up and keep the password, because every future update must be signed with it. It produces `app-universal-release.aab`.
+2. **Play Console:** sign up at play.google.com/console ($25 once, plus an identity check). Create the app with name **Zomello**, type **App**, **Free**. The app's ID, `com.zombeatz.zomello`, is permanent once uploaded.
+3. **Required forms** (Play Console → your app → Policy / App content):
+   - **Privacy policy:** a public web page. A short one is fine: everything stays on the device or on computers and servers you choose, nothing is collected.
+   - **Data safety:** "no data collected or shared".
+   - **Content rating** questionnaire, **target audience** (adults), and **ads:** none.
+4. **Store listing:**
+   - A short and a full description.
+   - The 512×512 icon: `src-tauri/icons/icon.png`, scaled.
+   - A 1024×500 feature graphic.
+   - At least 2 phone screenshots.
+5. **Testing first:** new personal developer accounts must run a **closed test with at least 12 testers for 14 days** before Google allows a public release. In **Test and release → Closed testing**, create a release, upload the `.aab`, and add your testers' Google accounts. They install it from the link Play gives you.
+6. **Release:** after the 14 days, apply for production access and promote the release to **Production**. Google reviews new apps, usually within a few days.
+
+**Updates:** raise `"version"` in `src-tauri/tauri.conf.json` (e.g. 0.1.0 → 0.1.1), run `npm run android:release` again, and upload the new `.aab` as a new release.
+
+**Your test copy:** the copy you installed by cable is signed with a different key, so Android won't update it with the Play version. Uninstall it first, which deletes the boards stored on the phone. Save any you want to keep beforehand: use a board's **⋯ → Save as board file**, or keep them on your computer.
 
 ## Mac app signing (your Apple developer account)
 

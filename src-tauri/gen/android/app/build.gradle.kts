@@ -14,8 +14,26 @@ val tauriProperties = Properties().apply {
     }
 }
 
+// Release signing (Google Play upload key). The details live in keystore.properties next to this
+// project's settings.gradle (never committed): storeFile, storePassword, keyAlias, keyPassword.
+// scripts/android-release.sh makes the key and the file the first time.
+val keystore = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
 android {
     compileSdk = 37
+    signingConfigs {
+        if (keystore.getProperty("storeFile") != null) {
+            create("release") {
+                storeFile = rootProject.file(keystore.getProperty("storeFile"))
+                storePassword = keystore.getProperty("storePassword")
+                keyAlias = keystore.getProperty("keyAlias")
+                keyPassword = keystore.getProperty("keyPassword")
+            }
+        }
+    }
     namespace = "com.zombeatz.zomello"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
@@ -39,6 +57,7 @@ android {
             }
         }
         getByName("release") {
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             optimization {
                enable = true
             }
