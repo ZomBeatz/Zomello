@@ -13,6 +13,16 @@ Ways to work together:
 - **A Zomello Server** keeps one board that everyone works on together, live. In the app, add servers under **Settings → Zomello Servers**, either by address or with **Find servers on this network**, which lists Zomello Servers on your Wi-Fi the way Plex finds its servers. They then appear in the sidebar under *Servers*, and each one opens in its own window. On phones and tablets a server opens in the browser, where it can be installed as an app of its own.
 - **Phone & tablet access** (desktop app only) lets your phone use the boards on your computer while you're on the same Wi-Fi. Set it up in Settings → Phones & tablets.
 
+## Your computer's boards on your phone (Android app)
+
+The Android app keeps its own boards, and can also show your computer's boards, encrypted, with no Chrome needed:
+
+1. On the computer: Zomello → **Settings → Phones & tablets**. Turn it on and install its certificate on the phone; the page shows how. This is the same certificate Chrome uses.
+2. In the phone app: **Settings → Servers → Boards on your computer**. Type the computer's `https://` address, or paste the whole pairing link from **Pair a device**, and tap **Connect**. Android 17 asks to let Zomello reach devices on your network; allow it.
+3. The menu now has a section for each place: **This phone** and **My computer** (plus any Zomello Servers). Each section lists its boards by category, with **+ New board** at the bottom. Tap a board in another section to go straight to it. The app reopens wherever you were last.
+
+Your computer's boards stay on the computer; the phone shows them while it can reach the computer. If it can't (computer off, different Wi‑Fi), the app opens the phone's own boards and offers **Try again**. Only https is used: the app trusts the certificates you install on the phone and refuses plain http to other devices.
+
 ## Getting the apps
 
 GitHub builds every version for you. In the repository, open **Actions → Build apps → Run workflow**. When it finishes (about 20–30 minutes), the run's page lists **Artifacts**:
