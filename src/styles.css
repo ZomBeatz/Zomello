@@ -1591,3 +1591,8 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 .place-actions { display: flex; gap: 6px; padding: 6px 4px 0; }
 .place-actions .btn { color: var(--muted); }
 .place-empty { margin: 2px 10px 6px 28px; }
+
+/* Dragging a board into a section: the section lights up; "no section" gets a drop zone if it's empty. */
+.drop-into { background: var(--accent-soft); border-radius: 8px; outline: 1px dashed var(--accent); outline-offset: -1px; }
+.no-section-drop { margin: 4px 6px; padding: 10px; border: 1px dashed var(--border); border-radius: 8px; font-size: 12px; color: var(--muted); text-align: center; }
+.no-section-drop.drop-into { color: var(--accent); }
