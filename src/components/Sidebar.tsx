@@ -153,6 +153,11 @@ export function Sidebar() {
           setAdding(false);
           setAddIn(null);
         };
+        const commitSection = (name: string) => {
+          if (name.trim()) useStore.getState().addCategory(name);
+          setSectionName("");
+          setAddingSection(false);
+        };
         const addInput = adding && (
           <input
             autoFocus
@@ -188,7 +193,7 @@ export function Sidebar() {
                   <span className="grow ellipsis">{cat}</span>
                   <span className="count">{inCat.length}</span>
                 </button>
-                {placesMode && (
+                {!collapsed && (
                   <button
                     className="icon-btn tiny"
                     title={`New board in ${cat}`}
@@ -206,81 +211,64 @@ export function Sidebar() {
               {!shut && (
                 <>
                   <BoardList list={inCat} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
-                  {placesMode && addIn === cat && addInput}
-                  {placesMode && inCat.length === 0 && addIn !== cat && <p className="muted small place-empty">No boards yet</p>}
+                  {addIn === cat && addInput}
+                  {inCat.length === 0 && addIn !== cat && !collapsed && <p className="muted small place-empty">No boards yet</p>}
                 </>
               )}
             </DropGroup>
           );
         });
 
-        // Phones and tablets, OneNote style: each place is a heading; inside it, its sections
-        // (categories) with their boards, then boards in no section, then + Board / + Section.
-        if (placesMode)
-          return (
-            <PlaceSections
-              here={
-                <div className="nav-boards place-tree">
-                  <BoardsDnd all={live}>
-                    {categoryGroups}
-                    <DropGroup name="">
-                      {loose.length > 0 && categories.length > 0 && <div className="place-subhead">Other boards</div>}
-                      <BoardList list={loose} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
-                      {loose.length === 0 && categories.length > 0 && <NoSectionDrop />}
-                    </DropGroup>
-                  </BoardsDnd>
-                  {!addIn && addInput}
-                  {addingSection && (
-                    <input
-                      autoFocus
-                      className="nav-input"
-                      placeholder="Section name, e.g. Home Projects"
-                      value={sectionName}
-                      onChange={(e) => setSectionName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") e.currentTarget.blur();
-                        if (e.key === "Escape") {
-                          setSectionName("");
-                          setAddingSection(false);
-                        }
-                      }}
-                      onBlur={() => {
-                        if (sectionName.trim()) useStore.getState().addCategory(sectionName);
-                        setSectionName("");
-                        setAddingSection(false);
-                      }}
-                    />
-                  )}
-                  <div className="place-actions">
-                    <button className="btn sm ghost" onClick={() => (setAddIn(null), setAdding(true))}>
-                      <Plus size={14} /> Board
-                    </button>
-                    <button className="btn sm ghost" onClick={() => setAddingSection(true)}>
-                      <FolderPlus size={14} /> Section
-                    </button>
-                  </div>
-                </div>
-              }
-            />
-          );
+        // OneNote style, on phones and computers alike: sections (categories) with their boards, then
+        // boards in no section, then + Board / + Section. Boards drag between sections.
+        const tree = (
+          <div className={`nav-boards ${placesMode ? "place-tree" : ""}`}>
+            <BoardsDnd all={live}>
+              {!collapsed && categoryGroups}
+              <DropGroup name="">
+                {loose.length > 0 && categories.length > 0 && !collapsed && <div className="place-subhead">Other boards</div>}
+                <BoardList list={collapsed ? live : loose} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
+                {loose.length === 0 && categories.length > 0 && !collapsed && <NoSectionDrop />}
+              </DropGroup>
+            </BoardsDnd>
+            {!addIn && addInput}
+            {addingSection && (
+              <input
+                autoFocus
+                className="nav-input"
+                placeholder="Section name, e.g. Home Projects"
+                value={sectionName}
+                onChange={(e) => setSectionName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitSection(sectionName);
+                  if (e.key === "Escape") commitSection("");
+                }}
+                onBlur={() => commitSection(sectionName)}
+              />
+            )}
+            {!collapsed && (
+              <div className="place-actions">
+                <button className="btn sm ghost" onClick={() => (setAddIn(null), setAdding(true))}>
+                  <Plus size={14} /> Board
+                </button>
+                <button className="btn sm ghost" onClick={() => setAddingSection(true)}>
+                  <FolderPlus size={14} /> Section
+                </button>
+              </div>
+            )}
+          </div>
+        );
+        // Phones and tablets: inside a heading per place (This phone, Computer…).
+        if (placesMode) return <PlaceSections here={tree} />;
         return (
           <>
             <div className="nav-heading">
               <span className="label">Boards</span>
-              <button className="icon-btn tiny" title="New board" onClick={() => setAdding(true)}>
+              <button className="icon-btn tiny" title="New board" onClick={() => (setAddIn(null), setAdding(true))}>
                 <Plus size={14} />
               </button>
             </div>
-            <div className="nav-boards">
-              <BoardsDnd all={live}>
-                <DropGroup name="">
-                  <BoardList list={loose} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
-                  {loose.length === 0 && categories.length > 0 && !collapsed && <NoSectionDrop />}
-                </DropGroup>
-                {addInput}
-                {!collapsed && categoryGroups}
-              </BoardsDnd>
-            </div>
+            {tree}
           </>
         );
       })()}
