@@ -3,6 +3,7 @@ package com.zombeatz.zomello
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
@@ -22,6 +23,13 @@ class MainActivity : TauriActivity() {
     super.onCreate(savedInstanceState)
   }
 
+  // Sign-ins (pairing with your computer, server accounts) are cookies, which the WebView writes to
+  // disk only now and then. Write them whenever the app goes to the background, so they survive.
+  override fun onPause() {
+    super.onPause()
+    CookieManager.getInstance().flush()
+  }
+
   override fun onWebViewCreate(webView: WebView) {
     this.webView = webView
     webView.addJavascriptInterface(LocalNetwork(), "ZomelloAndroid")
@@ -36,12 +44,18 @@ class MainActivity : TauriActivity() {
     )
   }
 
-  /** window.ZomelloAndroid in the page: only checks and asks for the local network permission. */
+  /** window.ZomelloAndroid in the page: the local network permission, and saving sign-ins. */
   inner class LocalNetwork {
     @JavascriptInterface
     fun hasLocalNetwork(): Boolean {
       val p = localNetworkPermission() ?: return true
       return ContextCompat.checkSelfPermission(this@MainActivity, p) == PackageManager.PERMISSION_GRANTED
+    }
+
+    /** Save sign-in cookies right away (after pairing or signing in). */
+    @JavascriptInterface
+    fun saveSignIn() {
+      CookieManager.getInstance().flush()
     }
 
     @JavascriptInterface

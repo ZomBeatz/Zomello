@@ -1,4 +1,5 @@
 import { PhoneBoardsButton } from "./PhoneBoardsButton";
+import { saveSignIn } from "../places";
 import { useEffect, useState, type ReactNode } from "react";
 import { Smartphone, Wifi, WifiOff } from "lucide-react";
 import {
@@ -52,7 +53,7 @@ export function RemoteGate({ children }: { children: ReactNode }) {
         <PhoneBoardsButton />
       </div>
     );
-  return <PairForm onPaired={() => location.reload()} />;
+  return <PairForm onPaired={() => (saveSignIn(), location.reload())} />;
 }
 
 function PairForm({ onPaired }: { onPaired: () => void }) {

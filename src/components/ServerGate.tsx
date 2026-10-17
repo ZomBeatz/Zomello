@@ -3,6 +3,7 @@ import { Download, LogIn, ServerCrash, ShieldCheck } from "lucide-react";
 import { getSession, isServer, login, setMe, setup, SIGNED_OUT_EVENT } from "../server";
 import { LogoMark } from "./Logo";
 import { PhoneBoardsButton } from "./PhoneBoardsButton";
+import { saveSignIn } from "../places";
 
 type Gate = "checking" | "in" | "login" | "setup" | "unreachable";
 
@@ -52,9 +53,9 @@ export function ServerGate({ children }: { children: ReactNode }) {
       </div>
     );
   return gate === "setup" ? (
-    <SetupForm onDone={() => location.reload()} hint={selfCert && <CertHint />} />
+    <SetupForm onDone={() => (saveSignIn(), location.reload())} hint={selfCert && <CertHint />} />
   ) : (
-    <LoginForm onDone={() => location.reload()} hint={selfCert && <CertHint />} />
+    <LoginForm onDone={() => (saveSignIn(), location.reload())} hint={selfCert && <CertHint />} />
   );
 }
 

@@ -1,4 +1,4 @@
-import { hasAppBridge, isMobileApp } from "./storage";
+import { isMobileApp, waitForAppBridge } from "./storage";
 import { inZomelloApp } from "./places";
 import { useStore } from "./store";
 import type { ID, Route } from "./types";
@@ -52,7 +52,8 @@ type CloseWatcherCtor = new () => CloseWatcherLike;
 function installBackButton(): () => void {
   const Ctor = (window as unknown as { CloseWatcher?: CloseWatcherCtor }).CloseWatcher;
   // The phone app's own page, or a computer's/server's page it's showing: Back comes from the app.
-  const appBack = isMobileApp || (hasAppBridge && inZomelloApp());
+  // (A computer's page inside the app gets the bridge a little late; see waitForAppBridge.)
+  const appBack = isMobileApp || inZomelloApp();
   if (!Ctor && !appBack) return () => {};
   const trail: Route[] = [];
   let watcher: CloseWatcherLike | null = null;
@@ -89,7 +90,9 @@ function installBackButton(): () => void {
   let tauriBack: { unregister: () => Promise<void> } | null = null;
   let stopped = false;
   if (appBack) {
-    void import("@tauri-apps/api/app").then(async ({ onBackButtonPress, exit }) => {
+    void waitForAppBridge().then(async (ok) => {
+      if (!ok || stopped) return;
+      const { onBackButtonPress, exit } = await import("@tauri-apps/api/app");
       const l = await onBackButtonPress(() => {
         if (needed()) back();
         else void exit(0);
@@ -152,7 +155,7 @@ function installBackButton(): () => void {
 export function installHistorySync(): () => void {
   // In an installed app only the address is kept up to date (for reopening where you were); Back is
   // handled by installBackButton, not by history steps.
-  const installed = isInstalledApp() || isMobileApp || (hasAppBridge && inZomelloApp());
+  const installed = isInstalledApp() || isMobileApp || inZomelloApp();
   const stopBack = installed ? installBackButton() : () => {};
   let applying = false;
   const st = useStore.getState();

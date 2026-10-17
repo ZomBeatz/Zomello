@@ -42,6 +42,7 @@ export function placeFromInput(text: string): { origin: string; code: string | n
 interface AndroidBridge {
   hasLocalNetwork(): boolean;
   requestLocalNetwork(): void;
+  saveSignIn?(): void;
 }
 const android = () => (window as unknown as { ZomelloAndroid?: AndroidBridge }).ZomelloAndroid;
 
@@ -65,6 +66,9 @@ export async function ensureLocalNetwork(): Promise<boolean> {
     a.requestLocalNetwork();
   });
 }
+
+/** Android app: write the sign-in cookie to disk now (it's otherwise saved now and then). */
+export const saveSignIn = () => android()?.saveSignIn?.();
 
 export const LOCAL_NETWORK_HELP =
   "Zomello needs permission to reach devices on your Wi‑Fi. Allow it in the phone's Settings → Apps → Zomello → Permissions → Nearby devices (or Local network), then try again.";
