@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { installOpenedFiles } from "./boardFile";
+import { goToPlace, missedPlace } from "./places";
 import { Menu, Plus, Search, X } from "lucide-react";
 import { useStore } from "./store";
 import { Sidebar } from "./components/Sidebar";
@@ -120,6 +121,15 @@ export default function App() {
   }, [windowTitle]);
 
   useEffect(() => installFileDropPolicy(), []);
+  // Phone app: it meant to reopen your computer's boards but couldn't reach them.
+  useEffect(() => {
+    const missed = loaded ? missedPlace() : null;
+    if (!missed) return;
+    sessionStorage.removeItem("zomello-place-missed");
+    useStore.getState().toast("Couldn't reach your computer, so here are this phone's boards.", {
+      action: { label: "Try again", run: () => void goToPlace(missed) },
+    });
+  }, [loaded]);
   useEffect(() => (loaded && !isBoardWindow ? installOpenedFiles() : undefined), [loaded]);
   // The address bar follows the page and open card (Back button, refresh, bookmarks).
   useEffect(() => (loaded ? installHistorySync() : undefined), [loaded]);

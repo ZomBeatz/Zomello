@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { AlertTriangle, Check, ExternalLink, Plus, Radar, Server, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, ExternalLink, Monitor, Plus, Radar, Server, Trash2 } from "lucide-react";
 import { useStore } from "../store";
 import { canFindServers, checkServer, findServers, nameFromUrl, NO_SERVERS, openServer, type FoundServer, type ServerCheck } from "../servers";
 import { uid } from "../utils";
 import { ask, InlineEdit } from "./ui";
-import { openExternal } from "../storage";
+import { isMobileApp, openExternal } from "../storage";
+import { goToPlace, placeFromInput, reachable } from "../places";
 
 /** Settings → Zomello Servers: add the servers you use (yours or other people's) and open them. */
 export function ServersPanel() {
@@ -55,6 +56,8 @@ export function ServersPanel() {
         Your boards here stay on this device. You can also use boards on a Zomello Server, your own or one someone invited you to.
         Each server opens in its own window, where you sign in with the account its owner gave you.
       </p>
+
+      {isMobileApp && <ComputerConnect />}
 
       {servers.length > 0 && (
         <ul className="server-list">
@@ -177,5 +180,89 @@ export function ServersPanel() {
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * Phone app: use the boards on your computer (the Zomello app there, with Phones & tablets turned on).
+ * Encrypted only: the computer's https address, with its Zomello certificate installed on this phone.
+ */
+function ComputerConnect() {
+  const servers = useStore((s) => s.data.settings.servers ?? NO_SERVERS);
+  const computer = servers.find((s) => s.kind === "computer");
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const connect = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const { origin, code } = placeFromInput(text);
+      if (!(await reachable(origin))) {
+        setError(
+          "Couldn't reach your computer there over a secure connection. Check that Zomello is open on it with Phones & tablets turned on, that this phone is on the same Wi‑Fi, and that its Zomello certificate is installed on this phone (Settings → Phones & tablets on the computer shows how).",
+        );
+        return;
+      }
+      const entry = { id: computer?.id ?? uid(), name: "My computer", url: origin, kind: "computer" as const };
+      useStore.getState().updateSettings({ servers: [entry, ...servers.filter((s) => s.id !== entry.id && s.url !== origin)] });
+      await goToPlace(origin, code);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="computer-connect">
+      <h4>
+        <Monitor size={15} /> Boards on your computer
+      </h4>
+      {computer ? (
+        <div className="row gap-sm wrap">
+          <button className="btn primary sm" onClick={() => void goToPlace(computer.url)}>
+            <Monitor size={14} /> Open my computer's boards
+          </button>
+          <span className="muted small">{computer.url}</span>
+        </div>
+      ) : (
+        <ol className="small computer-steps">
+          <li>
+            On your computer, open Zomello → <b>Settings → Phones &amp; tablets</b>, turn it on, and install its certificate on this
+            phone if you haven't (it shows how).
+          </li>
+          <li>
+            Choose <b>Pair a device</b> and type or paste the <b>https</b> address it shows (the whole link with the code works too).
+          </li>
+        </ol>
+      )}
+      <form
+        className="row gap-sm wrap server-add"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void connect();
+        }}
+      >
+        <input
+          className="grow"
+          placeholder={computer ? "Connect to a different computer: https://…" : "https://192.168.1.10:7311"}
+          autoCapitalize="none"
+          spellCheck={false}
+          inputMode="url"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+        <button className="btn sm" disabled={busy || !text.trim()}>
+          {busy ? "Checking…" : "Connect"}
+        </button>
+      </form>
+      {error && <p className="danger-text small">{error}</p>}
+      <p className="muted small">
+        Your boards travel encrypted, and stay on your computer: this phone shows them while it can reach it. Switch back any time
+        with <b>Boards on this phone</b> in the menu.
+      </p>
+    </div>
   );
 }

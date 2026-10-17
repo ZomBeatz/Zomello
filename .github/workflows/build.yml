@@ -122,12 +122,10 @@ jobs:
       - run: npm ci
 
       # GitHub's machines come with the Android SDK and NDK (and their licenses already accepted).
-      - name: Create the Android project
-        run: |
-          echo "NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> "$GITHUB_ENV"
-          export NDK_HOME=$ANDROID_NDK_LATEST_HOME
-          npx tauri android init --ci
-          npx tauri icon src-tauri/icons/icon.png
+      # The Android project itself is in the repository (src-tauri/gen/android): icons, and the setting
+      # that trusts certificates you install on the phone (your Zomello computer's).
+      - name: Android tools
+        run: echo "NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> "$GITHUB_ENV"
 
       - name: Build the APK
         run: npx tauri android build --apk --ci

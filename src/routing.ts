@@ -1,4 +1,5 @@
-import { isMobileApp } from "./storage";
+import { hasAppBridge, isMobileApp } from "./storage";
+import { inZomelloApp } from "./places";
 import { useStore } from "./store";
 import type { ID, Route } from "./types";
 
@@ -50,7 +51,9 @@ type CloseWatcherCtor = new () => CloseWatcherLike;
  */
 function installBackButton(): () => void {
   const Ctor = (window as unknown as { CloseWatcher?: CloseWatcherCtor }).CloseWatcher;
-  if (!Ctor && !isMobileApp) return () => {};
+  // The phone app's own page, or a computer's/server's page it's showing: Back comes from the app.
+  const appBack = isMobileApp || (hasAppBridge && inZomelloApp());
+  if (!Ctor && !appBack) return () => {};
   const trail: Route[] = [];
   let watcher: CloseWatcherLike | null = null;
   let backing = false;
@@ -85,7 +88,7 @@ function installBackButton(): () => void {
   // The Android app: every Back press comes here; nothing left to close means leave the app.
   let tauriBack: { unregister: () => Promise<void> } | null = null;
   let stopped = false;
-  if (isMobileApp) {
+  if (appBack) {
     void import("@tauri-apps/api/app").then(async ({ onBackButtonPress, exit }) => {
       const l = await onBackButtonPress(() => {
         if (needed()) back();
@@ -96,7 +99,7 @@ function installBackButton(): () => void {
     });
   }
   const sync = () => {
-    if (isMobileApp || !Ctor) return;
+    if (appBack || !Ctor) return;
     if (needed() && !watcher) {
       try {
         const w = new Ctor();
@@ -149,7 +152,7 @@ function installBackButton(): () => void {
 export function installHistorySync(): () => void {
   // In an installed app only the address is kept up to date (for reopening where you were); Back is
   // handled by installBackButton, not by history steps.
-  const installed = isInstalledApp() || isMobileApp;
+  const installed = isInstalledApp() || isMobileApp || (hasAppBridge && inZomelloApp());
   const stopBack = installed ? installBackButton() : () => {};
   let applying = false;
   const st = useStore.getState();

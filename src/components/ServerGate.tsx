@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Download, LogIn, ServerCrash, ShieldCheck } from "lucide-react";
 import { getSession, isServer, login, setMe, setup, SIGNED_OUT_EVENT } from "../server";
 import { LogoMark } from "./Logo";
+import { PhoneBoardsButton } from "./PhoneBoardsButton";
 
 type Gate = "checking" | "in" | "login" | "setup" | "unreachable";
 
@@ -47,6 +48,7 @@ export function ServerGate({ children }: { children: ReactNode }) {
         <button className="btn primary" onClick={() => (setGate("checking"), void check())}>
           Try again
         </button>
+        <PhoneBoardsButton />
       </div>
     );
   return gate === "setup" ? (
@@ -126,6 +128,7 @@ function LoginForm({ onDone, hint }: { onDone: () => void; hint?: ReactNode }) {
       </button>
       <p className="muted small">No account yet, or forgot your password? Ask whoever runs this Zomello Server.</p>
       {hint}
+      <PhoneBoardsButton />
     </form>
   );
 }

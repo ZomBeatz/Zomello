@@ -3,7 +3,12 @@ import { isRemote, remoteFileUrl, remoteLoad, remoteSave, remoteUpload } from ".
 import { fileUrl as serverFileUrl, isServer, loadData as serverLoad, upload as serverUpload } from "./server";
 
 /** True when running inside the Tauri shell; false in a plain browser (vite dev). */
-export const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+/**
+ * The app's own page has Tauri's bridge. So may a computer's or server's page shown inside the phone app,
+ * but that page isn't the app (its boards live elsewhere), so it doesn't count as "in Tauri" here.
+ */
+export const hasAppBridge = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+export const inTauri = hasAppBridge && !("__ZOMELLO_REMOTE__" in window) && !("__ZOMELLO_SERVER__" in window);
 
 /** The Android / iPhone / iPad app (one window, no tray, no phone server). */
 export const isMobileApp =

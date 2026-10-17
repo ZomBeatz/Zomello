@@ -1,3 +1,4 @@
+import { PhoneBoardsButton } from "./PhoneBoardsButton";
 import { useEffect, useState, type ReactNode } from "react";
 import { Smartphone, Wifi, WifiOff } from "lucide-react";
 import {
@@ -48,6 +49,7 @@ export function RemoteGate({ children }: { children: ReactNode }) {
         <button className="btn primary" onClick={() => (setGate("checking"), void check())}>
           Try again
         </button>
+        <PhoneBoardsButton />
       </div>
     );
   return <PairForm onPaired={() => location.reload()} />;
@@ -110,6 +112,7 @@ function PairForm({ onPaired }: { onPaired: () => void }) {
       <button className="btn primary" disabled={busy || code.replace(/\D/g, "").length !== 6}>
         <Smartphone size={16} /> {busy ? "Connecting…" : "Connect"}
       </button>
+      <PhoneBoardsButton />
       {!window.isSecureContext && (
         <a className="muted small" href={`/setup${code ? `#pair=${code}` : ""}`}>
           Want to install Zomello as an app? Set up a secure connection first.
