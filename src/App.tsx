@@ -26,7 +26,7 @@ import { isServer, loadData as serverLoadData, RELOAD_EVENT, subscribe as server
 import { useInvites } from "./invites";
 import { AdminPage } from "./components/AdminPage";
 import { ShareDialog } from "./components/ShareDialog";
-import { isDesktopApp } from "./storage";
+import { inTauri, isDesktopApp } from "./storage";
 import { installLongPressMenus, useIsPhone } from "./mobile";
 import { installFileDropPolicy } from "./fileDrop";
 import { installHistorySync } from "./routing";
@@ -286,11 +286,44 @@ function HelpWindow() {
             Archive in the sidebar.
           </li>
           <li>
-            <b>Where is my data?</b> In one file on this computer, saved as you type, with automatic backups every 30
-            minutes. Settings → Data shows where, and can export or restore it.
+            <b>Where is my data?</b>{" "}
+            {isServer
+              ? "On this Zomello Server, saved as you type. Its admin keeps daily backups."
+              : isRemote
+                ? "On your computer: this device works on the boards stored there."
+                : inTauri
+                  ? "In one file on this device, saved as you type, with automatic backups every 30 minutes. Settings → Data shows where, and can export or restore it."
+                  : "In this browser."}
           </li>
           <li>
-            <b>Use it on a phone or tablet?</b> Settings → Phones &amp; tablets walks you through it.
+            <b>Share a board with someone?</b>{" "}
+            {isServer ? (
+              <>
+                Open the board's ⋯ menu → <i>Share…</i> and invite them by username. They accept on their Home page, and you
+                both see changes as they happen. To hand someone a copy instead, use <i>Save as board file…</i>.
+              </>
+            ) : (
+              <>
+                Open the board's ⋯ menu → <i>Save as board file…</i> and send them the file. Opening it in their Zomello adds
+                their own copy, attachments included. To work on one board together, live, use a Zomello Server.
+              </>
+            )}
+          </li>
+          {!isServer && !isRemote && (
+            <li>
+              <b>Use a Zomello Server?</b> Add it under Settings → Zomello Servers. It then shows in the sidebar; sign in with
+              the account its owner made for you.
+            </li>
+          )}
+          <li>
+            <b>Use it on a phone or tablet?</b>{" "}
+            {isServer
+              ? "Open this same address on the phone. Chrome: ⋮ → Install app; iPhone and iPad: Share → Add to Home Screen."
+              : isDesktopApp
+                ? "Settings → Phones & tablets walks you through it."
+                : isRemote
+                  ? "You're on one now. To add it to your home screen: Chrome ⋮ → Install app, or Safari Share → Add to Home Screen."
+                  : "Install the Zomello app on it, or use a Zomello Server."}
           </li>
           <li>
             <b>Select several cards?</b> Ctrl+click (or Shift+click) them, then use the bar that appears.
