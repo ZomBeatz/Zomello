@@ -53,8 +53,10 @@ export function SettingsPage() {
   const doExport = async () => {
     try {
       const json = JSON.stringify(useStore.getState().data, null, 2);
-      const path = await exportFile(json, `zomello-export-${format(new Date(), "yyyy-MM-dd-HHmm")}.json`);
-      setMsg({ text: `Exported to ${path}` });
+      const path = await exportFile(json, `zomello-export-${format(new Date(), "yyyy-MM-dd-HHmm")}.json`, (share) =>
+        useStore.getState().toast("Your export is ready.", { action: { label: "Share", run: share } }),
+      );
+      if (path) setMsg({ text: `Exported to ${path}` });
     } catch (e) {
       setMsg({ text: `Export failed: ${e}`, error: true });
     }

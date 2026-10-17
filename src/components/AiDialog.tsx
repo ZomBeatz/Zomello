@@ -74,8 +74,10 @@ function Output({ text, fileName, onNext }: { text: string; fileName: string; on
         <button
           className="btn"
           onClick={async () => {
-            const path = await exportFile(text, fileName);
-            useStore.getState().toast(`Saved ${path}`);
+            const path = await exportFile(text, fileName, (share) =>
+              useStore.getState().toast("The file is ready.", { action: { label: "Share", run: share } }),
+            );
+            if (path) useStore.getState().toast(`Saved ${path}`);
           }}
         >
           <Download size={14} /> Save as file

@@ -14,6 +14,27 @@ export const isMobileApp =
 /** The Windows / macOS / Linux app: windows, tray, start at login, phone & tablet access. */
 export const isDesktopApp = inTauri && !isMobileApp;
 
+/** A phone or tablet (the app, or a browser on one): files go to the share sheet rather than a folder. */
+export const isPhoneOrTablet =
+  isMobileApp ||
+  (typeof navigator !== "undefined" &&
+    (/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)));
+
+/**
+ * Hand a file to the system share sheet (Messages, Mail, Files, AirDrop…) when there is one.
+ * "later" means the browser wants a fresh tap first (preparing the file took a moment).
+ */
+export async function shareFile(file: File): Promise<"shared" | "unsupported" | "later"> {
+  if (!navigator.canShare?.({ files: [file] })) return "unsupported";
+  try {
+    await navigator.share({ files: [file], title: file.name });
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "NotAllowedError") return "later";
+    if (!(e instanceof DOMException && e.name === "AbortError")) throw e; // AbortError: closed the sheet
+  }
+  return "shared";
+}
+
 const LS_KEY = "zomello-data";
 const LEGACY_LS_KEY = "planwise-data";
 
@@ -40,8 +61,20 @@ export async function saveRaw(json: string): Promise<void> {
   }
 }
 
-/** Returns the path written (Tauri) or the downloaded file name (browser). */
-export async function exportFile(json: string, fileName: string): Promise<string> {
+/**
+ * Returns the path written (desktop app), the downloaded file name (browser), or null when it went to
+ * the share sheet on a phone or tablet (nothing more to say then).
+ */
+export async function exportFile(json: string, fileName: string, onShareLater?: (share: () => void) => void): Promise<string | null> {
+  if (isPhoneOrTablet) {
+    const file = new File([json], fileName, { type: "application/json" });
+    const r = await shareFile(file);
+    if (r === "shared") return null;
+    if (r === "later" && onShareLater) {
+      onShareLater(() => void shareFile(file));
+      return null;
+    }
+  }
   if (inTauri) return invoke<string>("export_data", { data: json, fileName });
   const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
   const a = Object.assign(document.createElement("a"), { href: url, download: fileName });
