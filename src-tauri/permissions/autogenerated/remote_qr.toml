@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-remote-qr"
+description = "Enables the remote_qr command without any pre-configured scope."
+commands.allow = ["remote_qr"]
+
+[[permission]]
+identifier = "deny-remote-qr"
+description = "Denies the remote_qr command without any pre-configured scope."
+commands.deny = ["remote_qr"]

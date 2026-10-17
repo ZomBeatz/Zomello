@@ -1,9 +1,46 @@
 fn main() {
-    // These commands get permissions of their own, so a computer's or server's page shown in the
-    // phone app can be allowed just them (see capabilities/places.json).
-    tauri_build::try_build(
-        tauri_build::Attributes::new()
-            .app_manifest(tauri_build::AppManifest::new().commands(&["places_read", "places_save_boards", "places_save_list"])),
-    )
+    // Every command the app's pages can call. Listing them gives each one a permission of its own:
+    // the app's windows get all of them (capabilities/default.json); a computer's or server's page
+    // shown in the phone app gets only the few it needs (capabilities/places.json).
+    tauri_build::try_build(tauri_build::Attributes::new().app_manifest(tauri_build::AppManifest::new().commands(&[
+                "load_data",
+                "save_data",
+                "export_data",
+                "export_bytes",
+                "take_opened_files",
+                "check_server",
+                "find_servers",
+                "allow_place",
+                "places_read",
+                "places_save_boards",
+                "places_save_list",
+                "open_server_window",
+                "list_backups",
+                "read_backup",
+                "data_location",
+                "save_attachment",
+                "store_file_from_path",
+                "open_board_window",
+                "read_dropped_file",
+                "attachment_abs_path",
+                "list_attachments",
+                "delete_attachment",
+                "remote_status",
+                "remote_set_enabled",
+                "remote_start_pairing",
+                "remote_cancel_pairing",
+                "remote_unlink",
+                "remote_rename",
+                "fetch_calendar",
+                "set_background_mode",
+                "show_main_window",
+                "get_autostart",
+                "set_autostart",
+                "remote_open_firewall",
+                "remote_set_address",
+                "remote_regenerate_cert",
+                "remote_export_cert",
+                "remote_qr",
+    ])))
     .expect("failed to run tauri-build");
 }

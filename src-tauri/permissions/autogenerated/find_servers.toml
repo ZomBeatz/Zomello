@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-find-servers"
+description = "Enables the find_servers command without any pre-configured scope."
+commands.allow = ["find_servers"]
+
+[[permission]]
+identifier = "deny-find-servers"
+description = "Denies the find_servers command without any pre-configured scope."
+commands.deny = ["find_servers"]

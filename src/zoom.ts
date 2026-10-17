@@ -1,5 +1,5 @@
 import { useStore } from "./store";
-import { inTauri } from "./storage";
+import { isDesktopApp } from "./storage";
 
 export const ZOOM_MIN = 0.5;
 export const ZOOM_MAX = 2;
@@ -7,11 +7,14 @@ const STEP = 0.1;
 
 const clamp = (z: number) => Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z)) * 100) / 100;
 
-/** Apply zoom natively in the desktop app (keeps clicks and menus aligned); CSS zoom in the browser. */
+/**
+ * Apply zoom natively in the desktop app (keeps clicks and menus aligned); CSS zoom in the browser and
+ * on phones and tablets (the Android and iOS apps can't zoom the page natively).
+ */
 export async function applyZoom(z: number) {
-  if (inTauri) {
+  if (isDesktopApp) {
     const { getCurrentWebview } = await import("@tauri-apps/api/webview");
-    await getCurrentWebview().setZoom(z);
+    await getCurrentWebview().setZoom(z).catch(() => document.documentElement.style.setProperty("zoom", String(z)));
   } else {
     document.documentElement.style.setProperty("zoom", String(z));
   }

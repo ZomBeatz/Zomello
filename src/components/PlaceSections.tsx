@@ -53,12 +53,17 @@ export function PlaceSections({ here }: { here: ReactNode }) {
         const saved = places?.boards[s.key]?.boards ?? [];
         return (
           <section key={s.key} className={`place-section ${isHere ? "here" : ""}`}>
-            <button className="place-head" onClick={() => toggle(s.key)} aria-expanded={open}>
-              {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              {s.icon}
-              <span className="grow ellipsis">{s.name}</span>
-              {!isHere && <span className="count">{saved.length}</span>}
-            </button>
+            <div className="place-head">
+              <button className="place-fold" onClick={() => toggle(s.key)} aria-expanded={open} aria-label={open ? `Fold ${s.name}` : `Show ${s.name}`}>
+                {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              </button>
+              {/* The place you're on folds; another place's name takes you there. */}
+              <button className="place-name" onClick={() => (isHere ? toggle(s.key) : go(s.key, "#/home"))} title={isHere ? undefined : `Go to ${s.name}`}>
+                {s.icon}
+                <span className="grow ellipsis">{s.name}</span>
+                {!isHere && <span className="count">{saved.length}</span>}
+              </button>
+            </div>
             {open &&
               (isHere ? (
                 here
