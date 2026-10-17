@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDragSensors, useIsPhone } from "../mobile";
 import {
-  Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Shield, UserCog, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, UserCheck, Users, X, Zap, ExternalLink, Server as ServerIcon, Smartphone, Monitor,
+  Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Shield, UserCog, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, UserCheck, Users, X, Zap, ExternalLink, Server as ServerIcon, Smartphone, Monitor, FolderPlus,
 } from "lucide-react";
 import { runningTimer, useStore } from "../store";
 import type { Board, ID, Route } from "../types";
@@ -21,7 +21,7 @@ import { SpinCat } from "./SpinCat";
 import { isServer, logout, me } from "../server";
 import { NO_SERVERS, openServer } from "../servers";
 import { isRemote } from "../remote";
-import { goToPhone, inZomelloApp, takeNewBoardRequest } from "../places";
+import { goToPhone, inZomelloApp, takeAddRequest } from "../places";
 import { placesMode } from "../placeLists";
 import { PlaceSections } from "./PlaceSections";
 import { isMobileApp } from "../storage";
@@ -38,12 +38,21 @@ export function Sidebar() {
   const collapsed = phone ? false : isBoardWindow ? winCollapsed : savedCollapsed;
   const { navigate, createBoard, setOverlay, updateSettings } = useStore.getState();
   const [adding, setAdding] = useState(false);
-  // Came from another place's "New board" (phone menu): open the menu with the name box ready.
+  /** Phones: the section a new board goes into (null = none). */
+  const [addIn, setAddIn] = useState<string | null>(null);
+  const [addingSection, setAddingSection] = useState(false);
+  const [sectionName, setSectionName] = useState("");
+  // Came from another place's "+ Board" / "+ Section" (phone menu): open the menu with the box ready.
   useEffect(() => {
-    if (!takeNewBoardRequest()) return;
+    const req = takeAddRequest();
+    if (!req) return;
     const t = setTimeout(() => {
       window.dispatchEvent(new Event("zomello-open-nav"));
-      setAdding(true);
+      if (req.kind === "section") setAddingSection(true);
+      else {
+        setAddIn(req.section);
+        setAdding(true);
+      }
     }, 300);
     return () => clearTimeout(t);
   }, []);
@@ -52,7 +61,8 @@ export function Sidebar() {
   const live = useMemo(() => Object.values(boards).filter((b) => !b.archived).sort(byOrder), [boards]);
   const starred = live.filter((b) => b.starred);
   // Optional categories group the boards; with none, it's one plain list as before.
-  const categories = useMemo(() => boardCategories(live), [live]);
+  const sections = useStore((s) => s.data.settings.sections);
+  const categories = useMemo(() => boardCategories(live, sections), [live, sections]);
   const loose = categories.length && !collapsed ? live.filter((b) => !b.category) : live;
   const collapsedCats = useStore((s) => s.data.settings.collapsedCategories);
   const activeId = route.page === "board" ? route.boardId : null;
@@ -129,77 +139,119 @@ export function Sidebar() {
       )}
 
       {(() => {
-        const addInput = (
-          adding && (
+        // A new board, optionally straight into a section (phones: each section has its own +).
+        const commitNew = (name: string) => {
+          const n = name.trim();
+          if (n) {
+            const id = createBoard(n);
+            if (addIn) useStore.getState().setBoardCategory(id, addIn);
+            navigate({ page: "board", boardId: id });
+          }
+          setTitle("");
+          setAdding(false);
+          setAddIn(null);
+        };
+        const addInput = adding && (
           <input
             autoFocus
             className="nav-input"
-            placeholder="Board name"
+            placeholder={addIn ? `Board name (in ${addIn})` : "Board name"}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && title.trim()) {
-                navigate({ page: "board", boardId: createBoard(title.trim()) });
-                setTitle("");
-                setAdding(false);
-              }
+              if (e.key === "Enter" && title.trim()) commitNew(title);
               if (e.key === "Escape") {
                 e.currentTarget.value = "";
-                setTitle("");
-                setAdding(false);
+                commitNew("");
               }
             }}
             // Clicking away creates the board if a name was typed.
-            onBlur={(e) => {
-              if (e.currentTarget.value.trim() && title.trim()) navigate({ page: "board", boardId: createBoard(title.trim()) });
-              setTitle("");
-              setAdding(false);
-            }}
+            onBlur={(e) => commitNew(e.currentTarget.value.trim() ? title : "")}
           />
-        )
         );
-        const tree = (
-          <>
-            <BoardList list={loose} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
-            {!placesMode && addInput}
-        {!collapsed &&
-          categories.map((cat) => {
-            const inCat = live.filter((b) => b.category === cat);
-            const shut = collapsedCats.includes(cat);
-            return (
-              <div key={cat} className="nav-category">
+        const categoryGroups = categories.map((cat) => {
+          const inCat = live.filter((b) => b.category === cat);
+          const shut = collapsedCats.includes(cat);
+          return (
+            <div key={cat} className="nav-category">
+              <div className="nav-category-row">
                 <button
                   className="nav-category-head"
                   onClick={() => useStore.getState().toggleCategoryCollapsed(cat)}
                   onContextMenu={(e) => openContextMenu(e, () => categoryMenu(cat))}
-                  title="Click to fold; right-click to rename or remove"
+                  title="Click to fold; right-click (or press and hold) to rename or remove"
                   aria-expanded={!shut}
                 >
                   {shut ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
                   <span className="grow ellipsis">{cat}</span>
                   <span className="count">{inCat.length}</span>
                 </button>
-                {!shut && (
-                  <BoardList list={inCat} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
+                {placesMode && (
+                  <button
+                    className="icon-btn tiny"
+                    title={`New board in ${cat}`}
+                    aria-label={`New board in ${cat}`}
+                    onClick={() => {
+                      if (shut) useStore.getState().toggleCategoryCollapsed(cat);
+                      setAddIn(cat);
+                      setAdding(true);
+                    }}
+                  >
+                    <Plus size={14} />
+                  </button>
                 )}
               </div>
-            );
-          })}
-          </>
-        );
-        // Phones and tablets: one folding section per place, + New board at the bottom of each.
+              {!shut && (
+                <>
+                  <BoardList list={inCat} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
+                  {placesMode && addIn === cat && addInput}
+                  {placesMode && inCat.length === 0 && addIn !== cat && <p className="muted small place-empty">No boards yet</p>}
+                </>
+              )}
+            </div>
+          );
+        });
+
+        // Phones and tablets, OneNote style: each place is a heading; inside it, its sections
+        // (categories) with their boards, then boards in no section, then + Board / + Section.
         if (placesMode)
           return (
             <PlaceSections
               here={
-                <div className="nav-boards">
-                  {tree}
-                  {addInput || (
-                    <button className="nav-item nav-new-board" onClick={() => setAdding(true)}>
-                      <Plus size={15} />
-                      <span className="label">New board</span>
-                    </button>
+                <div className="nav-boards place-tree">
+                  {categoryGroups}
+                  {loose.length > 0 && categories.length > 0 && <div className="place-subhead">Other boards</div>}
+                  <BoardList list={loose} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
+                  {!addIn && addInput}
+                  {addingSection && (
+                    <input
+                      autoFocus
+                      className="nav-input"
+                      placeholder="Section name, e.g. Home Projects"
+                      value={sectionName}
+                      onChange={(e) => setSectionName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.currentTarget.blur();
+                        if (e.key === "Escape") {
+                          setSectionName("");
+                          setAddingSection(false);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (sectionName.trim()) useStore.getState().addCategory(sectionName);
+                        setSectionName("");
+                        setAddingSection(false);
+                      }}
+                    />
                   )}
+                  <div className="place-actions">
+                    <button className="btn sm ghost" onClick={() => (setAddIn(null), setAdding(true))}>
+                      <Plus size={14} /> Board
+                    </button>
+                    <button className="btn sm ghost" onClick={() => setAddingSection(true)}>
+                      <FolderPlus size={14} /> Section
+                    </button>
+                  </div>
                 </div>
               }
             />
@@ -212,7 +264,11 @@ export function Sidebar() {
                 <Plus size={14} />
               </button>
             </div>
-            <div className="nav-boards">{tree}</div>
+            <div className="nav-boards">
+              <BoardList list={loose} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
+              {addInput}
+              {!collapsed && categoryGroups}
+            </div>
           </>
         );
       })()}

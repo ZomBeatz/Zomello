@@ -92,7 +92,8 @@ export function boardMenu(board: Board, opts: { onRename?: () => void } = {}): M
 export function CategoryPicker({ board, onDone }: { board: Board; onDone: () => void }) {
   const boards = useStore((s) => s.data.boards);
   const [name, setName] = useState("");
-  const cats = boardCategories(Object.values(boards));
+  const sections = useStore((s) => s.data.settings.sections);
+  const cats = boardCategories(Object.values(boards), sections);
   const input = useRef<HTMLInputElement>(null);
   // The flyout opens on hover, so focus the box once it's on screen.
   useEffect(() => {

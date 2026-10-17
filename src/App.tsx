@@ -28,7 +28,7 @@ import { isServer, loadData as serverLoadData, RELOAD_EVENT, subscribe as server
 import { useInvites } from "./invites";
 import { AdminPage } from "./components/AdminPage";
 import { ShareDialog } from "./components/ShareDialog";
-import { inTauri, isDesktopApp } from "./storage";
+import { inTauri, isDesktopApp, isPhoneOrTablet } from "./storage";
 import { installLongPressMenus, useIsPhone } from "./mobile";
 import { installFileDropPolicy } from "./fileDrop";
 import { installHistorySync } from "./routing";
@@ -351,8 +351,12 @@ function HelpWindow() {
             <b>Select several cards?</b> Ctrl+click (or Shift+click) them, then use the bar that appears.
           </li>
         </ul>
-        <h3 className="help-h">Keyboard shortcuts</h3>
-        <ShortcutList />
+        {!isPhoneOrTablet && (
+          <>
+            <h3 className="help-h">Keyboard shortcuts</h3>
+            <ShortcutList />
+          </>
+        )}
       </div>
     </Modal>
   );

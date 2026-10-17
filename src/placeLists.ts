@@ -24,7 +24,7 @@ export interface Places {
   /** "phone", or the origin of the computer/server page we're on. */
   me: string;
   list: PlaceInfo[];
-  boards: Record<string, { at: number; boards: PlaceBoard[] }>;
+  boards: Record<string, { at: number; boards: PlaceBoard[]; sections?: string[] }>;
 }
 
 /** The phone app, or a computer's/server's page inside it. */
@@ -70,10 +70,11 @@ export function installPlaceLists(): () => void {
       .filter((b) => !b.archived)
       .sort((a, b) => a.order - b.order)
       .map((b) => ({ id: b.id, title: b.title, color: b.color, category: b.category ?? null, starred: b.starred }));
-    const bj = JSON.stringify(boards);
+    const sections = d.settings.sections ?? [];
+    const bj = JSON.stringify([boards, sections]);
     if (bj !== lastBoards) {
       lastBoards = bj;
-      void call("places_save_boards", { boards }).then(announce, () => {});
+      void call("places_save_boards", { boards, sections }).then(announce, () => {});
     }
     if (isMobileApp) {
       const list: PlaceInfo[] = (d.settings.servers ?? [])
@@ -88,7 +89,7 @@ export function installPlaceLists(): () => void {
   };
   save();
   const unsub = useStore.subscribe((s, prev) => {
-    if (s.data.boards === prev.data.boards && s.data.settings.servers === prev.data.settings.servers) return;
+    if (s.data.boards === prev.data.boards && s.data.settings.servers === prev.data.settings.servers && s.data.settings.sections === prev.data.settings.sections) return;
     clearTimeout(timer);
     timer = setTimeout(save, 600);
   });

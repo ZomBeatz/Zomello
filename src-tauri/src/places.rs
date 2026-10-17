@@ -46,9 +46,9 @@ pub fn places_read(app: AppHandle, webview: Webview) -> Value {
     v
 }
 
-/// Save the calling page's own board list.
+/// Save the calling page's own board list (and its sections, which can be empty).
 #[tauri::command]
-pub fn places_save_boards(app: AppHandle, webview: Webview, boards: Value) -> Result<(), String> {
+pub fn places_save_boards(app: AppHandle, webview: Webview, boards: Value, sections: Option<Value>) -> Result<(), String> {
     let key = place_of(&webview)?;
     if !boards.is_array() {
         return Err("boards must be a list".into());
@@ -57,7 +57,8 @@ pub fn places_save_boards(app: AppHandle, webview: Webview, boards: Value) -> Re
     if !v["boards"].is_object() {
         v["boards"] = Value::Object(Map::new());
     }
-    v["boards"][key] = json!({ "at": crate::now_secs(), "boards": boards });
+    let sections = sections.filter(Value::is_array).unwrap_or_else(|| json!([]));
+    v["boards"][key] = json!({ "at": crate::now_secs(), "boards": boards, "sections": sections });
     write(&app, &v)
 }
 

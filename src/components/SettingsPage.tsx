@@ -4,7 +4,7 @@ import { Accessibility, Bell, Download, FileUp, Minus, Plus, Eraser, LayoutTempl
 import type { Settings, ViewMode } from "../types";
 import { normalize, useStore } from "../store";
 import {
-  cleanupStoredFiles, dataLocation, exportFile, inTauri, isDesktopApp, listBackups, notify, readBackup, type BackupInfo,
+  cleanupStoredFiles, dataLocation, exportFile, inTauri, isDesktopApp, isPhoneOrTablet, listBackups, notify, readBackup, type BackupInfo,
 } from "../storage";
 import { PALETTE } from "../utils";
 import { SHORTCUTS } from "../shortcuts";
@@ -109,7 +109,8 @@ export function SettingsPage() {
           ...(isDesktopApp ? [["desktop", "Desktop app"], ["devices", "Phones & tablets"]] : []),
           ["data", "Data & backups"],
           ["about", "About"],
-          ["shortcuts", "Shortcuts"],
+          // Phones and tablets have no keyboard to use them with.
+          ...(isPhoneOrTablet ? [] : [["shortcuts", "Shortcuts"]]),
         ].map(([id, name]) => (
           <button key={id} onClick={() => document.getElementById(`set-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}>
             {name}
@@ -437,10 +438,12 @@ export function SettingsPage() {
 
       <AboutPanel />
 
-      <section className="panel" id="set-shortcuts">
-        <h3>Keyboard shortcuts</h3>
-        <ShortcutList />
-      </section>
+      {!isPhoneOrTablet && (
+        <section className="panel" id="set-shortcuts">
+          <h3>Keyboard shortcuts</h3>
+          <ShortcutList />
+        </section>
+      )}
     </div>
   );
 }

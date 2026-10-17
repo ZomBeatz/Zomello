@@ -13,7 +13,8 @@ const PLACE_KEY = "zomello-place";
 /** Saved by a computer/server page inside the app: where "Boards on this phone" goes back to. */
 const HOME_KEY = "zomello-app-home";
 const APP_PARAM = "zomello-app";
-const NEW_BOARD = "zomello-new-board";
+const NEW_BOARD = "zomello-new";
+const NEW_IN = "zomello-in";
 
 const read = (k: string) => {
   try {
@@ -97,27 +98,41 @@ export async function goToPlace(origin: string, pairCode?: string | null, at?: s
   const allowed = await invoke<string>("allow_place", { address: origin });
   write(PLACE_KEY, allowed);
   const back = encodeURIComponent(location.origin);
-  const extra = at === "new-board" ? `&${NEW_BOARD}=1` : "";
-  const hash = pairCode ? `#pair=${pairCode}` : at && at !== "new-board" ? at : "";
-  location.href = `${allowed}/?${APP_PARAM}=${back}${extra}${hash}`;
+  const hash = pairCode ? `#pair=${pairCode}` : at && !isAddRequest(at) ? at : "";
+  location.href = `${allowed}/?${APP_PARAM}=${back}${addParams(at)}${hash}`;
 }
 
 /** Back to the boards stored on this phone (optionally to a board there, or to make a new one). */
 export function goToPhone(at?: string): void {
   const home = read(HOME_KEY);
   if (!home) return;
-  const extra = at === "new-board" ? `&${NEW_BOARD}=1` : "";
-  location.href = `${home}/?local=1${extra}${at && at !== "new-board" ? at : ""}`;
+  location.href = `${home}/?local=1${addParams(at)}${at && !isAddRequest(at) ? at : ""}`;
 }
 
-/** Arrived with "make a new board here" (from another place's section)? Clears the request. */
-export function takeNewBoardRequest(): boolean {
+/**
+ * "Add something there" requests between places: "new-board", "new-board:<section>", "new-section".
+ * They travel as ?zomello-new=board|section&zomello-in=<section>.
+ */
+const isAddRequest = (at?: string) => !!at && /^new-(board|section)/.test(at);
+function addParams(at?: string): string {
+  if (!at || !isAddRequest(at)) return "";
+  const [what, section] = at.split(/:(.*)/s);
+  const p = new URLSearchParams({ [NEW_BOARD]: what === "new-section" ? "section" : "board" });
+  if (section) p.set(NEW_IN, section);
+  return `&${p}`;
+}
+
+/** Arrived with "add a board / a section here" (from another place's part of the menu)? Clears it. */
+export function takeAddRequest(): { kind: "board" | "section"; section: string | null } | null {
   const params = new URLSearchParams(location.search);
-  if (!params.has(NEW_BOARD)) return false;
+  const kind = params.get(NEW_BOARD);
+  if (!kind) return null;
+  const section = params.get(NEW_IN);
   params.delete(NEW_BOARD);
+  params.delete(NEW_IN);
   const q = params.toString();
   history.replaceState(history.state, "", `${location.pathname}${q ? `?${q}` : ""}${location.hash}`);
-  return true;
+  return { kind: kind === "section" ? "section" : "board", section };
 }
 
 /** On a computer's or server's page: are we inside the Zomello app (so there's a phone to go back to)? */

@@ -478,7 +478,7 @@ function CategoryField({ board }: { board: Board }) {
         onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
       />
       <datalist id="board-categories">
-        {boardCategories(Object.values(boards)).map((c) => (
+        {boardCategories(Object.values(boards), useStore.getState().data.settings.sections).map((c) => (
           <option key={c} value={c} />
         ))}
       </datalist>
