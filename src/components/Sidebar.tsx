@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useDragSensors, useIsPhone } from "../mobile";
 import {
   Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Shield, UserCog, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, UserCheck, Users, X, Zap, ExternalLink, Server as ServerIcon, Smartphone, Monitor, FolderPlus,
 } from "lucide-react";
 import { runningTimer, useStore } from "../store";
 import type { Board, ID, Route } from "../types";
-import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
+import { closestCenter, DndContext, pointerWithin, useDroppable, type CollisionDetection, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { CSS } from "@dnd-kit/utilities";
@@ -173,7 +173,7 @@ export function Sidebar() {
           const inCat = live.filter((b) => b.category === cat);
           const shut = collapsedCats.includes(cat);
           return (
-            <div key={cat} className="nav-category">
+            <DropGroup key={cat} name={cat} className="nav-category">
               <div className="nav-category-row">
                 <button
                   className="nav-category-head"
@@ -208,7 +208,7 @@ export function Sidebar() {
                   {placesMode && inCat.length === 0 && addIn !== cat && <p className="muted small place-empty">No boards yet</p>}
                 </>
               )}
-            </div>
+            </DropGroup>
           );
         });
 
@@ -219,9 +219,14 @@ export function Sidebar() {
             <PlaceSections
               here={
                 <div className="nav-boards place-tree">
-                  {categoryGroups}
-                  {loose.length > 0 && categories.length > 0 && <div className="place-subhead">Other boards</div>}
-                  <BoardList list={loose} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
+                  <BoardsDnd all={live}>
+                    {categoryGroups}
+                    <DropGroup name="">
+                      {loose.length > 0 && categories.length > 0 && <div className="place-subhead">Other boards</div>}
+                      <BoardList list={loose} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
+                      {loose.length === 0 && categories.length > 0 && <NoSectionDrop />}
+                    </DropGroup>
+                  </BoardsDnd>
                   {!addIn && addInput}
                   {addingSection && (
                     <input
@@ -265,9 +270,14 @@ export function Sidebar() {
               </button>
             </div>
             <div className="nav-boards">
-              <BoardList list={loose} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
-              {addInput}
-              {!collapsed && categoryGroups}
+              <BoardsDnd all={live}>
+                <DropGroup name="">
+                  <BoardList list={loose} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
+                  {loose.length === 0 && categories.length > 0 && !collapsed && <NoSectionDrop />}
+                </DropGroup>
+                {addInput}
+                {!collapsed && categoryGroups}
+              </BoardsDnd>
             </div>
           </>
         );
@@ -522,8 +532,12 @@ function BoardLink({
       className={`nav-item ${active ? "active" : ""}`}
       onClick={() => st.navigate({ page: "board", boardId: board.id })}
       onDoubleClick={onRename}
-      // Middle-click: open in its own window (and stop the browser's autoscroll).
-      onMouseDown={(e) => e.button === 1 && e.preventDefault()}
+      // Middle-click: open in its own window (and stop the browser's autoscroll). Left button: the
+      // drag-to-reorder handler, which this would otherwise replace.
+      onMouseDown={(e) => {
+        if (e.button === 1) e.preventDefault();
+        else listeners?.onMouseDown?.(e);
+      }}
       onAuxClick={(e) => {
         if (e.button !== 1) return;
         e.preventDefault();
@@ -554,7 +568,9 @@ function SharedMark({ board }: { board: Board }) {
   );
 }
 
-/** A draggable list of boards. `list` may be a subset (Starred) of `all`; the full order is updated either way. */
+/** A draggable list of boards. `list` may be a subset (Starred) of `all`; the full order is updated either way.
+ * Inside a BoardsDnd (the sections of the sidebar) it shares that drag area, so boards can also be
+ * dragged into another section; on its own (Starred) it only reorders. */
 function BoardList({
   list,
   all,
@@ -570,6 +586,7 @@ function BoardList({
   renaming: ID | null;
   setRenaming: (id: ID | null) => void;
 }) {
+  const shared = useContext(BoardsDndState) !== null;
   const sensors = useDragSensors(5);
   const onDragEnd = ({ active: a, over }: DragEndEvent) => {
     if (!over || a.id === over.id) return;
@@ -581,22 +598,108 @@ function BoardList({
     slots.forEach((slot, k) => (order[slot] = moved[k]));
     useStore.getState().reorderBoards(order);
   };
+  const items = (
+    <SortableContext items={list.map((b) => b.id)} strategy={verticalListSortingStrategy}>
+      {list.map((b) => (
+        <BoardLink
+          key={b.id}
+          board={b}
+          active={activeId === b.id}
+          collapsed={collapsed}
+          renaming={renaming === b.id}
+          onRename={() => setRenaming(b.id)}
+          onRenamed={() => setRenaming(null)}
+        />
+      ))}
+    </SortableContext>
+  );
+  if (shared) return items;
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} modifiers={[restrictToVerticalAxis]}>
-      <SortableContext items={list.map((b) => b.id)} strategy={verticalListSortingStrategy}>
-        {list.map((b) => (
-          <BoardLink
-            key={b.id}
-            board={b}
-            active={activeId === b.id}
-            collapsed={collapsed}
-            renaming={renaming === b.id}
-            onRename={() => setRenaming(b.id)}
-            onRenamed={() => setRenaming(null)}
-          />
-        ))}
-      </SortableContext>
+      {items}
     </DndContext>
+  );
+}
+
+/** While dragging a board in the sections: which section it would land in ("" = none), or null. */
+const BoardsDndState = createContext<{ dragging: boolean; over: string | null } | null>(null);
+const GROUP = "group:";
+
+/**
+ * One drag area for all of the sidebar's board sections: drag a board within its section to reorder,
+ * or onto another section (its heading, or among its boards) to move it there. "" is "no section".
+ */
+function BoardsDnd({ all, children }: { all: Board[]; children: ReactNode }) {
+  const sensors = useDragSensors(5);
+  const [state, setState] = useState<{ dragging: boolean; over: string | null }>({ dragging: false, over: null });
+  const groupOf = (id: string): string | undefined => {
+    if (id.startsWith(GROUP)) return id.slice(GROUP.length);
+    const b = all.find((x) => x.id === id);
+    return b ? (b.category ?? "") : undefined;
+  };
+  // A board under the pointer wins over the section around it (so a drop can also reorder).
+  const collide: CollisionDetection = (args) => {
+    const hits = pointerWithin(args);
+    const boards = hits.filter((h) => !String(h.id).startsWith(GROUP));
+    if (boards.length) return boards;
+    if (hits.length) return hits;
+    return closestCenter(args);
+  };
+  return (
+    <BoardsDndState.Provider value={state}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={collide}
+        modifiers={[restrictToVerticalAxis]}
+        onDragStart={() => setState({ dragging: true, over: null })}
+        onDragOver={({ over }) => setState({ dragging: true, over: over ? (groupOf(String(over.id)) ?? null) : null })}
+        onDragCancel={() => setState({ dragging: false, over: null })}
+        onDragEnd={({ active, over }) => {
+          setState({ dragging: false, over: null });
+          if (!over) return;
+          const a = String(active.id);
+          const o = String(over.id);
+          const to = groupOf(o);
+          if (to === undefined) return;
+          const st = useStore.getState();
+          const from = groupOf(a) ?? "";
+          if (from !== to) {
+            // Like OneNote, a section stays when its last board is dragged out (remove it from its menu).
+            if (from && all.filter((b) => b.category === from).length === 1) st.addCategory(from);
+            st.setBoardCategory(a, to || null);
+          }
+          if (!o.startsWith(GROUP) && o !== a) {
+            const order = all.map((b) => b.id);
+            st.reorderBoards(arrayMove(order, order.indexOf(a), order.indexOf(o)));
+          }
+        }}
+      >
+        {children}
+      </DndContext>
+    </BoardsDndState.Provider>
+  );
+}
+
+/** A section (or "no section", name "") boards can be dropped into; lit up while a board is over it. */
+function DropGroup({ name, className = "", children }: { name: string; className?: string; children: ReactNode }) {
+  const { setNodeRef } = useDroppable({ id: GROUP + name });
+  const st = useContext(BoardsDndState);
+  const lit = st?.dragging && st.over === name;
+  return (
+    <div ref={setNodeRef} className={`${className} ${lit ? "drop-into" : ""}`}>
+      {children}
+    </div>
+  );
+}
+
+/** "No section" while dragging, when no board is outside a section yet: somewhere to drop. */
+function NoSectionDrop() {
+  const st = useContext(BoardsDndState);
+  if (!st?.dragging) return null;
+  return (
+    <DropGroup name="" className="no-section-drop">
+      Drop here for no section
+    </DropGroup>
   );
 }
 
