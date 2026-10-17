@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { demoData, isDemo } from "./demo";
 import { addDays, differenceInCalendarDays } from "date-fns";
 import { isPhoneOrTablet, loadRaw, saveRaw } from "./storage";
 import { loadDeviceLook, noteLookPatch, withDeviceLook, withPlaceLook } from "./deviceLook";
@@ -650,7 +651,7 @@ export const useStore = create<State>((set, get) => {
         const raw = await loadRaw();
         lastJson = raw;
         await loadDeviceLook();
-        let data = raw ? normalize(JSON.parse(raw)) : sampleData();
+        let data = raw ? normalize(JSON.parse(raw)) : isDemo ? demoData(sampleData(), { newBoard, newList, newCard }) : sampleData();
         if (isServer) {
           setBase(data);
           // A brand-new account starts with the tutorial board (it's theirs, so it gets saved).

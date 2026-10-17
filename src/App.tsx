@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { DemoBanner } from "./components/DemoBanner";
+import { isDemo } from "./demo";
 import { installOpenedFiles } from "./boardFile";
 import { goToPlace, missedPlace } from "./places";
 import { installPlaceLists } from "./placeLists";
@@ -244,6 +246,7 @@ export default function App() {
         {phone && <PhoneBar onMenu={() => setNavOpen(true)} />}
         <ConnectionBanner />
         <SecureBanner />
+        {isDemo && <DemoBanner />}
         {/* On a phone, a dropped connection is retried automatically (the reconnect pill covers it). */}
         {saveError && !((isRemote || isServer) && /fetch|network|load failed/i.test(saveError)) && (
           <div className="save-error">Saving failed: {saveError}</div>
