@@ -1,9 +1,25 @@
 {
   "$schema": "../gen/schemas/mobile-schema.json",
   "identifier": "places",
-  "description": "Phones and tablets: your computer's or a Zomello Server's page shown in the app may only hear the Back button (and close the app from its home page). Nothing else.",
-  "platforms": ["android", "iOS"],
-  "windows": ["main"],
-  "remote": { "urls": ["https://*:*", "https://*"] },
-  "permissions": ["core:app:allow-register-listener", "core:app:allow-remove-listener", "core:app:allow-exit"]
+  "description": "Phones and tablets: your computer's or a Zomello Server's page shown in the app may hear the Back button (and close the app from its home page), read the menu's lists of boards, and save its own. Nothing else.",
+  "platforms": [
+    "android",
+    "iOS"
+  ],
+  "windows": [
+    "main"
+  ],
+  "remote": {
+    "urls": [
+      "https://*:*",
+      "https://*"
+    ]
+  },
+  "permissions": [
+    "core:app:allow-register-listener",
+    "core:app:allow-remove-listener",
+    "core:app:allow-exit",
+    "allow-places-read",
+    "allow-places-save-boards"
+  ]
 }

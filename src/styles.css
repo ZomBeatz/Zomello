@@ -1569,3 +1569,18 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 .computer-connect { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin: 10px 0 14px; background: var(--surface); display: grid; gap: 8px; }
 .computer-connect h4 { margin: 0; display: flex; align-items: center; gap: 6px; }
 .computer-steps { margin: 0; padding-left: 18px; display: grid; gap: 4px; line-height: 1.45; }
+
+/* Phones and tablets: the menu's boards, one folding section per place (This phone, My computer…). */
+.place-sections { display: grid; gap: 4px; margin-top: 10px; }
+.place-head {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 10px; border-radius: 8px;
+  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
+  background: transparent; border: none; text-align: left;
+}
+.place-section.here > .place-head { color: var(--accent); }
+.place-head .count { font-weight: 600; text-transform: none; letter-spacing: 0; }
+.place-section .nav-boards { padding-left: 8px; border-left: 2px solid var(--border); margin-left: 16px; }
+.place-section.here .nav-boards { border-left-color: var(--accent-soft); }
+.nav-new-board { color: var(--muted); }
+.nav-category-head.static { cursor: default; }
+.place-empty { margin: 4px 10px; }

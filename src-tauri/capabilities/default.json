@@ -21,6 +21,9 @@
     },
     "clipboard-manager:allow-write-text",
     "core:window:allow-set-title",
-    "opener:allow-reveal-item-in-dir"
+    "opener:allow-reveal-item-in-dir",
+    "allow-places-read",
+    "allow-places-save-boards",
+    "allow-places-save-list"
   ]
 }

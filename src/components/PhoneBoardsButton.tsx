@@ -5,7 +5,7 @@ import { goToPhone, inZomelloApp } from "../places";
 export function PhoneBoardsButton({ className = "btn ghost" }: { className?: string }) {
   if (!inZomelloApp()) return null;
   return (
-    <button type="button" className={className} onClick={goToPhone}>
+    <button type="button" className={className} onClick={() => goToPhone()}>
       <Smartphone size={16} /> Boards on this phone
     </button>
   );

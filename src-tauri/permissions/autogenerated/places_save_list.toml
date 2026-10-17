@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-places-save-list"
+description = "Enables the places_save_list command without any pre-configured scope."
+commands.allow = ["places_save_list"]
+
+[[permission]]
+identifier = "deny-places-save-list"
+description = "Denies the places_save_list command without any pre-configured scope."
+commands.deny = ["places_save_list"]
