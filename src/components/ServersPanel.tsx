@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { AlertTriangle, ExternalLink, Plus, Server, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, ExternalLink, Plus, Radar, Server, Trash2 } from "lucide-react";
 import { useStore } from "../store";
-import { checkServer, nameFromUrl, NO_SERVERS, openServer, type ServerCheck } from "../servers";
+import { canFindServers, checkServer, findServers, nameFromUrl, NO_SERVERS, openServer, type FoundServer, type ServerCheck } from "../servers";
 import { uid } from "../utils";
 import { ask, InlineEdit } from "./ui";
 import { openExternal } from "../storage";
@@ -13,14 +13,16 @@ export function ServersPanel() {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<ServerCheck | null>(null);
   const [error, setError] = useState("");
+  const [found, setFound] = useState<FoundServer[] | null>(null);
+  const [looking, setLooking] = useState(false);
   const save = (list: typeof servers) => useStore.getState().updateSettings({ servers: list });
 
-  const add = (url: string) => {
+  const add = (url: string, name?: string) => {
     if (servers.some((s) => s.url === url)) {
       setError("That server is already in the list.");
       return;
     }
-    const entry = { id: uid(), name: nameFromUrl(url), url };
+    const entry = { id: uid(), name: name || nameFromUrl(url), url };
     save([...servers, entry]);
     setAddress("");
     setProblem(null);
@@ -101,6 +103,52 @@ export function ServersPanel() {
           <Plus size={14} /> {busy ? "Checking…" : "Add server"}
         </button>
       </form>
+      {canFindServers && (
+        <div className="server-find">
+          <button
+            className="btn sm"
+            disabled={looking}
+            onClick={async () => {
+              setLooking(true);
+              setFound(await findServers().catch(() => []));
+              setLooking(false);
+            }}
+          >
+            <Radar size={14} /> {looking ? "Looking…" : "Find servers on this network"}
+          </button>
+          {found && found.length === 0 && (
+            <p className="muted small">
+              None found. A server in Docker, on another network, or behind a firewall that blocks network discovery won't show
+              up here; add it by its address instead.
+            </p>
+          )}
+          {found && found.length > 0 && (
+            <ul className="server-list">
+              {found.map((f) => {
+                const added = servers.some((s) => s.url === f.url);
+                return (
+                  <li key={f.url}>
+                    <Radar size={16} className="muted" />
+                    <span className="grow server-name">
+                      <span>{f.name}</span>
+                      <span className="muted small">{f.url}</span>
+                    </span>
+                    {added ? (
+                      <span className="muted small">
+                        <Check size={13} className="inline-icon" /> Added
+                      </span>
+                    ) : (
+                      <button className="btn sm primary" onClick={() => add(f.url, f.name)}>
+                        <Plus size={14} /> Add
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
       {error && (
         <p className="danger-text small">
           <AlertTriangle size={13} className="inline-icon" /> {error}

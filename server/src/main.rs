@@ -13,6 +13,8 @@
 //!   ZOMELLO_TLS_CERT / ZOMELLO_TLS_KEY   PEM files for `files`
 //!   ZOMELLO_HOSTS       extra names / addresses for the `self` certificate (comma-separated)
 //!   ZOMELLO_PUBLIC_URL  the address people use, shown in the admin page
+//!   ZOMELLO_NAME        the name the app shows for this server (default "Zomello on <computer name>")
+//!   ZOMELLO_DISCOVERY   on/off: announce this server on the local network (default on; off in Docker)
 //!
 //! Commands (e.g. `docker exec zomello zomello-server reset-password alice`):
 //!   zomello-server                          run the server
@@ -27,6 +29,7 @@ mod admin;
 mod auth;
 mod calendar;
 mod db;
+mod discovery;
 mod platform;
 mod files;
 mod sharing;
@@ -371,6 +374,8 @@ async fn main() {
         println!("First run: open it in a browser to create the admin account.");
         platform::maybe_open_browser(&format!("{}://localhost:{}", if tls_config.is_some() { "https" } else { "http" }, app.config.port));
     }
+    // Let the Zomello app find this server on the home network (kept alive while the server runs).
+    let _announce = discovery::announce(env("ZOMELLO_NAME"), app.config.port, tls_config.is_some(), env("ZOMELLO_DISCOVERY"));
     let router = router(app);
     match tls_config {
         None => axum::serve(listener, router).await.expect("server"),

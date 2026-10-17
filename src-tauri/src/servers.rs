@@ -85,6 +85,66 @@ async fn probe(base: &str) -> ServerCheck {
     out
 }
 
+#[derive(Serialize, Debug)]
+pub struct FoundServer {
+    name: String,
+    url: String,
+    version: Option<String>,
+}
+
+/// Zomello Servers on this network that announce themselves (see the server's discovery.rs).
+/// Listens for a few seconds; servers in Docker or behind some routers won't show up.
+#[tauri::command]
+pub async fn find_servers() -> Result<Vec<FoundServer>, String> {
+    tokio::task::spawn_blocking(|| {
+        let daemon = mdns_sd::ServiceDaemon::new().map_err(|e| e.to_string())?;
+        let rx = daemon.browse("_zomello._tcp.local.").map_err(|e| e.to_string())?;
+        let until = std::time::Instant::now() + std::time::Duration::from_millis(3000);
+        // One entry per server (it can answer on several networks), with its most useful address.
+        let mut found: Vec<(String, u8, FoundServer)> = Vec::new();
+        while let Some(left) = until.checked_duration_since(std::time::Instant::now()) {
+            let Ok(event) = rx.recv_timeout(left) else { break };
+            let mdns_sd::ServiceEvent::ServiceResolved(s) = event else { continue };
+            let Some((rank, ip)) = s.addresses.iter().map(|a| a.to_ip_addr()).filter_map(|ip| Some((address_rank(&ip)?, ip))).min_by_key(|(r, _)| *r) else {
+                continue;
+            };
+            let scheme = s.get_property_val_str("scheme").filter(|x| *x == "https").unwrap_or("http");
+            let host = match ip {
+                std::net::IpAddr::V6(v6) => format!("[{v6}]"),
+                v4 => v4.to_string(),
+            };
+            let server = FoundServer {
+                name: s.get_property_val_str("name").map(str::to_string).unwrap_or_else(|| s.host.trim_end_matches(".local.").to_string()),
+                url: format!("{scheme}://{host}:{}", s.port),
+                version: s.get_property_val_str("version").map(str::to_string),
+            };
+            match found.iter_mut().find(|(name, _, _)| *name == s.fullname) {
+                Some(entry) if rank < entry.1 => *entry = (s.fullname.clone(), rank, server),
+                Some(_) => {}
+                None => found.push((s.fullname.clone(), rank, server)),
+            }
+        }
+        let _ = daemon.shutdown();
+        Ok(found.into_iter().map(|(_, _, f)| f).collect())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// How good an address is for reaching a server from this network; None = unusable.
+/// Home networks (192.168.x, 10.x) beat 172.16–31.x, which is often Docker's own internal network.
+fn address_rank(ip: &std::net::IpAddr) -> Option<u8> {
+    match ip {
+        std::net::IpAddr::V4(v4) if v4.is_loopback() || v4.is_link_local() || v4.is_unspecified() => None,
+        std::net::IpAddr::V4(v4) if v4.octets()[0] == 192 && v4.octets()[1] == 168 => Some(0),
+        std::net::IpAddr::V4(v4) if v4.octets()[0] == 10 => Some(1),
+        std::net::IpAddr::V4(v4) if v4.is_private() => Some(3),
+        std::net::IpAddr::V4(_) => Some(2),
+        std::net::IpAddr::V6(v6) if v6.is_loopback() || (v6.segments()[0] & 0xffc0) == 0xfe80 => None,
+        std::net::IpAddr::V6(_) => Some(4),
+    }
+}
+
 /// Open (or bring forward) a server's window (desktop; the phone apps open servers in the browser).
 #[cfg(desktop)]
 #[tauri::command]
@@ -125,5 +185,14 @@ mod tests {
         let r = super::check_server("http://localhost:1".into()).await.unwrap();
         assert!(!r.ok && !r.cert_problem);
         assert!(super::check_server("ftp://x".into()).await.is_err());
+    }
+
+    /// Needs a Zomello Server on port 7400 with discovery on.
+    #[tokio::test]
+    #[ignore]
+    async fn finds_servers_on_the_network() {
+        let found = super::find_servers().await.unwrap();
+        println!("{found:?}");
+        assert!(found.iter().any(|f| f.url.ends_with(":7400") && f.url.starts_with("http://")), "{found:?}");
     }
 }

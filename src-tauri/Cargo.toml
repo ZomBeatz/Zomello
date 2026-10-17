@@ -27,6 +27,7 @@ http-body-util = "0.1"
 bytes = "1"
 webpki-roots = "1"
 hyper-util = { version = "0.1", features = ["tokio", "service"] }
+mdns-sd = "0.21"
 
 # Desktop only (Windows, macOS, Linux): tray icon, start at login, one running copy, and the
 # phone & tablet server. The Android and iPhone/iPad apps leave these out.

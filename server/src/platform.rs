@@ -52,6 +52,10 @@ const SETTINGS_TEMPLATE: &str = "\
 
 # The address people type, shown on the Admin page:
 # ZOMELLO_PUBLIC_URL=https://zomello.example.com
+
+# The name the Zomello app shows for this server, and whether apps on this network can find it:
+# ZOMELLO_NAME=Our family's Zomello
+# ZOMELLO_DISCOVERY=off
 ";
 
 /// Read `settings.env` in the data folder (creating a commented example the first time).

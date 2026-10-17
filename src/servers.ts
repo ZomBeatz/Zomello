@@ -29,6 +29,21 @@ export async function checkServer(address: string): Promise<ServerCheck> {
   return { url: normalizeAddress(address), ok: true, version: null, setupNeeded: false, certProblem: false, error: null };
 }
 
+export interface FoundServer {
+  name: string;
+  url: string;
+  version: string | null;
+}
+
+/** Zomello Servers announcing themselves on this network (the app only; a browser can't listen). */
+export async function findServers(): Promise<FoundServer[]> {
+  if (!inTauri) return [];
+  return invoke<FoundServer[]>("find_servers");
+}
+
+/** The app can look for servers on the network; a browser can't. */
+export const canFindServers = inTauri;
+
 export async function openServer(s: ServerEntry): Promise<void> {
   if (inTauri && !isMobileApp) return invoke("open_server_window", { id: s.id, address: s.url, name: s.name });
   return openExternal(s.url);
