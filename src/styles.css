@@ -1572,9 +1572,11 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 
 /* Phones and tablets: the menu's boards, one folding section per place (This phone, My computer…). */
 .place-sections { display: grid; gap: 4px; margin-top: 10px; }
-.place-head {
-  display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 10px; border-radius: 8px;
-  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
+.place-head { display: flex; align-items: center; color: var(--muted); }
+.place-fold { background: transparent; border: none; color: inherit; padding: 9px 4px 9px 10px; display: flex; }
+.place-name {
+  display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; padding: 9px 10px 9px 4px; border-radius: 8px;
+  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: inherit;
   background: transparent; border: none; text-align: left;
 }
 .place-section.here > .place-head { color: var(--accent); }

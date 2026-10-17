@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-remote-regenerate-cert"
+description = "Enables the remote_regenerate_cert command without any pre-configured scope."
+commands.allow = ["remote_regenerate_cert"]
+
+[[permission]]
+identifier = "deny-remote-regenerate-cert"
+description = "Denies the remote_regenerate_cert command without any pre-configured scope."
+commands.deny = ["remote_regenerate_cert"]

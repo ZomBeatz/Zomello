@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-attachment-abs-path"
+description = "Enables the attachment_abs_path command without any pre-configured scope."
+commands.allow = ["attachment_abs_path"]
+
+[[permission]]
+identifier = "deny-attachment-abs-path"
+description = "Denies the attachment_abs_path command without any pre-configured scope."
+commands.deny = ["attachment_abs_path"]

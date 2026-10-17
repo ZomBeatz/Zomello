@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-remote-unlink"
+description = "Enables the remote_unlink command without any pre-configured scope."
+commands.allow = ["remote_unlink"]
+
+[[permission]]
+identifier = "deny-remote-unlink"
+description = "Denies the remote_unlink command without any pre-configured scope."
+commands.deny = ["remote_unlink"]

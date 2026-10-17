@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-remote-export-cert"
+description = "Enables the remote_export_cert command without any pre-configured scope."
+commands.allow = ["remote_export_cert"]
+
+[[permission]]
+identifier = "deny-remote-export-cert"
+description = "Denies the remote_export_cert command without any pre-configured scope."
+commands.deny = ["remote_export_cert"]
