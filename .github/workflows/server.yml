@@ -94,6 +94,38 @@ jobs:
           [ -f "$src.exe" ] && src="$src.exe"
           cp "$src" "out/${{ matrix.file }}"
 
+      # Mac: sign and notarize with the same Apple secrets as the app (docs/apps.md), so macOS opens
+      # the download without complaint. Skipped until those secrets exist.
+      - name: Sign and notarize (Mac)
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE" ] || [ -z "$APPLE_SIGNING_IDENTITY" ]; then
+            echo "No Apple signing secrets: the Mac download stays unsigned."; exit 0
+          fi
+          KC="$RUNNER_TEMP/signing.keychain-db"; KCPASS=$(uuidgen)
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KCPASS" "$KC"
+          security set-keychain-settings -lut 3600 "$KC"
+          security unlock-keychain -p "$KCPASS" "$KC"
+          security import "$RUNNER_TEMP/cert.p12" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KC"
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          security set-key-partition-list -S apple-tool:,apple: -k "$KCPASS" "$KC" > /dev/null
+          codesign --force --options runtime --timestamp --sign "$APPLE_SIGNING_IDENTITY" "out/${{ matrix.file }}"
+          codesign --verify --verbose "out/${{ matrix.file }}"
+          if [ -n "$APPLE_ID" ] && [ -n "$APPLE_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            ditto -c -k "out/${{ matrix.file }}" "$RUNNER_TEMP/notarize.zip"
+            xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
+          fi
+          rm -f "$RUNNER_TEMP/cert.p12"
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.file }}
