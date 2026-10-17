@@ -62,6 +62,19 @@ pub fn places_save_boards(app: AppHandle, webview: Webview, boards: Value, secti
     write(&app, &v)
 }
 
+/// The phone's own look (theme, style, colors, text size, accessibility). Any place's page shown in the
+/// app uses it instead of that place's, and changing the look there changes the phone's.
+#[tauri::command]
+pub fn places_save_look(app: AppHandle, webview: Webview, look: Value) -> Result<(), String> {
+    place_of(&webview)?;
+    if !look.is_object() {
+        return Err("look must be an object".into());
+    }
+    let mut v = read(&app);
+    v["look"] = look;
+    write(&app, &v)
+}
+
 /// The app's own page only (see capabilities): which places there are, in order.
 #[tauri::command]
 pub fn places_save_list(app: AppHandle, webview: Webview, list: Value) -> Result<(), String> {

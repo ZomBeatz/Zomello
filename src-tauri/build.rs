@@ -14,6 +14,7 @@ fn main() {
                 "places_read",
                 "places_save_boards",
                 "places_save_list",
+                "places_save_look",
                 "open_server_window",
                 "list_backups",
                 "read_backup",

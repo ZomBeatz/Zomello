@@ -20,6 +20,7 @@
     "core:app:allow-remove-listener",
     "core:app:allow-exit",
     "allow-places-read",
-    "allow-places-save-boards"
+    "allow-places-save-boards",
+    "allow-places-save-look"
   ]
 }
