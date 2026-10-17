@@ -283,6 +283,14 @@ export interface A11ySettings {
   largerTargets: boolean;
 }
 
+/** A Zomello Server added in Settings → Zomello Servers. */
+export interface ServerEntry {
+  id: ID;
+  name: string;
+  /** scheme://host:port */
+  url: string;
+}
+
 export interface Settings {
   theme: "system" | "light" | "dark";
   me: string;
@@ -312,6 +320,8 @@ export interface Settings {
   catSings?: boolean;
   /** Desktop app: closing the window keeps Zomello running in the tray. */
   runInBackground: boolean;
+  /** Zomello Servers this app can open (Plex style), alongside the boards stored here. */
+  servers?: ServerEntry[];
 }
 
 export type AppStyle = "classic" | "bassdrop" | "partycat";

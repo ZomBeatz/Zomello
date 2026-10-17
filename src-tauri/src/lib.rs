@@ -7,6 +7,7 @@ use tauri::{AppHandle, Manager};
 mod calendar;
 mod desktop;
 mod remote;
+mod servers;
 
 const DATA_FILE: &str = "zomello.json";
 const BACKUP_DIR: &str = "backups";
@@ -474,7 +475,15 @@ pub fn run() {
         // instead, and a stray dropped file can never replace the UI.
         .plugin(
             tauri::plugin::Builder::<tauri::Wry, ()>::new("nav-guard")
-                .on_navigation(|_, url| {
+                .on_navigation(|webview, url| {
+                    // A Zomello Server window stays on its server; links elsewhere open in the browser.
+                    if let Some(ok) = servers::allows(webview.label(), url) {
+                        if !ok && matches!(url.scheme(), "http" | "https" | "mailto") {
+                            use tauri_plugin_opener::OpenerExt;
+                            let _ = webview.app_handle().opener().open_url(url.as_str(), None::<&str>);
+                        }
+                        return ok;
+                    }
                     matches!(url.scheme(), "tauri" | "asset")
                         || matches!(url.host_str(), Some("localhost") | Some("tauri.localhost") | Some("asset.localhost"))
                 })
@@ -490,6 +499,8 @@ pub fn run() {
             export_data,
             export_bytes,
             take_opened_files,
+            servers::check_server,
+            servers::open_server_window,
             list_backups,
             read_backup,
             data_location,

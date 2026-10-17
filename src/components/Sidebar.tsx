@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useDragSensors, useIsPhone } from "../mobile";
 import {
-  Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Shield, UserCog, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, UserCheck, Users, X, Zap,
+  Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Shield, UserCog, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, UserCheck, Users, X, Zap, ExternalLink, Server as ServerIcon,
 } from "lucide-react";
 import { runningTimer, useStore } from "../store";
 import type { Board, ID, Route } from "../types";
@@ -19,6 +19,8 @@ import { useNow } from "./useNow";
 import { logoClicked } from "../easterEgg";
 import { SpinCat } from "./SpinCat";
 import { isServer, logout, me } from "../server";
+import { NO_SERVERS, openServer } from "../servers";
+import { isRemote } from "../remote";
 import { Avatar } from "./ui";
 
 export function Sidebar() {
@@ -173,6 +175,8 @@ export function Sidebar() {
           })}
       </div>
 
+      {!isServer && !isRemote && <ServerNav collapsed={collapsed} />}
+
       <div className="grow" />
       {style === "partycat" && (
         <div className="spin-cat-spot">
@@ -189,6 +193,44 @@ export function Sidebar() {
       <NavItem icon={<CircleHelp size={16} />} label="Help" kbd="?" onClick={() => setOverlay({ helpOpen: true })} />
       {isServer && me && <AccountButton collapsed={collapsed} />}
     </aside>
+  );
+}
+
+/** Zomello Servers added in Settings: one click opens a server's window. */
+function ServerNav({ collapsed }: { collapsed: boolean }) {
+  const servers = useStore((s) => s.data.settings.servers ?? NO_SERVERS);
+  if (!servers.length) return null;
+  return (
+    <>
+      <div className="nav-heading">
+        <span className="label">Servers</span>
+        <button className="icon-btn tiny" title="Add or manage servers" onClick={() => useStore.getState().navigate({ page: "settings" })}>
+          <Plus size={14} />
+        </button>
+      </div>
+      {servers.map((s) => (
+        <button
+          key={s.id}
+          className="nav-item"
+          title={collapsed ? s.name : `Open ${s.url}`}
+          onClick={() => void openServer(s)}
+          onContextMenu={(e) =>
+            openContextMenu(e, () => [
+              { label: "Open", icon: <ExternalLink size={14} />, onClick: () => void openServer(s) },
+              {
+                label: "Remove from this list",
+                icon: <X size={14} />,
+                onClick: () =>
+                  useStore.getState().updateSettings({ servers: (useStore.getState().data.settings.servers ?? []).filter((x) => x.id !== s.id) }),
+              },
+            ])
+          }
+        >
+          <ServerIcon size={16} />
+          <span className="ellipsis label">{s.name}</span>
+        </button>
+      ))}
+    </>
   );
 }
 

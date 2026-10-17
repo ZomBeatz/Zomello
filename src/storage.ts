@@ -5,6 +5,12 @@ import { fileUrl as serverFileUrl, isServer, loadData as serverLoad, upload as s
 /** True when running inside the Tauri shell; false in a plain browser (vite dev). */
 export const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
+/** The Android / iPhone / iPad app (one window, no tray, no phone server). */
+export const isMobileApp =
+  inTauri &&
+  typeof navigator !== "undefined" &&
+  (/Android|iPhone|iPad/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
+
 const LS_KEY = "zomello-data";
 const LEGACY_LS_KEY = "planwise-data";
 

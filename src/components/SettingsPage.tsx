@@ -12,6 +12,7 @@ import { setZoom, ZOOM_MAX, ZOOM_MIN } from "../zoom";
 import type { A11ySettings } from "../types";
 import { ask, Avatar, InlineEdit } from "./ui";
 import { DevicesPanel } from "./DevicesPanel";
+import { ServersPanel } from "./ServersPanel";
 import { DesktopPanel } from "./DesktopPanel";
 import { AccountPanel } from "./AccountPanel";
 import { isServer } from "../server";
@@ -102,6 +103,7 @@ export function SettingsPage() {
           ["people", "People"],
           ["reminders", "Reminders"],
           ["templates", "Templates"],
+          ...(!isServer && !isRemote ? [["servers", "Servers"]] : []),
           ...(inTauri ? [["desktop", "Desktop app"], ["devices", "Phones & tablets"]] : []),
           ["data", "Data & backups"],
           ["about", "About"],
@@ -366,6 +368,7 @@ export function SettingsPage() {
         )}
       </section>
 
+      {!isServer && !isRemote && <ServersPanel />}
       {inTauri && <DesktopPanel />}
       {inTauri && <DevicesPanel />}
 
