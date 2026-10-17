@@ -161,43 +161,59 @@ Add these GitHub secrets (Settings → Secrets and variables → Actions):
 
 The next **Build apps** run signs and notarizes the `.dmg`. The **Server downloads** for Mac get signed and notarized the same way.
 
-## iPhone and iPad
+## iPhone and iPad (Xcode, on your Mac)
 
-The same app runs on iPhone and iPad; the layout adapts to the screen. It's built on your Mac with Xcode.
+The same app runs on iPhone and iPad; the layout adapts to the screen. Apple only builds iOS apps on a Mac, with Xcode.
 
-**One-time setup on the Mac:**
+### One-time setup on the Mac
 
-1. Install **Xcode** from the App Store and open it once to finish its setup.
-2. Install **Node.js LTS** from [nodejs.org](https://nodejs.org).
-3. Install **Rust**:
+1. **Xcode:** install it from the Mac App Store, open it once, and let it install its extra components. Then sign in under **Xcode → Settings → Accounts** with the Apple ID that has your developer membership.
+2. **Homebrew, Node and CocoaPods:** Homebrew comes from brew.sh. Then, in Terminal:
+   ```bash
+   brew install node cocoapods
+   ```
+3. **Rust and its iPhone targets:**
    ```bash
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
    ```
-   Then run `rustup target add aarch64-apple-ios aarch64-apple-ios-sim`.
-4. Get Zomello's code with `git clone git@github.com:YOUR-USERNAME/zomello.git`, then `cd zomello && npm ci`.
-5. Create the Xcode project:
    ```bash
-   npx tauri ios init
+   rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
    ```
+4. **Get the code onto the Mac:**
+   - **From GitHub:** `git clone git@github.com:YOUR-USERNAME/zomello.git` (the easiest; also gets you updates with `git pull`).
+   - **Without GitHub:** copy the `zomello-next` folder over (USB stick, AirDrop, a shared folder). Leave out `node_modules` and `src-tauri/target`; they're big and get rebuilt.
+5. **Install and create the Xcode project:**
+   ```bash
+   cd zomello && npm ci && npx tauri ios init
+   ```
+   This makes the Xcode project in `src-tauri/gen/apple`. It picks up `src-tauri/Info.ios.plist`: the local-network message, finding servers, and opening `.zomello` files.
 
-**Put it on your own iPhone or iPad:**
+### Run it on your iPhone or iPad
 
-1. Connect the device by cable and trust the Mac when asked. On the device, turn on **Settings → Privacy & Security → Developer Mode** (it restarts).
-2. Run:
+1. **Prepare the device:** plug it in, tap **Trust This Computer**, and turn on **Settings → Privacy & Security → Developer Mode** (it restarts).
+2. **Build and open Xcode:**
    ```bash
    npx tauri ios dev --open
    ```
-   Xcode opens. Select the **Zomello** target → **Signing & Capabilities** → choose your **Team**. Then pick your device at the top and press **▶ Run**.
+   Xcode opens the project.
+3. **Signing:** click **zomello_iOS** in the left column → **Signing & Capabilities** → tick **Automatically manage signing** → pick your **Team**. Xcode registers the app ID `com.zombeatz.zomello` for you.
+4. **Run:** choose your device at the top of the window and press **▶**.
 
-That's a development build signed to your account. For a permanent install on several devices, or for other people, use **TestFlight**:
+To skip choosing the team each time, add your Team ID (developer.apple.com → Membership) to `src-tauri/tauri.ios.conf.json`: `"iOS": { "minimumSystemVersion": "15.0", "developmentTeam": "ABCDE12345" }`.
 
-1. Run `npx tauri ios build --export-method app-store-connect`.
-2. Upload the `.ipa` with Apple's **Transporter** app.
-3. Invite testers in App Store Connect.
+### Put it on the App Store
 
-Publishing on the App Store goes through the same App Store Connect page.
+1. **App record:** at **appstoreconnect.apple.com → Apps → +**, choose **New App** → iOS, name **Zomello**, bundle ID **com.zombeatz.zomello**, SKU `zomello`.
+2. **Build for the store:**
+   ```bash
+   npx tauri ios build --export-method app-store-connect
+   ```
+   It makes an `.ipa` under `src-tauri/gen/apple/build/`.
+3. **Upload:** use Apple's free **Transporter** app (Mac App Store): sign in and drag the `.ipa` in. Alternatively, in Xcode, open the project, then **Product → Archive → Distribute App → App Store Connect**.
+4. **TestFlight:** after a few minutes the build shows up under **TestFlight**. Add yourself and testers. Unlike Google, Apple doesn't require a 12-person test.
+5. **Submit for review:** fill in the listing, using the same descriptions and privacy policy link as Google Play. For **App Privacy**, choose **Data Not Collected**. Add screenshots (6.9" iPhone and 13" iPad sizes), pick the build, and **Submit for Review**. Reviews usually take a day or two.
 
-To avoid picking the team every time, put it in `src-tauri/tauri.ios.conf.json`: `"iOS": { "developmentTeam": "YOURTEAMID", "minimumSystemVersion": "15.0" }`.
+**Updates:** raise `"version"` in `src-tauri/tauri.conf.json`, then build, upload and submit again.
 
 ## What's not there yet
 
