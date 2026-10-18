@@ -1632,3 +1632,4 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 .place-head.drop-into { outline: 2px dashed var(--accent); outline-offset: -2px; background: var(--accent-soft); }
 .place-section.drop-into > .place-head { outline: 2px dashed var(--accent); outline-offset: -2px; background: var(--accent-soft); }
 .phone-nav-head.drop-into, [data-computer-boards].drop-into { outline: 2px dashed var(--accent); outline-offset: -2px; background: var(--accent-soft); border-radius: 8px; }
+.private-mark { display: inline-flex; margin-left: auto; flex-shrink: 0; }

@@ -216,6 +216,8 @@ export interface Board {
   labels: Label[];
   archived: boolean;
   starred: boolean;
+  /** Only on this device: never shown on your other devices (or your computer, from a phone). */
+  private?: boolean;
   /** Optional group in the sidebar and on Home (e.g. "Work", "Home"). Null = not in one. */
   category?: string | null;
   /** Calendars shown (read-only) in this board's Calendar view. */
@@ -320,6 +322,8 @@ export interface Settings {
   collapsedCategories: string[];
   /** Categories ("sections") made on their own, so they show even before a board is in them. */
   sections?: string[];
+  /** Phones and tablets: your other devices connected to the same computer may see this one's boards. */
+  shareWithDevices?: boolean;
   /** Party Cat's cat sings now and then (and when clicked). */
   catSings?: boolean;
   /** Desktop app: closing the window keeps Zomello running in the tray. */

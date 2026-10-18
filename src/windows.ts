@@ -46,6 +46,8 @@ export async function broadcastData(json: string) {
 
 /** Run `onData` whenever another window saves. Returns an unsubscribe function. */
 export function onOtherWindowData(onData: (json: string) => void): () => void {
+  // Another device's boards (through the computer) come from that device, not the computer's data.
+  if (isRemote && isDeviceWindow) return () => {};
   if (isRemote) return remoteSubscribe(onData);
   if (!inTauri) {
     const h = (e: StorageEvent) => e.key === LS_SYNC_KEY && e.newValue && onData(e.newValue);

@@ -446,14 +446,20 @@ function DeviceOffline() {
   return (
     <div className="pair-screen">
       <Smartphone size={36} className="muted" />
-      <h2>Your phone isn't connected right now</h2>
+      <h2>That device isn't connected right now</h2>
       <p className="muted">
-        Its boards show here while it's on the same Wi‑Fi as this computer, with Zomello open. They're on the phone, not here, so
-        nothing is lost.
+        Its boards show here while it's on the same Wi‑Fi as your computer, with Zomello open (and, from another phone or tablet,
+        while it shares its boards). They stay on that device, so nothing is lost.
       </p>
-      <button className="btn" onClick={() => void import("@tauri-apps/api/window").then(({ getCurrentWindow }) => getCurrentWindow().close())}>
-        Close this window
-      </button>
+      {isRemote ? (
+        <button className="btn" onClick={() => (location.href = "/")}>
+          Back to your computer's boards
+        </button>
+      ) : (
+        <button className="btn" onClick={() => void import("@tauri-apps/api/window").then(({ getCurrentWindow }) => getCurrentWindow().close())}>
+          Close this window
+        </button>
+      )}
     </div>
   );
 }

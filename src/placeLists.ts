@@ -4,6 +4,7 @@ import { isMobileApp, waitForAppBridge } from "./storage";
 import { inZomelloApp } from "./places";
 import { noteSettings } from "./deviceLook";
 import { isRemote } from "./remote";
+import { isDeviceWindow } from "./windows";
 import type { ServerEntry } from "./types";
 
 /**
@@ -98,7 +99,8 @@ async function linkWithComputer(): Promise<void> {
 
 /** Keep this place's saved board list (and, in the app's own page, the list of places) up to date. */
 export function installPlaceLists(): () => void {
-  if (!placesMode) return () => {};
+  // Another device's boards, opened through the computer, aren't this place's boards.
+  if (!placesMode || isDeviceWindow) return () => {};
   let timer: ReturnType<typeof setTimeout> | undefined;
   let lastBoards = "";
   let lastList = "";

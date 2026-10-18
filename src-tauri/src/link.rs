@@ -9,7 +9,7 @@
 use crate::remote;
 use axum::{
     body::Bytes,
-    extract::State,
+    extract::{Path as UrlPath, State},
     http::{header, HeaderMap, StatusCode},
     response::{sse, IntoResponse, Response},
     Json,
@@ -43,6 +43,7 @@ const GONE_AFTER: u64 = 45;
 
 fn changed(app: &AppHandle, id: &str) {
     let _ = app.emit("zomello://linked-changed", json!({ "id": id }));
+    remote::notify_linked(app, id);
 }
 
 /// The phone signed in with its link token (`Authorization: Bearer …`).
@@ -174,11 +175,16 @@ pub fn forget(app: &AppHandle, id: Option<&str>) {
 #[tauri::command]
 pub fn linked_devices(app: AppHandle) -> Vec<Value> {
     let hidden = remote::hidden_devices(&app);
+    device_list(&app, |id| !hidden.iter().any(|h| h == id))
+}
+
+/// Connected phones (with a snapshot) that `keep` allows, with their boards, by name.
+fn device_list(app: &AppHandle, keep: impl Fn(&str) -> bool) -> Vec<Value> {
     let links = app.state::<Links>();
     let phones = links.phones.lock().unwrap();
     let mut out: Vec<Value> = phones
         .iter()
-        .filter(|(id, p)| p.snapshot.is_some() && !hidden.contains(id))
+        .filter(|(id, p)| p.snapshot.is_some() && keep(id))
         .map(|(id, p)| {
             let d: Value = serde_json::from_str(p.snapshot.as_deref().unwrap_or("{}")).unwrap_or(Value::Null);
             let mut boards: Vec<Value> = d["boards"]
@@ -196,6 +202,64 @@ pub fn linked_devices(app: AppHandle) -> Vec<Value> {
         .collect();
     out.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
     out
+}
+
+// ---- For your other devices (a phone or tablet viewing this computer's boards) ----
+
+/// Devices whose owner turned on "Let my other devices see this device's boards" (a setting on
+/// the device itself, which arrives with its data).
+fn sharing_devices(app: &AppHandle) -> Vec<String> {
+    let links = app.state::<Links>();
+    let phones = links.phones.lock().unwrap();
+    phones
+        .iter()
+        .filter(|(_, p)| {
+            p.snapshot
+                .as_deref()
+                .and_then(|s| serde_json::from_str::<Value>(s).ok())
+                .is_some_and(|d| d["settings"]["shareWithDevices"] == Value::Bool(true))
+        })
+        .map(|(id, _)| id.clone())
+        .collect()
+}
+
+/// May the device making this request see phone `id`? That device shares with your other devices,
+/// and it isn't the requester itself.
+fn may_see(app: &AppHandle, headers: &HeaderMap, id: &str) -> Result<(), Response> {
+    let Some(me) = remote::requester(app, headers) else { return Err(StatusCode::UNAUTHORIZED.into_response()) };
+    if me == id || !sharing_devices(app).iter().any(|d| d == id) {
+        return Err(StatusCode::FORBIDDEN.into_response());
+    }
+    Ok(())
+}
+
+/// `GET /api/devices`: your other devices connected now that share their boards.
+pub async fn shared_devices(State(app): State<AppHandle>, headers: HeaderMap) -> Response {
+    let Some(me) = remote::requester(&app, &headers) else { return StatusCode::UNAUTHORIZED.into_response() };
+    let sharing = sharing_devices(&app);
+    Json(device_list(&app, |id| id != me && sharing.iter().any(|s| s == id))).into_response()
+}
+
+/// `GET /api/devices/{id}/data`: that device's data file, as it last sent it.
+pub async fn shared_data(State(app): State<AppHandle>, headers: HeaderMap, UrlPath(id): UrlPath<String>) -> Response {
+    if let Err(r) = may_see(&app, &headers, &id) {
+        return r;
+    }
+    match app.state::<Links>().phones.lock().unwrap().get(&id).and_then(|p| p.snapshot.clone()) {
+        Some(json) => ([(header::CONTENT_TYPE, "application/json")], json).into_response(),
+        None => (StatusCode::NOT_FOUND, "That device isn't connected right now.").into_response(),
+    }
+}
+
+/// `POST /api/devices/{id}/ops`: edits made on another device, on their way to that device.
+pub async fn shared_ops(State(app): State<AppHandle>, headers: HeaderMap, UrlPath(id): UrlPath<String>, Json(ops): Json<Value>) -> Response {
+    if let Err(r) = may_see(&app, &headers, &id) {
+        return r;
+    }
+    match linked_send(app, id, ops) {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(e) => (StatusCode::NOT_FOUND, e).into_response(),
+    }
 }
 
 /// A connected phone's data (its whole file), or None if it isn't connected.

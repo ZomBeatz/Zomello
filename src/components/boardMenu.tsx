@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AppWindow, ArrowRightLeft, Archive, Bot, Check, ClipboardCopy, ClipboardPaste, Copy, ExternalLink, FileDown, FolderOpen, FolderX, LayoutTemplate, LogOut, Palette, Pencil, Plus, Star, Trash2, Users } from "lucide-react";
+import { AppWindow, ArrowRightLeft, Archive, Lock, Bot, Check, ClipboardCopy, ClipboardPaste, Copy, ExternalLink, FileDown, FolderOpen, FolderX, LayoutTemplate, LogOut, Palette, Pencil, Plus, Star, Trash2, Users } from "lucide-react";
 import { boardCategories } from "../utils";
 import type { Board } from "../types";
 import { useStore } from "../store";
@@ -10,7 +10,7 @@ import { isServer, leaveBoard, ownsBoard } from "../server";
 import { workOrder } from "../ai";
 import { copyText } from "./Markdown";
 import { exportBoard } from "../boardFile";
-import { isDesktopApp, isMobileApp } from "../storage";
+import { inTauri, isDesktopApp, isMobileApp } from "../storage";
 import { linkedNow } from "../deviceWindow";
 import { sendBoardToPhone } from "../phoneTransfer";
 import { placesMode, usePlaces } from "../placeLists";
@@ -92,6 +92,20 @@ export function boardMenu(board: Board, opts: { onRename?: () => void } = {}): M
           { label: `Move to ${p.name}`, icon: <ArrowRightLeft size={14} />, onClick: () => void sendBoardToPhone(board.id, p, true) },
           { label: `Copy to ${p.name}`, icon: <Copy size={14} />, onClick: () => void sendBoardToPhone(board.id, p, false) },
         ])
+      : []),
+    // The desktop app or the phone app's own boards: keep one off your other devices.
+    ...(inTauri && !isDeviceWindow
+      ? [
+          {
+            label: "Private: only on this device",
+            icon: <Lock size={14} />,
+            checked: !!board.private,
+            onClick: () => {
+              st.updateBoard(board.id, { private: !board.private });
+              st.toast(board.private ? `“${board.title}” shows on your other devices again` : `“${board.title}” is private: it stays on this device`);
+            },
+          },
+        ]
       : []),
     {
       label: "Save as board file…",
