@@ -56,8 +56,8 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: 0.5.1
-        CFBundleVersion: "0.5.1"
+        CFBundleShortVersionString: 0.5.2
+        CFBundleVersion: "0.5.2"
     entitlements:
       path: zomello_iOS/zomello_iOS.entitlements
     scheme:
