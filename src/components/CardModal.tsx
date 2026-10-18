@@ -41,7 +41,7 @@ import {
   prettyDate, priorityMeta, PRIORITIES, PROGRESS, progressMeta, timeAgo, todayISO, trackedMs, uid, WEEKDAYS,
 } from "../utils";
 import { format } from "date-fns";
-import { fileUrlToPath, inTauri, openExternal, openStored, storedSrc } from "../storage";
+import { fileUrlToPath, inTauri, isPhoneOrTablet, openExternal, openStored, storedSrc } from "../storage";
 import { createPortal } from "react-dom";
 import { Avatar, ColorPicker, CommitInput, InlineEdit, Modal, Popover, ProgressIcon, useSaveOnUnmount } from "./ui";
 import { CardPicker, LabelPicker } from "./pickers";
@@ -372,7 +372,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
               <MessageSquare size={15} /> Notes
             </h4>
             <MarkdownEditor
-              placeholder="Write a note… (Ctrl+Enter to add; it's also kept if you close the card)"
+              placeholder={isPhoneOrTablet ? "Write a note… (it's kept when you close the card)" : "Write a note… (Ctrl+Enter to add; it's also kept if you close the card)"}
               value={comment}
               onChange={setComment}
               onKeyDown={(e) => {
@@ -751,9 +751,11 @@ function AttachmentsSection({ card, onFiles }: { card: Card; onFiles: (f: FileLi
           Add
         </button>
       </form>
-      <p className="muted small drop-tip">
-        <Upload size={11} /> Tip: drag files from your file manager anywhere onto this card.
-      </p>
+      {!isPhoneOrTablet && (
+        <p className="muted small drop-tip">
+          <Upload size={11} /> Tip: drag files from your file manager anywhere onto this card.
+        </p>
+      )}
       {preview && (
         <Lightbox
           images={images}
