@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Zomello's status-bar icon for notifications: headphones over three bars, white (Android tints it). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+  <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF" android:strokeWidth="1.8"
+      android:strokeLineCap="round" android:pathData="M4.5,13.5 A7.5,7.5 0 0 1 19.5,13.5" />
+  <path android:fillColor="#FFFFFFFF" android:pathData="M3,12.5 h3 v7 h-3 a1,1 0 0 1 -1,-1 v-5 a1,1 0 0 1 1,-1 z" />
+  <path android:fillColor="#FFFFFFFF" android:pathData="M21,12.5 h-3 v7 h3 a1,1 0 0 0 1,-1 v-5 a1,1 0 0 0 -1,-1 z" />
+  <path android:fillColor="#FFFFFFFF" android:pathData="M8,10 h2.2 v9.5 h-2.2 z" />
+  <path android:fillColor="#FFFFFFFF" android:pathData="M10.9,12.5 h2.2 v7 h-2.2 z" />
+  <path android:fillColor="#FFFFFFFF" android:pathData="M13.8,15 h2.2 v4.5 h-2.2 z" />
+</vector>

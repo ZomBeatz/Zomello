@@ -237,7 +237,8 @@ export async function notify(title: string, body: string): Promise<void> {
     const n = await import("@tauri-apps/plugin-notification");
     let ok = await n.isPermissionGranted();
     if (!ok) ok = (await n.requestPermission()) === "granted";
-    if (ok) n.sendNotification({ title, body });
+    // Android: Zomello's own status-bar icon (res/drawable/ic_stat_zomello.xml); other systems ignore it.
+    if (ok) n.sendNotification({ title, body, ...(isMobileApp ? { icon: "ic_stat_zomello", iconColor: "#2580C3" } : {}) });
     return;
   }
   if (!("Notification" in window)) return;
