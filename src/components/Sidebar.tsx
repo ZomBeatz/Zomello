@@ -27,7 +27,7 @@ import { placesMode } from "../placeLists";
 import { PlaceSections } from "./PlaceSections";
 import { sendBoard } from "../transfer";
 import { sendBoardToPhone } from "../phoneTransfer";
-import { isDesktopApp, isMobileApp } from "../storage";
+import { deviceWord, isDesktopApp, isMobileApp } from "../storage";
 import { Avatar } from "./ui";
 
 export function Sidebar() {
@@ -279,9 +279,9 @@ export function Sidebar() {
       {isDesktopApp && !isExtraWindow && <PhoneNav collapsed={collapsed} />}
       {!isServer && !isRemote && !placesMode && !isDeviceWindow && <ServerNav collapsed={collapsed} />}
       {inZomelloApp() && !placesMode && (
-        <button className="nav-item" onClick={() => goToPhone()} title="Switch to the boards stored on this phone">
+        <button className="nav-item" onClick={() => goToPhone()} title={`Switch to the boards stored on this ${deviceWord}`}>
           <Smartphone size={16} />
-          <span className="label">Boards on this phone</span>
+          <span className="label">Boards on this {deviceWord}</span>
         </button>
       )}
 
@@ -319,9 +319,9 @@ function ServerNav({ collapsed }: { collapsed: boolean }) {
         </button>
       </div>
       {isMobileApp && (
-        <button className="nav-item active" title="The boards stored on this phone">
+        <button className="nav-item active" title={`The boards stored on this ${deviceWord}`}>
           <Smartphone size={16} />
-          <span className="ellipsis label">This phone</span>
+          <span className="ellipsis label">This {deviceWord}</span>
         </button>
       )}
       {servers.map((s) => (

@@ -4,7 +4,7 @@ import { useStore } from "../store";
 import { canFindServers, checkServer, findServers, nameFromUrl, NO_SERVERS, openServer, type FoundServer, type ServerCheck } from "../servers";
 import { uid } from "../utils";
 import { ask, InlineEdit } from "./ui";
-import { isMobileApp, openExternal } from "../storage";
+import { deviceWord, isApplePhoneOrTablet, isMobileApp, openExternal } from "../storage";
 import { ensureLocalNetwork, goToPlace, LOCAL_NETWORK_HELP, placeFromInput, reachable } from "../places";
 
 /** Settings → Zomello Servers: add the servers you use (yours or other people's) and open them. */
@@ -214,7 +214,7 @@ function ComputerConnect() {
         // Not trusted yet (or not there): the computer's setup page, opened in the browser, installs its certificate.
         if (/^http:\/\/[^/]+\/setup/i.test(link.trim())) setSetupPage(link.trim().split("#")[0]);
         setError(
-          "Couldn't reach your computer there over a secure connection. Check that Zomello is open on it with Phones & tablets turned on, that this phone is on the same Wi‑Fi, and that its Zomello certificate is installed on this phone (Settings → Phones & tablets on the computer shows how).",
+          `Couldn't reach your computer there over a secure connection. Check that Zomello is open on it with Phones & tablets turned on, that this ${deviceWord} is on the same Wi‑Fi, and that its Zomello certificate is installed on this ${deviceWord} (Settings → Phones & tablets on the computer shows how).`,
         );
         return;
       }
@@ -235,7 +235,11 @@ function ComputerConnect() {
       const qr = await import("@tauri-apps/plugin-barcode-scanner");
       let perm = await qr.checkPermissions();
       if (perm !== "granted") perm = await qr.requestPermissions();
-      if (perm !== "granted") return setError("Zomello needs the camera to scan the code. Allow it in the phone's Settings → Apps → Zomello → Permissions, or type the address instead.");
+      if (perm !== "granted") return setError(
+          isApplePhoneOrTablet
+            ? `Zomello needs the camera to scan the code. Allow it in the ${deviceWord}'s Settings → Zomello → Camera, or type the address instead.`
+            : `Zomello needs the camera to scan the code. Allow it in the ${deviceWord}'s Settings → Apps → Zomello → Permissions, or type the address instead.`,
+        );
       const { content } = await qr.scan({ windowed: false, formats: [qr.Format.QRCode] });
       if (!content) return;
       setText(content);
@@ -299,8 +303,8 @@ function ComputerConnect() {
         </button>
       )}
       <p className="muted small">
-        Your boards travel encrypted, and stay on your computer: this phone shows them while it can reach it. Switch back any time
-        with <b>Boards on this phone</b> in the menu.
+        Your boards travel encrypted, and stay on your computer: this {deviceWord} shows them while it can reach it. Switch back any time
+        with <b>Boards on this {deviceWord}</b> in the menu.
       </p>
     </div>
   );
