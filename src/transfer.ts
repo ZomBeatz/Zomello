@@ -87,13 +87,14 @@ export function installBoardArrivals(): () => void {
 /** On arriving at a place: add the boards that were sent here (the last one opens). */
 export async function takeBoards(): Promise<void> {
   for (let i = 0; i < 20; i++) {
-    let buf: ArrayBuffer;
+    let bytes: Uint8Array;
     try {
-      buf = await call<ArrayBuffer>("places_take_board");
+      const raw = await call<ArrayBuffer | number[]>("places_take_board");
+      bytes = raw instanceof ArrayBuffer ? new Uint8Array(raw) : new Uint8Array(raw ?? []);
     } catch {
       return; // not in the app, or this page can't take boards
     }
-    if (!buf || buf.byteLength === 0) return;
-    await openBoardFile(new Uint8Array(buf), "Moved here:");
+    if (bytes.length === 0) return;
+    await openBoardFile(bytes, "Moved here:");
   }
 }
