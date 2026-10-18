@@ -2,7 +2,7 @@ import { buildBoardFile, openBoardFile } from "./boardFile";
 import { call, savePlaceList, type PlaceInfo } from "./placeLists";
 import { ensureLocalNetwork, goToPhone, goToPlace, LOCAL_NETWORK_HELP, reachable, sendParams, takeSendRequest } from "./places";
 import { ownsBoard } from "./server";
-import { isMobileApp } from "./storage";
+import { deviceWord, isMobileApp } from "./storage";
 import { saveNow, useStore } from "./store";
 import type { ID } from "./types";
 
@@ -14,7 +14,7 @@ import type { ID } from "./types";
 
 /** Where a board on this page can go: "phone" (from a computer's or server's page) or another place. */
 export function destinations(me: string, list: PlaceInfo[]): { key: string; name: string }[] {
-  const phone = { key: "phone", name: "This phone" };
+  const phone = { key: "phone", name: `This ${deviceWord}` };
   // A computer's or server's page can only send boards back to the phone; the phone can send anywhere.
   if (!isMobileApp) return me === "phone" ? [] : [phone];
   return list.filter((p) => p.origin !== me).map((p) => ({ key: p.origin, name: p.kind === "computer" ? "Computer" : p.name }));
@@ -63,7 +63,7 @@ export async function handleSendRequest(): Promise<void> {
   const req = takeSendRequest();
   if (!req) return;
   const places = await call<{ me?: string; list: PlaceInfo[] }>("places_read").catch(() => null);
-  const name = req.to === "phone" ? "This phone" : (places?.list.find((p) => p.origin === req.to)?.name ?? req.to);
+  const name = req.to === "phone" ? `This ${deviceWord}` : (places?.list.find((p) => p.origin === req.to)?.name ?? req.to);
   const kind = places?.list.find((p) => p.origin === req.to)?.kind;
   await sendBoard(req.boardId, { key: req.to, name: kind === "computer" ? "Computer" : name }, req.move);
 }

@@ -9,7 +9,7 @@ import { relaySend } from "../transfer";
 import { usePlaces, type PlaceBoard } from "../placeLists";
 import { goToPhone, goToPlace } from "../places";
 import { useStore } from "../store";
-import { isMobileApp } from "../storage";
+import { deviceWord, isMobileApp } from "../storage";
 
 /**
  * Phones and tablets: the menu's boards, organized like OneNote. Each place is a big heading that
@@ -43,7 +43,7 @@ export function PlaceSections({ here }: { here: ReactNode }) {
   // Until the lists load (a moment), show the place you're on as the only one.
   const me = places?.me ?? "phone";
   const all: { key: string; name: string; icon: ReactNode }[] = [
-    { key: "phone", name: "This phone", icon: <Smartphone size={17} /> },
+    { key: "phone", name: `This ${deviceWord}`, icon: <Smartphone size={17} /> },
     ...(places?.list ?? []).map((p) => ({
       key: p.origin,
       name: p.kind === "computer" ? "Computer" : p.name,

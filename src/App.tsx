@@ -33,7 +33,7 @@ import { isServer, loadData as serverLoadData, RELOAD_EVENT, subscribe as server
 import { useInvites } from "./invites";
 import { AdminPage } from "./components/AdminPage";
 import { ShareDialog } from "./components/ShareDialog";
-import { inTauri, isDesktopApp, isMobileApp, isPhoneOrTablet } from "./storage";
+import { deviceWord, inTauri, isDesktopApp, isMobileApp, isPhoneOrTablet } from "./storage";
 import { installLongPressMenus, useIsPhone } from "./mobile";
 import { installFileDropPolicy } from "./fileDrop";
 import { installHistorySync } from "./routing";
@@ -134,7 +134,7 @@ export default function App() {
     const missed = loaded ? missedPlace() : null;
     if (!missed) return;
     sessionStorage.removeItem("zomello-place-missed");
-    useStore.getState().toast("Couldn't reach your computer, so here are this phone's boards.", {
+    useStore.getState().toast(`Couldn't reach your computer, so here are this ${deviceWord}'s boards.`, {
       action: { label: "Try again", run: () => void goToPlace(missed) },
     });
   }, [loaded]);
