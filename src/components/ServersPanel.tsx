@@ -200,6 +200,7 @@ function ComputerConnect() {
   const [error, setError] = useState("");
 
   const [setupPage, setSetupPage] = useState<string | null>(null);
+  const share = useStore((s) => s.data.settings.shareWithDevices);
   const connect = async (link = text) => {
     setBusy(true);
     setError("");
@@ -302,6 +303,18 @@ function ComputerConnect() {
           <ExternalLink size={14} /> Install your computer's certificate
         </button>
       )}
+      <label className="check-row">
+        <input
+          type="checkbox"
+          checked={!!share}
+          onChange={(e) => useStore.getState().updateSettings({ shareWithDevices: e.target.checked })}
+        />
+        Let my other devices see this {deviceWord}'s boards
+      </label>
+      <p className="muted small">
+        Your other phones and tablets connected to the same computer can then open and edit this {deviceWord}'s boards, while both
+        are on the same Wi‑Fi. Boards marked <b>Private: only on this device</b> (in a board's menu) never leave this {deviceWord}.
+      </p>
       <p className="muted small">
         Your boards travel encrypted, and stay on your computer: this {deviceWord} shows them while it can reach it. Switch back any time
         with <b>Boards on this {deviceWord}</b> in the menu.

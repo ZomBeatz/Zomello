@@ -13,6 +13,7 @@ mod link;
 mod remote;
 mod link_client;
 mod places;
+mod private;
 mod servers;
 
 const DATA_FILE: &str = "zomello.json";

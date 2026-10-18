@@ -83,6 +83,16 @@ pub fn new_link_token(app: &AppHandle, headers: &HeaderMap) -> Option<String> {
     Some(token)
 }
 
+/// The paired device making this request (signed in with its cookie), if any.
+pub fn requester(app: &AppHandle, headers: &HeaderMap) -> Option<String> {
+    device(app, headers).map(|d| d.id)
+}
+
+/// A connected phone's boards changed (or it came or went): tell the other devices' pages.
+pub fn notify_linked(app: &AppHandle, id: &str) {
+    let _ = app.state::<Remote>().tx.send(Msg::Linked(id.to_string()));
+}
+
 /// Devices whose boards are hidden on this computer.
 pub fn hidden_devices(app: &AppHandle) -> Vec<String> {
     let r = app.state::<Remote>();
@@ -136,6 +146,8 @@ enum Msg {
     Data { from: String, json: String },
     /// A device was unlinked: its open connections close.
     Revoked(String),
+    /// A connected phone's boards changed (or it came or went).
+    Linked(String),
     /// The server is stopping.
     Shutdown,
 }
@@ -295,6 +307,11 @@ fn start(app: &AppHandle) {
         .route("/api/link/snapshot", axum::routing::put(crate::link::link_snapshot))
         .route("/api/link/ping", post(crate::link::link_ping))
         .route("/api/link/board-received", post(crate::link::link_board_received))
+        // Your other connected devices' boards, for a device viewing this computer (link.rs).
+        .route("/api/devices", get(crate::link::shared_devices))
+        .route("/api/devices/events", get(devices_events))
+        .route("/api/devices/{id}/data", get(crate::link::shared_data))
+        .route("/api/devices/{id}/ops", post(crate::link::shared_ops))
         .fallback(get(asset))
         .layer(DefaultBodyLimit::max(512 * 1024 * 1024))
         .with_state(app.clone());
@@ -673,8 +690,9 @@ async fn get_data(State(app): State<AppHandle>, headers: HeaderMap) -> Response 
     if device(&app, &headers).is_none() {
         return unauthorized();
     }
+    // This computer's private boards aren't shown on other devices.
     match crate::read_data(&app) {
-        Ok(json) => ([(header::CONTENT_TYPE, "application/json")], json).into_response(),
+        Ok(json) => ([(header::CONTENT_TYPE, "application/json")], crate::private::without_private(&json)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
     }
 }
@@ -683,6 +701,8 @@ async fn put_data(State(app): State<AppHandle>, headers: HeaderMap, body: String
     if device(&app, &headers).is_none() {
         return unauthorized();
     }
+    // The device never saw this computer's private boards; keep them as they are.
+    let body = crate::private::keep_private(&body, &crate::read_data(&app).unwrap_or_default());
     if let Err(e) = crate::write_data(&app, &body) {
         return (StatusCode::BAD_REQUEST, e).into_response();
     }
@@ -696,13 +716,14 @@ async fn put_data(State(app): State<AppHandle>, headers: HeaderMap, body: String
 /// Server-sent events: the current data on connect, then every change.
 async fn events(State(app): State<AppHandle>, headers: HeaderMap) -> Response {
     let Some(dev) = device(&app, &headers) else { return unauthorized() };
-    let first = crate::read_data(&app).unwrap_or_default();
+    let first = crate::private::without_private(&crate::read_data(&app).unwrap_or_default());
     let rx = app.state::<Remote>().tx.subscribe();
     let initial = stream::once(async move { Ok::<_, Infallible>(sse::Event::default().event("data").id("server").data(first)) });
     let updates = stream::unfold((rx, dev.id), |(mut rx, id)| async move {
         loop {
             match rx.recv().await {
                 Ok(Msg::Data { from, json }) => {
+                    let json = crate::private::without_private(&json);
                     return Some((Ok(sse::Event::default().event("data").id(from).data(json)), (rx, id)))
                 }
                 Ok(Msg::Revoked(d)) if d == id => return None,
@@ -713,6 +734,24 @@ async fn events(State(app): State<AppHandle>, headers: HeaderMap) -> Response {
     });
     let s: std::pin::Pin<Box<dyn Stream<Item = Result<sse::Event, Infallible>> + Send>> =
         Box::pin(futures_util::StreamExt::chain(initial, updates));
+    sse::Sse::new(s).keep_alive(sse::KeepAlive::default()).into_response()
+}
+
+/// Server-sent events for a device's page: `linked` with a phone's id whenever its boards change.
+async fn devices_events(State(app): State<AppHandle>, headers: HeaderMap) -> Response {
+    let Some(dev) = device(&app, &headers) else { return unauthorized() };
+    let rx = app.state::<Remote>().tx.subscribe();
+    let updates = stream::unfold((rx, dev.id), |(mut rx, me)| async move {
+        loop {
+            match rx.recv().await {
+                Ok(Msg::Linked(id)) if id != me => return Some((Ok::<_, Infallible>(sse::Event::default().event("linked").data(id)), (rx, me))),
+                Ok(Msg::Revoked(d)) if d == me => return None,
+                Ok(Msg::Shutdown) | Err(broadcast::error::RecvError::Closed) => return None,
+                _ => continue,
+            }
+        }
+    });
+    let s: std::pin::Pin<Box<dyn Stream<Item = Result<sse::Event, Infallible>> + Send>> = Box::pin(updates);
     sse::Sse::new(s).keep_alive(sse::KeepAlive::default()).into_response()
 }
 

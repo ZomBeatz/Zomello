@@ -133,7 +133,8 @@ async fn request(link: &Link, method: &str, path: &str, body: Option<String>) ->
 
 async fn send_snapshot(app: &AppHandle, link: &Link) -> Result<(), String> {
     DIRTY.store(false, Ordering::SeqCst);
-    let data = crate::read_data(app).unwrap_or_default();
+    // Private boards stay on this phone.
+    let data = crate::private::without_private(&crate::read_data(app).unwrap_or_default());
     let (status, _) = request(link, "PUT", "/api/link/snapshot", Some(if data.is_empty() { "{}".into() } else { data })).await?;
     if status >= 300 {
         DIRTY.store(true, Ordering::SeqCst);

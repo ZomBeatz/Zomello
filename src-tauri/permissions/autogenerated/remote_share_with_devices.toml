@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-remote-share-with-devices"
+description = "Enables the remote_share_with_devices command without any pre-configured scope."
+commands.allow = ["remote_share_with_devices"]
+
+[[permission]]
+identifier = "deny-remote-share-with-devices"
+description = "Denies the remote_share_with_devices command without any pre-configured scope."
+commands.deny = ["remote_share_with_devices"]

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowRightLeft, ChevronDown, ChevronRight, Copy, ExternalLink, Smartphone } from "lucide-react";
+import { ArrowRightLeft, ChevronDown, ChevronLeft, ChevronRight, Copy, ExternalLink, Smartphone } from "lucide-react";
 import { DndContext, useDraggable, type DragEndEvent, type DragMoveEvent } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { onLinkedDevices, openDeviceWindow, type LinkedDevice } from "../deviceWindow";
@@ -8,6 +8,10 @@ import { useDragSensors } from "../mobile";
 import { takeBoardFromPhone } from "../phoneTransfer";
 import { openContextMenu, type MenuEntry } from "./ContextMenu";
 import { askChoice } from "./ui";
+import { isRemote } from "../remote";
+
+/** On a phone or tablet viewing your computer: these are your other devices (no moving boards here). */
+const otherDevices = isRemote;
 
 /**
  * Desktop app: phones connected right now (same Wi‑Fi, Zomello open), each with its boards. Clicking
@@ -24,6 +28,9 @@ export function PhoneNav({ collapsed }: { collapsed: boolean }) {
     void openDeviceWindow(id, board).catch((e) => useStore.getState().toast(String(e instanceof Error ? e.message : e)));
   const menu = (p: LinkedDevice, b: LinkedDevice["boards"][number]): MenuEntry[] => [
     { label: "Open", icon: <ExternalLink size={14} />, onClick: () => open(p.id, b.id) },
+    ...(otherDevices ? [] : transferItems(p, b)),
+  ];
+  const transferItems = (p: LinkedDevice, b: LinkedDevice["boards"][number]): MenuEntry[] => [
     { separator: true },
     { label: "Move to this computer", icon: <ArrowRightLeft size={14} />, onClick: () => void takeBoardFromPhone(p, b.id, true) },
     { label: "Copy to this computer", icon: <Copy size={14} />, onClick: () => void takeBoardFromPhone(p, b.id, false) },
@@ -57,7 +64,7 @@ export function PhoneNav({ collapsed }: { collapsed: boolean }) {
         return (
           <div key={p.id} className="phone-nav">
             {/* Drop one of this computer's boards here to move or copy it to the phone. */}
-            <div className="nav-heading phone-nav-head" data-device={p.id} data-place-name={p.name}>
+            <div className="nav-heading phone-nav-head" data-device={otherDevices ? undefined : p.id} data-place-name={p.name}>
               <button className="link-plain row gap-sm grow" onClick={() => setShut(closed ? shut.filter((x) => x !== p.id) : [...shut, p.id])} aria-expanded={!closed} title="Boards on this phone, while it's connected">
                 {closed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
                 <Smartphone size={12} />
@@ -110,7 +117,7 @@ function PhoneBoardRow({
   onOpen: () => void;
   onMenu: (e: React.MouseEvent) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: `${phone.id}\n${b.id}` });
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: `${phone.id}\n${b.id}`, disabled: otherDevices });
   // Letting go after a drag also "clicks" the row; that click shouldn't open the board.
   const dragged = useRef(false);
   useEffect(() => {
@@ -141,8 +148,16 @@ export function DeviceBanner({ id }: { id: string }) {
   const [name, setName] = useState("your phone");
   useEffect(() => onLinkedDevices((l) => setName(l.find((d) => d.id === id)?.name ?? "your phone")), [id]);
   return (
-    <div className="device-banner" title="Changes here go straight to the phone">
-      <Smartphone size={15} /> Boards on {name}
-    </div>
+    <>
+      <div className="device-banner" title="Changes here go straight to that device">
+        <Smartphone size={15} /> Boards on {name}
+      </div>
+      {otherDevices && (
+        <button className="nav-item" onClick={() => (location.href = "/")}>
+          <ChevronLeft size={16} />
+          <span className="label">Back to your computer's boards</span>
+        </button>
+      )}
+    </>
   );
 }

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useDragSensors, useIsPhone } from "../mobile";
 import {
-  Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Shield, UserCog, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, UserCheck, Users, X, Zap, ExternalLink, Server as ServerIcon, Smartphone, Monitor, FolderPlus,
+  Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Shield, UserCog, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, UserCheck, Users, X, Zap, ExternalLink, Server as ServerIcon, Smartphone, Monitor, FolderPlus, Lock,
 } from "lucide-react";
 import { runningTimer, useStore } from "../store";
 import type { Board, ID, Route } from "../types";
@@ -262,7 +262,7 @@ export function Sidebar() {
           </div>
         );
         // Phones and tablets: inside a heading per place (This phone, Computer…).
-        if (placesMode) return <PlaceSections here={tree} />;
+        if (placesMode && !isDeviceWindow) return <PlaceSections here={tree} />;
         return (
           <>
             <div className="nav-heading">
@@ -276,7 +276,8 @@ export function Sidebar() {
         );
       })()}
 
-      {isDesktopApp && !isExtraWindow && <PhoneNav collapsed={collapsed} />}
+      {/* Desktop: connected phones. A phone or tablet on this computer's boards: your other devices that share. */}
+      {((isDesktopApp && !isExtraWindow) || (isRemote && !isDeviceWindow)) && <PhoneNav collapsed={collapsed} />}
       {!isServer && !isRemote && !placesMode && !isDeviceWindow && <ServerNav collapsed={collapsed} />}
       {inZomelloApp() && !placesMode && (
         <button className="nav-item" onClick={() => goToPhone()} title={`Switch to the boards stored on this ${deviceWord}`}>
@@ -545,6 +546,11 @@ function BoardLink({
       {icon}
       <span className="ellipsis label">{board.title}</span>
       {!collapsed && (board.members?.length ?? 0) > 1 && <SharedMark board={board} />}
+      {!collapsed && board.private && (
+        <span className="private-mark muted" title="Private: only on this device" aria-label="Private">
+          <Lock size={12} />
+        </span>
+      )}
     </button>
   );
 }
