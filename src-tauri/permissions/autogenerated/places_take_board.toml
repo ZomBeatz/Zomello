@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-places-take-board"
+description = "Enables the places_take_board command without any pre-configured scope."
+commands.allow = ["places_take_board"]
+
+[[permission]]
+identifier = "deny-places-take-board"
+description = "Denies the places_take_board command without any pre-configured scope."
+commands.deny = ["places_take_board"]

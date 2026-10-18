@@ -1,16 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import { AppWindow, Archive, Bot, Check, ClipboardCopy, ClipboardPaste, Copy, ExternalLink, FileDown, FolderOpen, FolderX, LayoutTemplate, LogOut, Palette, Pencil, Plus, Star, Trash2, Users } from "lucide-react";
+import { AppWindow, ArrowRightLeft, Archive, Bot, Check, ClipboardCopy, ClipboardPaste, Copy, ExternalLink, FileDown, FolderOpen, FolderX, LayoutTemplate, LogOut, Palette, Pencil, Plus, Star, Trash2, Users } from "lucide-react";
 import { boardCategories } from "../utils";
 import type { Board } from "../types";
 import { useStore } from "../store";
 import { archiveBoard, deleteBoard } from "../actions";
-import { openBoardWindow } from "../windows";
+import { isDeviceWindow, openBoardWindow } from "../windows";
 import type { MenuEntry } from "./ContextMenu";
 import { isServer, leaveBoard, ownsBoard } from "../server";
 import { workOrder } from "../ai";
 import { copyText } from "./Markdown";
 import { exportBoard } from "../boardFile";
-import { isMobileApp } from "../storage";
+import { isDesktopApp, isMobileApp } from "../storage";
+import { linkedNow } from "../deviceWindow";
+import { sendBoardToPhone } from "../phoneTransfer";
+import { placesMode, usePlaces } from "../placeLists";
+import { destinations, sendBoard } from "../transfer";
 
 /** The right-click menu for a board, the same in the sidebar and on Home. */
 export function boardMenu(board: Board, opts: { onRename?: () => void } = {}): MenuEntry[] {
@@ -74,6 +78,21 @@ export function boardMenu(board: Board, opts: { onRename?: () => void } = {}): M
       onClick: () =>
         st.navigate({ page: "board", boardId: st.duplicateBoard(board.id, { title: `New ${board.title}`, withCards: false }) }),
     },
+    ...(placesMode
+      ? [
+          ...(ownsBoard(board)
+            ? [{ label: "Move to…", icon: <ArrowRightLeft size={14} />, submenu: (close: () => void) => <PlacePicker board={board} move onDone={close} /> }]
+            : []),
+          { label: "Copy to…", icon: <Copy size={14} />, submenu: (close: () => void) => <PlacePicker board={board} move={false} onDone={close} /> },
+        ]
+      : []),
+    // Desktop: phones connected right now (same Wi‑Fi).
+    ...(isDesktopApp && !isDeviceWindow
+      ? linkedNow.flatMap((p) => [
+          { label: `Move to ${p.name}`, icon: <ArrowRightLeft size={14} />, onClick: () => void sendBoardToPhone(board.id, p, true) },
+          { label: `Copy to ${p.name}`, icon: <Copy size={14} />, onClick: () => void sendBoardToPhone(board.id, p, false) },
+        ])
+      : []),
     {
       label: "Save as board file…",
       icon: <FileDown size={14} />,
@@ -94,6 +113,33 @@ export function boardMenu(board: Board, opts: { onRename?: () => void } = {}): M
           },
         ]),
   ];
+}
+
+/** Phones and tablets: the other places a board can be moved or copied to. */
+function PlacePicker({ board, move, onDone }: { board: Board; move: boolean; onDone: () => void }) {
+  const places = usePlaces();
+  const to = places ? destinations(places.me, places.list) : [];
+  return (
+    <div className="menu">
+      <span className="menu-heading">
+        {move ? "Move" : "Copy"} “{board.title}” to
+      </span>
+      {!places && <span className="menu-item muted">Loading…</span>}
+      {places && to.length === 0 && <span className="menu-item muted">No other places yet. Add your computer or a server in Settings.</span>}
+      {to.map((p) => (
+        <button
+          key={p.key}
+          className="menu-item"
+          onClick={() => {
+            onDone();
+            void sendBoard(board.id, p, move);
+          }}
+        >
+          {p.name}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 /** Pick a category for a board, or make a new one. */

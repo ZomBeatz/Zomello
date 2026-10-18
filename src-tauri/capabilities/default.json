@@ -70,6 +70,9 @@
     "allow-open-device-window",
     "allow-places-save-link",
     "allow-link-ops-ack",
-    "allow-store-package"
+    "allow-store-package",
+    "allow-places-send-board",
+    "allow-places-take-board",
+    "allow-linked-send-board"
   ]
 }

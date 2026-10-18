@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-places-send-board"
+description = "Enables the places_send_board command without any pre-configured scope."
+commands.allow = ["places_send_board"]
+
+[[permission]]
+identifier = "deny-places-send-board"
+description = "Denies the places_send_board command without any pre-configured scope."
+commands.deny = ["places_send_board"]

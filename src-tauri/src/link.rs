@@ -29,8 +29,8 @@ struct Linked {
     last: u64,
     /// This connection (a reconnect replaces it).
     conn: String,
-    /// Edits made here, on their way to the phone.
-    tx: mpsc::UnboundedSender<String>,
+    /// Edits (and boards) sent from here, on their way to the phone: (event name, data).
+    tx: mpsc::UnboundedSender<(String, String)>,
 }
 
 #[derive(Default)]
@@ -80,7 +80,7 @@ impl Drop for Leave {
 /// `GET /api/link/events`: the phone listens here for edits made on this computer.
 pub async fn link_events(State(app): State<AppHandle>, headers: HeaderMap) -> Response {
     let Some(dev) = phone(&app, &headers) else { return StatusCode::UNAUTHORIZED.into_response() };
-    let (tx, rx) = mpsc::unbounded_channel::<String>();
+    let (tx, rx) = mpsc::unbounded_channel::<(String, String)>();
     let conn = remote::random_hex(8);
     app.state::<Links>().phones.lock().unwrap().insert(
         dev.id.clone(),
@@ -88,8 +88,8 @@ pub async fn link_events(State(app): State<AppHandle>, headers: HeaderMap) -> Re
     );
     let leave = Leave { app: app.clone(), id: dev.id, conn };
     let s = stream::unfold((rx, leave), |(mut rx, leave)| async move {
-        let ops = rx.recv().await?;
-        Some((Ok::<_, Infallible>(sse::Event::default().event("ops").data(ops)), (rx, leave)))
+        let (name, data) = rx.recv().await?;
+        Some((Ok::<_, Infallible>(sse::Event::default().event(name).data(data)), (rx, leave)))
     });
     let s: std::pin::Pin<Box<dyn Stream<Item = Result<sse::Event, Infallible>> + Send>> = Box::pin(s);
     sse::Sse::new(s).keep_alive(sse::KeepAlive::new().interval(Duration::from_secs(15))).into_response()
@@ -110,6 +110,13 @@ pub async fn link_snapshot(State(app): State<AppHandle>, headers: HeaderMap, bod
         p.last = crate::now_secs();
     }
     changed(&app, &dev.id);
+    StatusCode::NO_CONTENT.into_response()
+}
+
+/// `POST /api/link/board-received` `{ id }`: the phone has a board this computer sent it.
+pub async fn link_board_received(State(app): State<AppHandle>, headers: HeaderMap, Json(body): Json<Value>) -> Response {
+    let Some(dev) = phone(&app, &headers) else { return StatusCode::UNAUTHORIZED.into_response() };
+    let _ = app.emit("zomello://linked-board-received", json!({ "device": dev.id, "id": body["id"] }));
     StatusCode::NO_CONTENT.into_response()
 }
 
@@ -203,7 +210,51 @@ pub fn linked_send(app: AppHandle, id: String, ops: Value) -> Result<(), String>
     let links = app.state::<Links>();
     let phones = links.phones.lock().unwrap();
     let p = phones.get(&id).ok_or("Your phone isn't connected right now.")?;
-    p.tx.send(ops.to_string()).map_err(|_| "Your phone isn't connected right now.".to_string())
+    p.tx.send(("ops".into(), ops.to_string())).map_err(|_| "Your phone isn't connected right now.".to_string())
+}
+
+/// Send a board file (raw body) to a connected phone; `x-device` names it. Returns the transfer's id,
+/// which comes back in `zomello://linked-board-received` once the phone has it.
+#[tauri::command]
+pub fn linked_send_board(app: AppHandle, request: tauri::ipc::Request) -> Result<String, String> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err("expected a board file".into());
+    };
+    if !bytes.starts_with(b"PK") {
+        return Err("That isn't a board file".into());
+    }
+    let id = request.headers().get("x-device").and_then(|v| v.to_str().ok()).unwrap_or_default().to_string();
+    let links = app.state::<Links>();
+    let phones = links.phones.lock().unwrap();
+    let p = phones.get(&id).ok_or("Your phone isn't connected right now.")?;
+    let tid = remote::random_hex(8);
+    let data = json!({ "id": tid, "file": base64_encode(bytes) }).to_string();
+    p.tx.send(("board".into(), data)).map_err(|_| "Your phone isn't connected right now.".to_string())?;
+    Ok(tid)
+}
+
+fn base64_encode(bytes: &[u8]) -> String {
+    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for c in bytes.chunks(3) {
+        let n = (c[0] as u32) << 16 | (*c.get(1).unwrap_or(&0) as u32) << 8 | *c.get(2).unwrap_or(&0) as u32;
+        out.push(T[(n >> 18) as usize & 63] as char);
+        out.push(T[(n >> 12) as usize & 63] as char);
+        out.push(if c.len() > 1 { T[(n >> 6) as usize & 63] as char } else { '=' });
+        out.push(if c.len() > 2 { T[n as usize & 63] as char } else { '=' });
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn base64_round_trip() {
+        for s in ["", "f", "fo", "foo", "foob", "fooba", "foobar"] {
+            let e = super::base64_encode(s.as_bytes());
+            assert_eq!(e, ["", "Zg==", "Zm8=", "Zm9v", "Zm9vYg==", "Zm9vYmE=", "Zm9vYmFy"][s.len()]);
+        }
+    }
 }
 
 /// Open a phone's boards in their own window (or bring it forward).

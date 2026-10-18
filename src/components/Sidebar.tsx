@@ -14,17 +14,19 @@ import { boardMenu, categoryMenu } from "./boardMenu";
 import { isBoardWindow, isDeviceWindow, isExtraWindow, openBoardWindow, windowDeviceId } from "../windows";
 import { DeviceBanner, PhoneNav } from "./PhoneNav";
 import { boardCategories, byOrder, formatDuration, parseDuration } from "../utils";
-import { Popover } from "./ui";
+import { ask, askChoice, Popover } from "./ui";
 import { LogoMark, Wordmark } from "./Logo";
 import { useNow } from "./useNow";
 import { logoClicked } from "../easterEgg";
 import { SpinCat } from "./SpinCat";
-import { isServer, logout, me } from "../server";
+import { isServer, logout, me, ownsBoard } from "../server";
 import { NO_SERVERS, openServer } from "../servers";
 import { isRemote } from "../remote";
 import { goToPhone, inZomelloApp, takeAddRequest } from "../places";
 import { placesMode } from "../placeLists";
 import { PlaceSections } from "./PlaceSections";
+import { sendBoard } from "../transfer";
+import { sendBoardToPhone } from "../phoneTransfer";
 import { isDesktopApp, isMobileApp } from "../storage";
 import { Avatar } from "./ui";
 
@@ -222,7 +224,8 @@ export function Sidebar() {
         // OneNote style, on phones and computers alike: sections (categories) with their boards, then
         // boards in no section, then + Board / + Section. Boards drag between sections.
         const tree = (
-          <div className={`nav-boards ${placesMode ? "place-tree" : ""}`}>
+          // (Desktop: a connected phone's board dragged here comes to this computer.)
+          <div className={`nav-boards ${placesMode ? "place-tree" : ""}`} data-computer-boards={isDesktopApp && !isExtraWindow ? "" : undefined}>
             <BoardsDnd all={live}>
               {!collapsed && categoryGroups}
               <DropGroup name="">
@@ -646,9 +649,20 @@ function BoardsDnd({ all, children }: { all: Board[]; children: ReactNode }) {
         modifiers={[restrictToVerticalAxis]}
         onDragStart={() => setState({ dragging: true, over: null })}
         onDragOver={({ over }) => setState({ dragging: true, over: over ? (groupOf(String(over.id)) ?? null) : null })}
-        onDragCancel={() => setState({ dragging: false, over: null })}
-        onDragEnd={({ active, over }) => {
+        onDragMove={(e) => (placesMode || isDesktopApp) && markPlace(placeAt(e))}
+        onDragCancel={() => {
           setState({ dragging: false, over: null });
+          markPlace(undefined);
+        }}
+        onDragEnd={(e) => {
+          const { active, over } = e;
+          setState({ dragging: false, over: null });
+          // Phones and tablets: dropped on another place's heading (This phone, Computer, a server).
+          // Desktop: dropped on a connected phone's heading.
+          const place = placesMode || isDesktopApp ? placeAt(e) : undefined;
+          markPlace(undefined);
+          if (place?.dataset.device) return void dropOnPhone(String(active.id), { id: place.dataset.device, name: place.dataset.placeName ?? "your phone" });
+          if (place) return void dropOnPlace(String(active.id), { key: place.dataset.place!, name: place.dataset.placeName ?? "" });
           if (!over) return;
           const a = String(active.id);
           const o = String(over.id);
@@ -671,6 +685,42 @@ function BoardsDnd({ all, children }: { all: Board[]; children: ReactNode }) {
       </DndContext>
     </BoardsDndState.Provider>
   );
+}
+
+/** Where the pointer is during a board drag (it started on the board and moved by `delta`). */
+function placeAt(e: { activatorEvent: Event | null; delta: { x: number; y: number } }): HTMLElement | undefined {
+  const start = e.activatorEvent as (MouseEvent & TouchEvent) | null;
+  if (!start) return undefined;
+  const p = start.touches?.[0] ?? start.changedTouches?.[0] ?? start;
+  const x = p.clientX;
+  const y = p.clientY + e.delta.y;
+  return document.elementsFromPoint(x, y).find((el): el is HTMLElement => el instanceof HTMLElement && !!(el.dataset.place || el.dataset.device));
+}
+
+/** Light up the place heading a board would be dropped on. */
+function markPlace(el: HTMLElement | undefined) {
+  document.querySelectorAll("[data-place].drop-into, [data-device].drop-into").forEach((n) => n !== el && n.classList.remove("drop-into"));
+  el?.classList.add("drop-into");
+}
+
+/** Desktop: a board dropped on a connected phone. */
+async function dropOnPhone(boardId: string, phone: { id: string; name: string }) {
+  const board = useStore.getState().data.boards[boardId];
+  if (!board) return;
+  const pick = await askChoice(`Move “${board.title}” to ${phone.name}? Or keep it here and put a copy there.`, "Move", "Copy");
+  if (pick) void sendBoardToPhone(boardId, phone, pick === "ok");
+}
+
+/** A board dropped on another place: move it there (or copy it). */
+async function dropOnPlace(boardId: string, to: { key: string; name: string }) {
+  const board = useStore.getState().data.boards[boardId];
+  if (!board) return;
+  if (!ownsBoard(board)) {
+    if (await ask(`Copy “${board.title}” to ${to.name}?`, { okText: "Copy" })) void sendBoard(boardId, to, false);
+    return;
+  }
+  const pick = await askChoice(`Move “${board.title}” to ${to.name}? Or keep it here and put a copy there.`, "Move", "Copy");
+  if (pick) void sendBoard(boardId, to, pick === "ok");
 }
 
 /** A section (or "no section", name "") boards can be dropped into; lit up while a board is over it. */

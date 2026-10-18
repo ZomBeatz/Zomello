@@ -1381,6 +1381,16 @@ useStore.subscribe((s, prev) => {
   timer = setTimeout(flush, 400);
 });
 
+/** Save right away and wait for it (before leaving the page on purpose). */
+export async function saveNow(): Promise<void> {
+  clearTimeout(timer);
+  for (let i = 0; i < 100 && (pending || saving); i++) {
+    if (saving) await new Promise((r) => setTimeout(r, 100));
+    else await flush();
+  }
+  if (useStore.getState().saveError) throw new Error(useStore.getState().saveError!);
+}
+
 window.addEventListener("beforeunload", () => void flush());
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") void flush();

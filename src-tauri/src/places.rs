@@ -135,3 +135,65 @@ pub fn forget_link(app: &AppHandle) {
         }
     }
 }
+
+// ---- Moving boards between places ----
+//
+// A board on its way from one place to another (say from your computer's page to this phone) waits
+// here as a board file, in `transfers/<place>/`, until that place's page opens and takes it.
+
+/// Biggest board (with its attached files) that can be handed over this way.
+const MAX_TRANSFER: usize = 300 * 1024 * 1024;
+
+fn transfer_dir(app: &AppHandle, place: &str) -> Result<std::path::PathBuf, String> {
+    // The place key is "phone" or an https origin; keep only safe characters for the folder name.
+    let name: String = place.chars().map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' { c } else { '_' }).collect();
+    Ok(crate::data_dir(app)?.join("transfers").join(name))
+}
+
+/// Is `to` a place this app knows: the phone itself, or one in the list?
+fn known_place(app: &AppHandle, to: &str) -> bool {
+    to == "phone" || read(app)["list"].as_array().into_iter().flatten().any(|p| p["origin"] == to)
+}
+
+/// Hand a board file (raw body) to another place; `x-to` names it ("phone" or its origin).
+#[tauri::command]
+pub fn places_send_board(app: AppHandle, webview: Webview, request: tauri::ipc::Request) -> Result<(), String> {
+    let from = place_of(&webview)?;
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err("expected a board file".into());
+    };
+    let to = request.headers().get("x-to").and_then(|v| v.to_str().ok()).unwrap_or_default().to_string();
+    if to == from || !known_place(&app, &to) {
+        return Err("That place isn't in this app's list".into());
+    }
+    if bytes.len() > MAX_TRANSFER {
+        return Err("This board is too big to move (its attached files add up to more than 300 MB)".into());
+    }
+    queue_board(&app, &to, bytes)
+}
+
+/// Leave a board file for a place's page to take (also used for boards your computer sends).
+pub fn queue_board(app: &AppHandle, place: &str, bytes: &[u8]) -> Result<(), String> {
+    if !bytes.starts_with(b"PK") {
+        return Err("That isn't a board file".into());
+    }
+    let dir = transfer_dir(app, place)?;
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or_default();
+    crate::atomic_write(&dir.join(format!("{stamp}.zomello")), bytes)
+}
+
+/// The oldest board waiting for the calling page's place (removed once taken); empty if none.
+#[tauri::command]
+pub fn places_take_board(app: AppHandle, webview: Webview) -> Result<tauri::ipc::Response, String> {
+    let me = place_of(&webview)?;
+    let dir = transfer_dir(&app, &me)?;
+    let mut files: Vec<_> = fs::read_dir(&dir)
+        .map(|r| r.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "zomello")).collect())
+        .unwrap_or_default();
+    files.sort();
+    let Some(first) = files.first() else { return Ok(tauri::ipc::Response::new(Vec::new())) };
+    let bytes = fs::read(first).map_err(|e| e.to_string())?;
+    let _ = fs::remove_file(first);
+    Ok(tauri::ipc::Response::new(bytes))
+}

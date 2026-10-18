@@ -167,7 +167,7 @@ async fn run(app: &AppHandle, link: &Link) -> Result<(), String> {
                         buf.push_str(&String::from_utf8_lossy(d).replace("\r\n", "\n"));
                         while let Some(i) = buf.find("\n\n") {
                             let event: String = buf.drain(..i + 2).collect();
-                            handle(app, &event).await;
+                            handle(app, link, &event).await;
                         }
                     }
                 }
@@ -193,8 +193,9 @@ async fn run(app: &AppHandle, link: &Link) -> Result<(), String> {
     }
 }
 
-/// An event from the computer: `event: ops` with the edits made there.
-async fn handle(app: &AppHandle, event: &str) {
+/// An event from the computer: `event: ops` with the edits made there, or `event: board` with a board
+/// it sent this phone.
+async fn handle(app: &AppHandle, link: &Link, event: &str) {
     let mut name = "message";
     let mut data = String::new();
     for line in event.lines() {
@@ -203,6 +204,9 @@ async fn handle(app: &AppHandle, event: &str) {
         } else if let Some(v) = line.strip_prefix("data:") {
             data.push_str(v.trim_start());
         }
+    }
+    if name == "board" {
+        return receive_board(app, link, &data).await;
     }
     if name != "ops" {
         return;
@@ -223,6 +227,18 @@ async fn handle(app: &AppHandle, event: &str) {
     if crate::write_data(app, &data.to_string()).is_ok() {
         data_changed();
     }
+}
+
+/// A board your computer sent: it waits in the app for this phone's page (which adds it right away if
+/// it's on screen), and the computer hears that it arrived.
+async fn receive_board(app: &AppHandle, link: &Link, data: &str) {
+    let Ok(v) = serde_json::from_str::<Value>(data) else { return };
+    let Some(bytes) = v["file"].as_str().and_then(base64_decode) else { return };
+    if places::queue_board(app, "phone", &bytes).is_err() {
+        return;
+    }
+    let _ = app.emit("zomello://boards-arrived", ());
+    let _ = request(link, "POST", "/api/link/board-received", Some(json!({ "id": v["id"] }).to_string())).await;
 }
 
 /// Upserts and deletes of boards, buckets ("lists") and cards, by id.

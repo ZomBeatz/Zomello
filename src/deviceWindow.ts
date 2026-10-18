@@ -74,11 +74,18 @@ export interface LinkedDevice {
   sections: string[] | null;
 }
 
+/** Phones connected right now, as last loaded (for menus that are built on the spot). */
+export let linkedNow: LinkedDevice[] = [];
+
 /** Phones connected now (with boards shown on this computer), kept up to date. */
 export function onLinkedDevices(cb: (list: LinkedDevice[]) => void): () => void {
   let un: (() => void) | undefined;
   let gone = false;
-  const load = () => void invoke<LinkedDevice[]>("linked_devices").then((l) => !gone && cb(l), () => {});
+  const load = () =>
+    void invoke<LinkedDevice[]>("linked_devices").then((l) => {
+      linkedNow = l;
+      if (!gone) cb(l);
+    }, () => {});
   load();
   void import("@tauri-apps/api/event").then(async ({ listen }) => {
     const u = await listen("zomello://linked-changed", load);

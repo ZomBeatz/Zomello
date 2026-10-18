@@ -22,6 +22,8 @@
     "allow-places-read",
     "allow-places-save-boards",
     "allow-places-save-look",
-    "allow-places-save-link"
+    "allow-places-save-link",
+    "allow-places-send-board",
+    "allow-places-take-board"
   ]
 }
