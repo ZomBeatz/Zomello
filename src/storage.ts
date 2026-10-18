@@ -38,6 +38,35 @@ export const isPhoneOrTablet =
  * Hand a file to the system share sheet (Messages, Mail, Files, AirDrop…) when there is one.
  * "later" means the browser wants a fresh tap first (preparing the file took a moment).
  */
+/** Android app: its own Save dialog and share sheet (the app's browser has neither). */
+interface AndroidFiles {
+  saveFile?(base64: string, name: string): void;
+  shareFile?(base64: string, name: string): void;
+}
+const androidFiles = () => (window as unknown as { ZomelloAndroid?: AndroidFiles }).ZomelloAndroid;
+export const canSaveOnAndroid = () => !!androidFiles()?.saveFile;
+
+function toBase64(bytes: Uint8Array): string {
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+/** Android app: the system's Save dialog. Resolves "saved", "cancelled" or "failed". */
+export function saveOnAndroid(bytes: Uint8Array, name: string): Promise<"saved" | "cancelled" | "failed"> {
+  return new Promise((resolve) => {
+    const on = (e: Event) => {
+      window.removeEventListener("zomello-file-saved", on);
+      resolve((e as CustomEvent<"saved" | "cancelled" | "failed">).detail);
+    };
+    window.addEventListener("zomello-file-saved", on);
+    androidFiles()!.saveFile!(toBase64(bytes), name);
+  });
+}
+
+/** Android app: hand a file to another app (email, chat, Drive…). */
+export const shareOnAndroid = (bytes: Uint8Array, name: string) => androidFiles()?.shareFile?.(toBase64(bytes), name);
+
 export async function shareFile(file: File): Promise<"shared" | "unsupported" | "later"> {
   if (!navigator.canShare?.({ files: [file] })) return "unsupported";
   try {
@@ -82,6 +111,11 @@ export async function saveRaw(json: string): Promise<void> {
  * the share sheet on a phone or tablet (nothing more to say then).
  */
 export async function exportFile(json: string, fileName: string, onShareLater?: (share: () => void) => void): Promise<string | null> {
+  if (canSaveOnAndroid()) {
+    const r = await saveOnAndroid(new TextEncoder().encode(json), fileName);
+    if (r === "failed") throw new Error("Android couldn't save the file there");
+    return r === "saved" ? fileName : null;
+  }
   if (isPhoneOrTablet) {
     const file = new File([json], fileName, { type: "application/json" });
     const r = await shareFile(file);
