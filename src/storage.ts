@@ -34,6 +34,21 @@ export const isPhoneOrTablet =
   (typeof navigator !== "undefined" &&
     (/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)));
 
+/** iPhone or iPad (the app, or a browser on one). iPads say "Macintosh" but have a touch screen. */
+export const isApplePhoneOrTablet =
+  typeof navigator !== "undefined" &&
+  (/iPhone|iPad/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
+
+/** What the phone app calls the device it runs on: "This iPad", "Boards on this tablet", "Match my phone". */
+export const deviceWord: "iPad" | "tablet" | "phone" =
+  typeof navigator === "undefined"
+    ? "phone"
+    : /iPad/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
+      ? "iPad"
+      : /Android/.test(navigator.userAgent) && !/Mobile/.test(navigator.userAgent)
+        ? "tablet"
+        : "phone";
+
 /**
  * Hand a file to the system share sheet (Messages, Mail, Files, AirDrop…) when there is one.
  * "later" means the browser wants a fresh tap first (preparing the file took a moment).
