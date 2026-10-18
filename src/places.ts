@@ -37,6 +37,8 @@ export function placeFromInput(text: string): { origin: string; code: string | n
   const t = text.trim();
   const code = t.match(/#pair=(\d{6})/)?.[1] ?? null;
   const u = new URL(/^[a-z]+:\/\//i.test(t) ? t : `https://${t}`);
+  // The QR code on your computer opens its setup page over http; the boards are on https at the same address.
+  if (u.protocol === "http:" && u.pathname.startsWith("/setup")) u.protocol = "https:";
   if (u.protocol !== "https:") throw new Error("Use the https:// address, so your boards travel encrypted.");
   return { origin: u.origin, code };
 }

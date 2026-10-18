@@ -464,6 +464,9 @@ pub fn run() {
     }
 
     let builder = tauri::Builder::default();
+    // Phones and tablets: scan the QR code your computer shows to connect to it.
+    #[cfg(mobile)]
+    let builder = builder.plugin(tauri_plugin_barcode_scanner::init());
     // Desktop: one running copy, start at login, and the tray (closing the window can keep it running).
     #[cfg(desktop)]
     let builder = builder

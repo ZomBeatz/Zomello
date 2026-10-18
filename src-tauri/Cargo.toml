@@ -49,6 +49,10 @@ lto = true
 opt-level = "s"
 strip = true
 
+# Phones and tablets only: scanning your computer's pairing QR code.
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+tauri-plugin-barcode-scanner = "2"
+
 # Linux only: turn on WebKitGTK's spell checker (Windows' WebView2 has it built in).
 [target.'cfg(target_os = "linux")'.dependencies]
 webkit2gtk = "2.0"

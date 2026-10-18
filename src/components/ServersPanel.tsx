@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, Check, ExternalLink, Monitor, Plus, Radar, Server, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, ExternalLink, Monitor, Plus, Radar, ScanQrCode, Server, Trash2 } from "lucide-react";
 import { useStore } from "../store";
 import { canFindServers, checkServer, findServers, nameFromUrl, NO_SERVERS, openServer, type FoundServer, type ServerCheck } from "../servers";
 import { uid } from "../utils";
@@ -199,16 +199,20 @@ function ComputerConnect() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const connect = async () => {
+  const [setupPage, setSetupPage] = useState<string | null>(null);
+  const connect = async (link = text) => {
     setBusy(true);
     setError("");
+    setSetupPage(null);
     try {
-      const { origin, code } = placeFromInput(text);
+      const { origin, code } = placeFromInput(link);
       if (!(await ensureLocalNetwork())) {
         setError(LOCAL_NETWORK_HELP);
         return;
       }
       if (!(await reachable(origin))) {
+        // Not trusted yet (or not there): the computer's setup page, opened in the browser, installs its certificate.
+        if (/^http:\/\/[^/]+\/setup/i.test(link.trim())) setSetupPage(link.trim().split("#")[0]);
         setError(
           "Couldn't reach your computer there over a secure connection. Check that Zomello is open on it with Phones & tablets turned on, that this phone is on the same Wi‑Fi, and that its Zomello certificate is installed on this phone (Settings → Phones & tablets on the computer shows how).",
         );
@@ -221,6 +225,24 @@ function ComputerConnect() {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
+    }
+  };
+
+  /** The camera reads the QR code from Settings → Phones & tablets → Pair a device, then connects. */
+  const scanQr = async () => {
+    setError("");
+    try {
+      const qr = await import("@tauri-apps/plugin-barcode-scanner");
+      let perm = await qr.checkPermissions();
+      if (perm !== "granted") perm = await qr.requestPermissions();
+      if (perm !== "granted") return setError("Zomello needs the camera to scan the code. Allow it in the phone's Settings → Apps → Zomello → Permissions, or type the address instead.");
+      const { content } = await qr.scan({ windowed: false, formats: [qr.Format.QRCode] });
+      if (!content) return;
+      setText(content);
+      await connect(content);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/cancel/i.test(msg)) setError(`Couldn't scan: ${msg}`);
     }
   };
 
@@ -267,7 +289,15 @@ function ComputerConnect() {
           {busy ? "Checking…" : "Connect"}
         </button>
       </form>
+      <button className="btn sm" disabled={busy} onClick={() => void scanQr()}>
+        <ScanQrCode size={14} /> Scan the QR code on your computer
+      </button>
       {error && <p className="danger-text small">{error}</p>}
+      {setupPage && (
+        <button className="btn sm primary" onClick={() => void openExternal(setupPage)}>
+          <ExternalLink size={14} /> Install your computer's certificate
+        </button>
+      )}
       <p className="muted small">
         Your boards travel encrypted, and stay on your computer: this phone shows them while it can reach it. Switch back any time
         with <b>Boards on this phone</b> in the menu.

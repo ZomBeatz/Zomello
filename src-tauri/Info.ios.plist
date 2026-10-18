@@ -6,6 +6,9 @@
   <!-- Shown when Zomello first reaches your computer or looks for Zomello Servers on your Wi-Fi. -->
   <key>NSLocalNetworkUsageDescription</key>
   <string>Zomello connects to the Zomello app on your computer, and finds Zomello Servers, on your home network.</string>
+  <!-- Shown the first time you scan the pairing QR code on your computer. -->
+  <key>NSCameraUsageDescription</key>
+  <string>Zomello uses the camera only to scan the QR code your computer shows, so it can connect to it.</string>
   <!-- "Find servers on this network" looks for this service. -->
   <key>NSBonjourServices</key>
   <array>
