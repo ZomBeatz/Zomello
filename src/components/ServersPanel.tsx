@@ -4,7 +4,7 @@ import { useStore } from "../store";
 import { canFindServers, checkServer, findServers, nameFromUrl, NO_SERVERS, openServer, type FoundServer, type ServerCheck } from "../servers";
 import { uid } from "../utils";
 import { ask, InlineEdit } from "./ui";
-import { deviceWord, isMobileApp, openExternal } from "../storage";
+import { deviceWord, isApplePhoneOrTablet, isMobileApp, openExternal } from "../storage";
 import { ensureLocalNetwork, goToPlace, LOCAL_NETWORK_HELP, placeFromInput, reachable } from "../places";
 
 /** Settings → Zomello Servers: add the servers you use (yours or other people's) and open them. */
@@ -235,7 +235,11 @@ function ComputerConnect() {
       const qr = await import("@tauri-apps/plugin-barcode-scanner");
       let perm = await qr.checkPermissions();
       if (perm !== "granted") perm = await qr.requestPermissions();
-      if (perm !== "granted") return setError("Zomello needs the camera to scan the code. Allow it in the phone's Settings → Apps → Zomello → Permissions, or type the address instead.");
+      if (perm !== "granted") return setError(
+          isApplePhoneOrTablet
+            ? `Zomello needs the camera to scan the code. Allow it in the ${deviceWord}'s Settings → Zomello → Camera, or type the address instead.`
+            : `Zomello needs the camera to scan the code. Allow it in the ${deviceWord}'s Settings → Apps → Zomello → Permissions, or type the address instead.`,
+        );
       const { content } = await qr.scan({ windowed: false, formats: [qr.Format.QRCode] });
       if (!content) return;
       setText(content);
