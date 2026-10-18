@@ -329,6 +329,8 @@ interface State {
   focus: FocusTimer | null;
   importOpen: boolean;
   aiDialog: AiDialogState | null;
+  /** "Paste cards" window: where the cards go. */
+  pasteCards: { boardId: ID; listId?: ID; text?: string } | null;
   /** Cards picked with Ctrl+click on the board (for bulk actions like handing them to an AI). */
   selected: ID[];
   toggleSelected(id: ID): void;
@@ -341,7 +343,7 @@ interface State {
   toast(text: string, opts?: { undo?: boolean; key?: string; action?: Toast["action"] }): void;
   dismissToast(id: ID): void;
   setOverlay(
-    patch: Partial<Pick<State, "quickAddOpen" | "helpOpen" | "welcomeOpen" | "customizeBoardId" | "shareBoardId" | "searchOpen" | "importOpen" | "aiDialog">>,
+    patch: Partial<Pick<State, "quickAddOpen" | "helpOpen" | "welcomeOpen" | "customizeBoardId" | "shareBoardId" | "searchOpen" | "importOpen" | "aiDialog" | "pasteCards">>,
   ): void;
 
   startFocus(minutes: number, cardId?: ID | null, label?: string): void;
@@ -610,6 +612,7 @@ export const useStore = create<State>((set, get) => {
     focus: loadFocus(),
     importOpen: false,
     aiDialog: null,
+    pasteCards: null,
     selected: [],
     toggleSelected(id) {
       set((s) => ({ selected: s.selected.includes(id) ? s.selected.filter((x) => x !== id) : [...s.selected, id] }));

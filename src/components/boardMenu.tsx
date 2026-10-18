@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AppWindow, Archive, Bot, Check, ClipboardCopy, Copy, ExternalLink, FileDown, FolderOpen, FolderX, LayoutTemplate, LogOut, Palette, Pencil, Plus, Star, Trash2, Users } from "lucide-react";
+import { AppWindow, Archive, Bot, Check, ClipboardCopy, ClipboardPaste, Copy, ExternalLink, FileDown, FolderOpen, FolderX, LayoutTemplate, LogOut, Palette, Pencil, Plus, Star, Trash2, Users } from "lucide-react";
 import { boardCategories } from "../utils";
 import type { Board } from "../types";
 import { useStore } from "../store";
@@ -52,6 +52,14 @@ export function boardMenu(board: Board, opts: { onRename?: () => void } = {}): M
       onClick: () => {
         const all = Object.values(useStore.getState().data.cards).filter((c) => c.boardId === board.id);
         copyText(workOrder(board.id, all, `${board.title}: open items`));
+      },
+    },
+    {
+      label: "Paste cards…",
+      icon: <ClipboardPaste size={14} />,
+      onClick: () => {
+        st.navigate({ page: "board", boardId: board.id });
+        st.setOverlay({ pasteCards: { boardId: board.id } });
       },
     },
     { separator: true },

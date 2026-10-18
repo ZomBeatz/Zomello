@@ -26,8 +26,10 @@ import {
   Tag,
   Trash2,
   UserPlus,
+  ClipboardCopy,
 } from "lucide-react";
 import type { ID } from "../types";
+import { copyCards } from "../cardClipboard";
 import { useStore } from "../store";
 import { byOrder, describeRecurrence, PRIORITIES, PROGRESS, RECURRENCE_PRESETS, relatedSet, toISO, safeArea } from "../utils";
 import { Avatar } from "./ui";
@@ -355,6 +357,7 @@ function cardMenu(cardId: ID): MenuEntry[] {
       onClick: () => st.setOverlay({ aiDialog: { tab: "export", boardId: card.boardId, cardIds: [cardId] } }),
     },
     { label: "Duplicate", icon: <Copy size={14} />, onClick: () => st.duplicateCard(cardId) },
+    { label: "Copy card", icon: <ClipboardCopy size={14} />, onClick: () => copyCards(card.boardId, [card], card.title) },
     {
       label: "Save as template",
       icon: <BookmarkPlus size={14} />,

@@ -42,6 +42,7 @@ import {
   Plus,
   Trash2,
   X,
+  ClipboardPaste,
 } from "lucide-react";
 import type { BadgeKey, BadgeMode, Board, Card, GroupBy, ID, List, Progress } from "../../types";
 import { useStore } from "../../store";
@@ -443,6 +444,15 @@ function Column({
                   }}
                 >
                   Copy work order
+                </MenuItem>
+                <MenuItem
+                  icon={<ClipboardPaste size={14} />}
+                  onClick={() => {
+                    close();
+                    useStore.getState().setOverlay({ pasteCards: { boardId: board.id, listId: list.id } });
+                  }}
+                >
+                  Paste cards here…
                 </MenuItem>
                 <label className="menu-item">
                   <CircleCheck size={14} />

@@ -21,6 +21,7 @@
       ]
     },
     "clipboard-manager:allow-write-text",
+    "clipboard-manager:allow-read-text",
     "core:window:allow-set-title",
     "opener:allow-reveal-item-in-dir",
     "allow-load-data",

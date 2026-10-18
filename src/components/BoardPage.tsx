@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { exportBoard } from "../boardFile";
 import { isMobileApp } from "../storage";
 import { archiveBoard, deleteBoard as deleteBoardAction } from "../actions";
@@ -28,7 +28,7 @@ import {
   Trash2,
   Users,
   LogOut,
-  X, FileDown } from "lucide-react";
+  X, FileDown, ClipboardPaste } from "lucide-react";
 import type { Board, DueFilter, Filter, GroupBy, ID, ViewMode } from "../types";
 import { useBoardUi, useStore } from "../store";
 import { byOrder, emptyFilter, filterIsActive, matchesFilter, PALETTE, PRIORITIES, PROGRESS, relatedSet, uid } from "../utils";
@@ -40,6 +40,7 @@ import { TimelineView } from "./views/TimelineView";
 import { ChartsView } from "./views/ChartsView";
 import { copyText } from "./Markdown";
 import { workOrder } from "../ai";
+import { parsePastedCards } from "../cardClipboard";
 import { isBoardWindow, openBoardWindow } from "../windows";
 import { boardBackground } from "./BoardCustomize";
 
@@ -65,6 +66,26 @@ export function BoardPage({ boardId }: { boardId: ID }) {
   const allCards = useStore((s) => s.data.cards);
   const people = useStore((s) => s.data.settings.people);
   const ui = useBoardUi(boardId);
+
+  // Pasting copied cards anywhere on the board (not into a text box) offers to add them.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest("input, textarea, select, [contenteditable='true']")) return;
+      const st = useStore.getState();
+      if (st.openCardId || st.pasteCards) return;
+      const text = e.clipboardData?.getData("text/plain") ?? "";
+      try {
+        if (!parsePastedCards(text).length) return;
+      } catch {
+        return;
+      }
+      e.preventDefault();
+      st.setOverlay({ pasteCards: { boardId, text } });
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, [boardId]);
 
   const lists = useMemo(
     () => Object.values(allLists).filter((l) => l.boardId === boardId && !l.archived).sort(byOrder),
@@ -211,6 +232,15 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
               }}
             >
               Copy work order (all open cards)
+            </MenuItem>
+            <MenuItem
+              icon={<ClipboardPaste size={14} />}
+              onClick={() => {
+                close();
+                useStore.getState().setOverlay({ pasteCards: { boardId: board.id } });
+              }}
+            >
+              Paste cards…
             </MenuItem>
             <MenuItem
               icon={<LayoutTemplate size={14} />}

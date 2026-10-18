@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { DemoBanner } from "./components/DemoBanner";
+import { PasteCardsDialog } from "./components/PasteCardsDialog";
 import { isDemo } from "./demo";
 import { installOpenedFiles } from "./boardFile";
 import { goToPlace, missedPlace } from "./places";
@@ -57,6 +58,7 @@ export default function App() {
   const welcomeOpen = useStore((s) => s.welcomeOpen);
   const importOpen = useStore((s) => s.importOpen);
   const aiDialog = useStore((s) => s.aiDialog);
+  const pasteCardsAt = useStore((s) => s.pasteCards);
   const customizeBoard = useStore((s) => (s.customizeBoardId ? s.data.boards[s.customizeBoardId] : undefined));
   const shareBoard = useStore((s) => (s.shareBoardId ? s.data.boards[s.shareBoardId] : undefined));
   const settings = useStore((s) => s.data.settings);
@@ -270,6 +272,7 @@ export default function App() {
       {quickAddOpen && <QuickAdd />}
       {importOpen && <ImportDialog />}
       {aiDialog && <AiDialog init={aiDialog} />}
+      {pasteCardsAt && <PasteCardsDialog {...pasteCardsAt} />}
       {customizeBoard && <BoardCustomize board={customizeBoard} />}
       {shareBoard && <ShareDialog board={shareBoard} onClose={() => useStore.getState().setOverlay({ shareBoardId: null })} />}
       {helpOpen && <HelpWindow />}
