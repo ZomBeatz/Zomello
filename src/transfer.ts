@@ -95,6 +95,6 @@ export async function takeBoards(): Promise<void> {
       return; // not in the app, or this page can't take boards
     }
     if (bytes.length === 0) return;
-    await openBoardFile(bytes, "Moved here:");
+    await openBoardFile(bytes, "Arrived:");
   }
 }
