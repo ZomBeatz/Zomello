@@ -477,6 +477,8 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
 ::-webkit-scrollbar-track { background: transparent; }
+/* Touch screens scroll by swiping; desktop-size scrollbars would take room from every page. */
+@media (hover: none) and (pointer: coarse) { ::-webkit-scrollbar { width: 0; height: 0; } }
 
 @media (max-width: 1000px) {
   .detail-grid { grid-template-columns: 1fr; }
@@ -1115,7 +1117,22 @@ body[data-filedrag="card"] .drop-hint { display: flex; }
   .field-row > label { min-width: 0; flex-basis: 100%; }
   .field-row > * { max-width: 100%; }
   .seg { flex-wrap: wrap; }
-  .board-header { padding: 8px 12px; }
+  .board-header { padding: 8px 12px; gap: 4px; flex-wrap: nowrap; }
+  /* One row: a long board title shortens (…) rather than pushing the buttons onto a second line. */
+  .board-header > .board-title-wrap { flex: 0 1 auto; min-width: 48px; overflow: hidden; }
+  .board-header .board-title { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .board-header .view-tabs { margin-left: 2px; gap: 0; }
+  .board-header .view-tabs button, .board-header .view-tabs button.active { padding: 6px 6px; }
+  .board-header .btn.sm { padding: 5px 6px; }
+  /* A task with no date doesn't keep an empty date column (more room for its title). */
+  .task-rows .due-text.due-null { display: none; }
+  /* Calendar: the month gets the full width; tasks without a date go underneath it. */
+  .calendar-wrap { flex-direction: column; padding: 10px 12px; overflow-y: auto; }
+  .calendar { flex: none; }
+  .cal-toolbar h2 { min-width: 0; }
+  .cal-grid.head div { padding: 4px 2px; text-align: center; font-size: 11px; }
+  .cal-day { padding: 3px 3px; }
+  .cal-side { width: auto; overflow: visible; }
   .toolbar { padding: 6px 12px; flex-wrap: wrap; }
 
   /* One bucket at a time; swipe sideways for the next. */

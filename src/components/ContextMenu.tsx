@@ -151,8 +151,14 @@ function MenuPanel({
                     setOpenSub(i);
                   } else setOpenSub(null);
                 }}
-                onClick={() => {
-                  if (it.submenu) return;
+                onClick={(e) => {
+                  if (it.submenu) {
+                    // Touch screens have no hover: a tap opens the submenu.
+                    const r = e.currentTarget.getBoundingClientRect();
+                    setSubPos({ x: r.right - 2, y: r.top - 5, parentLeft: pos.left });
+                    setOpenSub(i);
+                    return;
+                  }
                   it.onClick?.();
                   if (!it.keepOpen) onClose();
                 }}
