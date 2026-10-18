@@ -1,6 +1,6 @@
 [package]
 name = "zomello"
-version = "0.5.1"
+version = "0.5.2"
 description = "Zomello: local-first kanban & planner"
 edition = "2021"
 

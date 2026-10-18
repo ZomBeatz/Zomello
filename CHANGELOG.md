@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.2
+
+**iPhone and iPad**
+- Zomello now builds for iPhone and iPad, with "This iPad" in the menu and a side menu that fits in portrait.
+
+**Phone and tablet apps**
+- Scan the QR code on your computer to connect to it. If the computer's certificate isn't installed yet, Zomello offers to open its setup page.
+- Saving a board file (and exporting your data) on Android opens the Save screen, with Share afterwards.
+- A new app icon that fills Android's icon shape, and Zomello's own icon on notifications.
+- Moving a board from your computer's boards inside the phone app works now.
+- Layout fixes: the board toolbar fits on one row, the calendar uses the full width with unscheduled tasks below it, and cards and pages use the whole screen width.
+- Hints meant for a keyboard and mouse are hidden on phones, and "Desktop notifications" reads "Notifications".
+
 ## 0.5.1
 
 **Move boards between your devices**
