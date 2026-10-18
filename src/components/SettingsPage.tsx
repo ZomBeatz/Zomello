@@ -321,7 +321,7 @@ export function SettingsPage() {
         </h3>
         <label className="check-row">
           <input type="checkbox" checked={settings.reminders.enabled} onChange={(e) => setReminders({ enabled: e.target.checked })} />
-          Desktop notifications
+          {isPhoneOrTablet ? "Notifications" : "Desktop notifications"}
         </label>
         <label className="check-row">
           <input
