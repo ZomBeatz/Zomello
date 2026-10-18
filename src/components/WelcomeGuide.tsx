@@ -6,7 +6,7 @@ import { useStore } from "../store";
 import { byOrder } from "../utils";
 import { isServer, loadData, updateProfile } from "../server";
 import { LogoMark } from "./Logo";
-import { isDesktopApp, isMobileApp, isPhoneOrTablet } from "../storage";
+import { deviceWord, isDesktopApp, isMobileApp, isPhoneOrTablet } from "../storage";
 import { Modal } from "./ui";
 
 type Start = "explore" | "empty" | "import";
@@ -90,7 +90,7 @@ export function WelcomeGuide({ onClose }: { onClose: () => void }) {
               <div className="seg">
                 {(["system", "light", "dark"] as const).map((t) => (
                   <button key={t} className={settings.theme === t ? "active" : ""} onClick={() => useStore.getState().updateSettings({ theme: t })}>
-                    {t === "system" ? (isPhoneOrTablet ? "Match my phone" : "Match my computer") : t[0].toUpperCase() + t.slice(1)}
+                    {t === "system" ? (isPhoneOrTablet ? `Match my ${deviceWord}` : "Match my computer") : t[0].toUpperCase() + t.slice(1)}
                   </button>
                 ))}
               </div>

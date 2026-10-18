@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { isMobileApp } from "./storage";
+import { deviceWord, isApplePhoneOrTablet, isMobileApp } from "./storage";
 
 /**
  * Phones and tablets: one app, several places for boards. "This phone" is the app's own boards; it can
@@ -72,8 +72,9 @@ export async function ensureLocalNetwork(): Promise<boolean> {
 /** Android app: write the sign-in cookie to disk now (it's otherwise saved now and then). */
 export const saveSignIn = () => android()?.saveSignIn?.();
 
-export const LOCAL_NETWORK_HELP =
-  "Zomello needs permission to reach devices on your Wi‑Fi. Allow it in the phone's Settings → Apps → Zomello → Permissions → Nearby devices (or Local network), then try again.";
+export const LOCAL_NETWORK_HELP = isApplePhoneOrTablet
+  ? `Zomello needs permission to reach devices on your Wi‑Fi. Allow it in the ${deviceWord}'s Settings → Privacy & Security → Local Network → Zomello, then try again.`
+  : `Zomello needs permission to reach devices on your Wi‑Fi. Allow it in the ${deviceWord}'s Settings → Apps → Zomello → Permissions → Nearby devices (or Local network), then try again.`;
 
 /** Is the place there, with a certificate this phone trusts? (An opaque reply is enough to know.) */
 export async function reachable(origin: string, ms = 4000): Promise<boolean> {

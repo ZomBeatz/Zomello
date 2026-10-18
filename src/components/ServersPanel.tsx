@@ -4,7 +4,7 @@ import { useStore } from "../store";
 import { canFindServers, checkServer, findServers, nameFromUrl, NO_SERVERS, openServer, type FoundServer, type ServerCheck } from "../servers";
 import { uid } from "../utils";
 import { ask, InlineEdit } from "./ui";
-import { isMobileApp, openExternal } from "../storage";
+import { deviceWord, isMobileApp, openExternal } from "../storage";
 import { ensureLocalNetwork, goToPlace, LOCAL_NETWORK_HELP, placeFromInput, reachable } from "../places";
 
 /** Settings → Zomello Servers: add the servers you use (yours or other people's) and open them. */
@@ -210,7 +210,7 @@ function ComputerConnect() {
       }
       if (!(await reachable(origin))) {
         setError(
-          "Couldn't reach your computer there over a secure connection. Check that Zomello is open on it with Phones & tablets turned on, that this phone is on the same Wi‑Fi, and that its Zomello certificate is installed on this phone (Settings → Phones & tablets on the computer shows how).",
+          `Couldn't reach your computer there over a secure connection. Check that Zomello is open on it with Phones & tablets turned on, that this ${deviceWord} is on the same Wi‑Fi, and that its Zomello certificate is installed on this ${deviceWord} (Settings → Phones & tablets on the computer shows how).`,
         );
         return;
       }
@@ -269,8 +269,8 @@ function ComputerConnect() {
       </form>
       {error && <p className="danger-text small">{error}</p>}
       <p className="muted small">
-        Your boards travel encrypted, and stay on your computer: this phone shows them while it can reach it. Switch back any time
-        with <b>Boards on this phone</b> in the menu.
+        Your boards travel encrypted, and stay on your computer: this {deviceWord} shows them while it can reach it. Switch back any time
+        with <b>Boards on this {deviceWord}</b> in the menu.
       </p>
     </div>
   );
