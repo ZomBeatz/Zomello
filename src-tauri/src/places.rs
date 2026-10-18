@@ -159,8 +159,22 @@ fn known_place(app: &AppHandle, to: &str) -> bool {
 #[tauri::command]
 pub fn places_send_board(app: AppHandle, webview: Webview, request: tauri::ipc::Request) -> Result<(), String> {
     let from = place_of(&webview)?;
-    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
-        return Err("expected a board file".into());
+    // The app's own page sends the file as raw bytes; a computer's or server's page (another origin)
+    // can only send it as a list of numbers.
+    let owned: Vec<u8>;
+    let bytes: &[u8] = match request.body() {
+        tauri::ipc::InvokeBody::Raw(b) => b,
+        tauri::ipc::InvokeBody::Json(serde_json::Value::Array(a)) => {
+            owned = a.iter().map(|v| v.as_u64().unwrap_or(0) as u8).collect();
+            &owned
+        }
+        tauri::ipc::InvokeBody::Json(v) if v.get("0").is_some() => {
+            // A typed array serialized as an object: {"0": 80, "1": 75, …}
+            let o = v.as_object().unwrap();
+            owned = (0..o.len()).map(|i| o.get(&i.to_string()).and_then(serde_json::Value::as_u64).unwrap_or(0) as u8).collect();
+            &owned
+        }
+        _ => return Err("expected a board file".into()),
     };
     let to = request.headers().get("x-to").and_then(|v| v.to_str().ok()).unwrap_or_default().to_string();
     if to == from || !known_place(&app, &to) {
