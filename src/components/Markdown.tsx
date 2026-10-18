@@ -11,7 +11,7 @@ import { AutoTextarea, useSaveOnUnmount } from "./ui";
 marked.setOptions({ gfm: true, breaks: true });
 
 /** Clipboard API first; falls back to the old selection + copy command (works in more webviews). */
-export async function copyText(text: string) {
+export async function copyText(text: string, done = "Copied to clipboard") {
   let ok = false;
   try {
     if (inTauri) {
@@ -30,7 +30,7 @@ export async function copyText(text: string) {
       ta.remove();
     }
   }
-  useStore.getState().toast(ok ? "Copied to clipboard" : "Couldn't copy — select the text and press Ctrl+C", { key: "copy" });
+  useStore.getState().toast(ok ? done : "Couldn't copy — select the text and press Ctrl+C", { key: "copy" });
 }
 const copy = copyText;
 
