@@ -93,20 +93,43 @@ export async function reachable(origin: string, ms = 4000): Promise<boolean> {
  * Switch the app to another place's boards (optionally pairing with a code from the computer, or
  * opening a board there: `at` is a page address like "#/board/<id>", or "new-board").
  */
-export async function goToPlace(origin: string, pairCode?: string | null, at?: string): Promise<void> {
+export async function goToPlace(origin: string, pairCode?: string | null, at?: string, extra = ""): Promise<void> {
   if (isLocalAddress(origin) && !(await ensureLocalNetwork())) throw new Error(LOCAL_NETWORK_HELP);
   const allowed = await invoke<string>("allow_place", { address: origin });
   write(PLACE_KEY, allowed);
   const back = encodeURIComponent(location.origin);
   const hash = pairCode ? `#pair=${pairCode}` : at && !isAddRequest(at) ? at : "";
-  location.href = `${allowed}/?${APP_PARAM}=${back}${addParams(at)}${hash}`;
+  location.href = `${allowed}/?${APP_PARAM}=${back}${addParams(at)}${extra}${hash}`;
 }
 
 /** Back to the boards stored on this phone (optionally to a board there, or to make a new one). */
-export function goToPhone(at?: string): void {
+export function goToPhone(at?: string, extra = ""): void {
   const home = read(HOME_KEY);
   if (!home) return;
-  location.href = `${home}/?local=1${addParams(at)}${at && !isAddRequest(at) ? at : ""}`;
+  location.href = `${home}/?local=1${addParams(at)}${extra}${at && !isAddRequest(at) ? at : ""}`;
+}
+
+/**
+ * "Send one of your boards to that place" (a board dragged from another place's part of the menu):
+ * the app opens the board's own place with this request, and that page sends it on.
+ */
+const SEND = "zomello-send";
+const SEND_TO = "zomello-send-to";
+const SEND_MOVE = "zomello-send-move";
+export const sendParams = (boardId: string, to: string, move: boolean) =>
+  `&${new URLSearchParams({ [SEND]: boardId, [SEND_TO]: to, [SEND_MOVE]: move ? "1" : "0" })}`;
+
+/** Arrived with a request to send a board somewhere? Clears it. */
+export function takeSendRequest(): { boardId: string; to: string; move: boolean } | null {
+  const params = new URLSearchParams(location.search);
+  const boardId = params.get(SEND);
+  const to = params.get(SEND_TO);
+  const move = params.get(SEND_MOVE) === "1";
+  for (const k of [SEND, SEND_TO, SEND_MOVE]) params.delete(k);
+  if (!boardId || !to) return null;
+  const q = params.toString();
+  history.replaceState(history.state, "", `${location.pathname}${q ? `?${q}` : ""}${location.hash}`);
+  return { boardId, to, move };
 }
 
 /**

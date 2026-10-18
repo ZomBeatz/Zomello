@@ -506,6 +506,8 @@ pub fn run() {
         places::places_save_list,
         places::places_save_look,
         places::places_save_link,
+        places::places_send_board,
+        places::places_take_board,
         link_client::link_ops_ack,
         servers::open_server_window,
         list_backups,
@@ -539,6 +541,7 @@ pub fn run() {
         link::linked_devices,
         link::linked_data,
         link::linked_send,
+        link::linked_send_board,
         link::open_device_window
     ]);
     // Phones and tablets: the same app with its own boards, minus windows, tray and the phone server.
@@ -557,6 +560,8 @@ pub fn run() {
         places::places_save_list,
         places::places_save_look,
         places::places_save_link,
+        places::places_send_board,
+        places::places_take_board,
         link_client::link_ops_ack,
         list_backups,
         read_backup,

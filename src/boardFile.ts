@@ -204,7 +204,7 @@ async function revealPath(path: string) {
 }
 
 /** Open a .zomello file: it becomes a new board, opened right away. */
-export async function openBoardFile(bytes: Uint8Array): Promise<void> {
+export async function openBoardFile(bytes: Uint8Array, verb = "Added"): Promise<void> {
   const st = useStore.getState();
   try {
     const opened = readBoardFile(bytes);
@@ -213,7 +213,7 @@ export async function openBoardFile(bytes: Uint8Array): Promise<void> {
     const prepared = await prepareImport(opened, order, taken);
     useStore.getState().addBoardBundle(prepared);
     useStore.getState().navigate({ page: "board", boardId: prepared.board.id });
-    useStore.getState().toast(`Added “${prepared.board.title}” (${prepared.cards.length} ${prepared.cards.length === 1 ? "card" : "cards"})`, { undo: true });
+    useStore.getState().toast(`${verb} “${prepared.board.title}” (${prepared.cards.length} ${prepared.cards.length === 1 ? "card" : "cards"})`, { undo: true });
   } catch (e) {
     st.toast(e instanceof Error ? e.message : String(e));
   }

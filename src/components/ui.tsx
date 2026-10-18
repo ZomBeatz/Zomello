@@ -308,14 +308,24 @@ interface ConfirmReq {
   message: string;
   okText: string;
   danger: boolean;
-  resolve: (ok: boolean) => void;
+  /** A second choice next to OK (e.g. "Copy" beside "Move"). */
+  altText?: string;
+  resolve: (ok: boolean | "alt") => void;
 }
 let showConfirm: ((r: ConfirmReq) => void) | null = null;
 
 export function ask(message: string, { okText = "OK", danger = false } = {}): Promise<boolean> {
   return new Promise((resolve) => {
     if (!showConfirm) return resolve(window.confirm(message));
-    showConfirm({ message, okText, danger, resolve });
+    showConfirm({ message, okText, danger, resolve: (ok) => resolve(ok === true) });
+  });
+}
+
+/** Like ask(), with a second choice: resolves "ok", "alt" or null (cancelled). */
+export function askChoice(message: string, okText: string, altText: string): Promise<"ok" | "alt" | null> {
+  return new Promise((resolve) => {
+    if (!showConfirm) return resolve(window.confirm(message) ? "ok" : null);
+    showConfirm({ message, okText, danger: false, altText, resolve: (r) => resolve(r === "alt" ? "alt" : r ? "ok" : null) });
   });
 }
 
@@ -328,7 +338,7 @@ export function ConfirmHost() {
     };
   }, []);
   if (!req) return null;
-  const done = (ok: boolean) => {
+  const done = (ok: boolean | "alt") => {
     req.resolve(ok);
     setReq(null);
   };
@@ -339,6 +349,11 @@ export function ConfirmHost() {
         <button className="btn" onClick={() => done(false)}>
           Cancel
         </button>
+        {req.altText && (
+          <button className="btn" onClick={() => done("alt")}>
+            {req.altText}
+          </button>
+        )}
         <button className={`btn ${req.danger ? "danger" : "primary"}`} autoFocus onClick={() => done(true)}>
           {req.okText}
         </button>

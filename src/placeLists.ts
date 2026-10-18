@@ -32,11 +32,27 @@ export interface Places {
 /** The phone app, or a computer's/server's page inside it. */
 export const placesMode = isMobileApp || inZomelloApp();
 
-const call = async <T,>(cmd: string, args?: Record<string, unknown>): Promise<T> => {
+export const call = async <T,>(cmd: string, args?: Record<string, unknown> | Uint8Array, options?: { headers: Record<string, string> }): Promise<T> => {
   if (!(await waitForAppBridge())) throw new Error("not in the app");
   const { invoke } = await import("@tauri-apps/api/core");
-  return invoke<T>(cmd, args);
+  return invoke<T>(cmd, args, options);
 };
+
+/** This page's boards, as the menu's other sections show them. */
+function boardList() {
+  const d = useStore.getState().data;
+  const boards: PlaceBoard[] = Object.values(d.boards)
+    .filter((b) => !b.archived)
+    .sort((a, b) => a.order - b.order)
+    .map((b) => ({ id: b.id, title: b.title, color: b.color, category: b.category ?? null, starred: b.starred }));
+  return { boards, sections: d.settings.sections ?? [] };
+}
+
+/** Save this page's board list now (before leaving it, e.g. after moving a board away). */
+export async function savePlaceList(): Promise<void> {
+  if (!placesMode) return;
+  await call("places_save_boards", boardList()).then(announce, () => {});
+}
 
 const CHANGED = "zomello-places-changed";
 const announce = () => window.dispatchEvent(new Event(CHANGED));
@@ -88,11 +104,7 @@ export function installPlaceLists(): () => void {
   let lastList = "";
   const save = () => {
     const d = useStore.getState().data;
-    const boards: PlaceBoard[] = Object.values(d.boards)
-      .filter((b) => !b.archived)
-      .sort((a, b) => a.order - b.order)
-      .map((b) => ({ id: b.id, title: b.title, color: b.color, category: b.category ?? null, starred: b.starred }));
-    const sections = d.settings.sections ?? [];
+    const { boards, sections } = boardList();
     const bj = JSON.stringify([boards, sections]);
     if (bj !== lastBoards) {
       lastBoards = bj;
@@ -112,6 +124,14 @@ export function installPlaceLists(): () => void {
   save();
   noteSettings(useStore.getState().data.settings);
   void linkWithComputer();
+  // Boards moved here from another place are waiting in the app.
+  let stopArrivals: (() => void) | undefined;
+  let stopped = false;
+  void import("./transfer").then(async (t) => {
+    if (!stopped) stopArrivals = t.installBoardArrivals();
+    await t.takeBoards();
+    await t.handleSendRequest();
+  });
   const unsub = useStore.subscribe((s, prev) => {
     // The look (theme, style…) belongs to the phone; keep the phone's copy current.
     if (s.data.settings !== prev.data.settings) noteSettings(s.data.settings);
@@ -120,6 +140,8 @@ export function installPlaceLists(): () => void {
     timer = setTimeout(save, 600);
   });
   return () => {
+    stopped = true;
+    stopArrivals?.();
     clearTimeout(timer);
     unsub();
   };

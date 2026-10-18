@@ -294,6 +294,7 @@ fn start(app: &AppHandle) {
         .route("/api/link/events", get(crate::link::link_events))
         .route("/api/link/snapshot", axum::routing::put(crate::link::link_snapshot))
         .route("/api/link/ping", post(crate::link::link_ping))
+        .route("/api/link/board-received", post(crate::link::link_board_received))
         .fallback(get(asset))
         .layer(DefaultBodyLimit::max(512 * 1024 * 1024))
         .with_state(app.clone());
