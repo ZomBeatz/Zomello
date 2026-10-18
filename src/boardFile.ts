@@ -1,6 +1,6 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import type { Board, Card, ID, List } from "./types";
-import { inTauri, isDesktopApp, isPhoneOrTablet, shareFile, storeFile, storedSrc } from "./storage";
+import { canSaveOnAndroid, inTauri, isDesktopApp, isPhoneOrTablet, saveOnAndroid, shareFile, shareOnAndroid, storeFile, storedSrc } from "./storage";
 import { invoke } from "@tauri-apps/api/core";
 import { uid } from "./utils";
 import { useStore } from "./store";
@@ -67,6 +67,16 @@ const SHARE_LATER = "\u0000share-later";
  * have one, a normal download in a browser. Returns where it went ("" when it was shared).
  */
 export async function saveBoardFile(bytes: Uint8Array, name: string): Promise<string> {
+  if (canSaveOnAndroid()) {
+    // The Android app: pick where to save it (Downloads, Drive…), with Share offered afterwards.
+    const r = await saveOnAndroid(bytes, name);
+    if (r === "failed") throw new Error("Android couldn't save the file there");
+    useStore.getState().toast(r === "saved" ? `Saved “${name}”` : `“${name}” wasn't saved`, {
+      key: "board-file",
+      action: { label: "Share", run: () => shareOnAndroid(bytes, name) },
+    });
+    return SHARE_LATER;
+  }
   if (isPhoneOrTablet) {
     const file = new File([bytes as BlobPart], name, { type: "application/x-zomello" });
     const r = await shareFile(file);

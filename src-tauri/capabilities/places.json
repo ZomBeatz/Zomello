@@ -24,6 +24,7 @@
     "allow-places-save-look",
     "allow-places-save-link",
     "allow-places-send-board",
-    "allow-places-take-board"
+    "allow-places-take-board",
+    "notification:allow-is-permission-granted"
   ]
 }
