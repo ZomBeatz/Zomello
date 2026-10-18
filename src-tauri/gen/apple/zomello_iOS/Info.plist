@@ -86,5 +86,7 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>Zomello uses the camera only to scan the QR code your computer shows, so it can connect to it.</string>
 </dict>
 </plist>
