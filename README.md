@@ -50,7 +50,7 @@ Zomello works a lot like Trello or Microsoft Planner, except it runs on your own
 | **Task details** | Checklists, due dates, priorities, labels, people, notes, files and pictures, reminders and repeating tasks. |
 | **Views** | Board, list, calendar, timeline and charts. The Home page shows what's late, due today and coming up. |
 | **Phone and computer** | The Android app has its own boards, and when it's on the same Wi-Fi it can open your computer's boards too. The connection is encrypted. |
-| **Sharing a board** | Save any board as a `.zomello` file and send it by email or chat. Whoever opens it gets their own copy. |
+| **Sharing a board** | Drag a board from your computer to your phone (or back), copy and paste cards between devices, or save a board as a `.zomello` file and send it by email or chat. |
 | **Zomello Server** | For a team or family: accounts, shared boards, live updates and an Admin page. Runs on a PC, NAS, Raspberry Pi or in Docker. |
 | **Customizing** | Themes, colors, backgrounds and icons. There's also a focus timer, time tracking, and undo. |
 | **Privacy** | No ads, no tracking and no cloud account. Backups are made automatically. |

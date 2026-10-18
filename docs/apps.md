@@ -44,6 +44,14 @@ The Android app keeps its own boards, and can also show your computer's boards, 
 
 While the phone is on the same network, its boards also show up in the computer's sidebar and can be edited there. Nothing is copied: when the phone leaves, they disappear from the computer.
 
+## Moving boards and cards between devices
+
+**Boards.** In the phone app's menu, each place has its own heading (This phone, Computer, and any servers). Press and hold a board, drag it onto another place's heading, and let go. Zomello asks whether to **Move** it (it leaves the old place) or **Copy** it. You can also hold a board and choose **Move to…** or **Copy to…**. The board travels with its buckets, cards and attached files.
+
+On the computer, a phone that's connected on the same Wi-Fi shows up in the sidebar with its boards. Drag one of your boards onto the phone's name to send it there, or drag one of the phone's boards into your own boards to bring it over. Right-click gives the same choices. Files attached to a phone's board stay on the phone when you bring it over from the computer; to move those too, do it from the phone.
+
+**Cards.** Right-click (or press and hold) a card and choose **Copy card**, or use **Copy work order** on a bucket or board. Then open any board, on any device, and choose **Paste cards…** from the board's menu or a bucket's menu. If the device doesn't let Zomello read the clipboard, press and hold in the box and choose Paste. On a computer you can also just press Ctrl+V on a board. A plain list from anywhere works too: each line becomes a card.
+
 ## Building it yourself
 
 Needs Node.js 20+ and Rust (rustup).
