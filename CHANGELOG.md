@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.3
+
+**Share boards between your devices**
+- Each phone or tablet can let your other devices connected to the same computer see and edit its boards (Settings > Servers). It's off until you turn it on.
+- Mark any board **Private: only on this device** in its menu. Private boards never leave the device, and your computer's private boards don't show on your phones.
+
+**Also**
+- A privacy policy page for the app stores.
+
 ## 0.5.2
 
 **iPhone and iPad**
