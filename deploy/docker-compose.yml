@@ -17,7 +17,7 @@ services:
       # The address people type, shown on the Admin page. Optional.
       # ZOMELLO_PUBLIC_URL: "https://zomello.example.com"
 
-      # https. Leave off when Tailscale, Caddy, Nginx or Traefik serve https in front of Zomello.
+      # https. Leave off when Caddy, Nginx or Traefik serve https in front of Zomello.
       #   self:  Zomello makes its own certificate (install it on each device from the sign-in page)
       #   files: use your own certificate, e.g. mounted into /certs
       ZOMELLO_TLS: "off"

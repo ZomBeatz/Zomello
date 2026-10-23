@@ -44,7 +44,7 @@ const SETTINGS_TEMPLATE: &str = "\
 # Port people connect to:
 # ZOMELLO_PORT=7311
 
-# https: off (default; use with Tailscale, Caddy, Nginx...), self (Zomello's own certificate) or files
+# https: off (default; use with Caddy, Nginx...), self (Zomello's own certificate) or files
 # ZOMELLO_TLS=self
 # ZOMELLO_HOSTS=zomello.lan,192.168.1.50
 # ZOMELLO_TLS_CERT=C:\\certs\\fullchain.pem

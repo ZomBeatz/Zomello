@@ -36,7 +36,7 @@ import { ShareDialog } from "./components/ShareDialog";
 import { deviceWord, inTauri, isDesktopApp, isMobileApp, isPhoneOrTablet, openExternal } from "./storage";
 
 /** The full guide (ZomBeatz Docs). */
-const GUIDE_URL = "https://zombeatz.github.io/zombeatz-docs/zomello/";
+const GUIDE_URL = "https://docs.zombeatzmedia.com/zomello/";
 import { installLongPressMenus, useIsPhone } from "./mobile";
 import { installFileDropPolicy } from "./fileDrop";
 import { installHistorySync } from "./routing";

@@ -200,7 +200,7 @@ fn lan_ip() -> Option<String> {
     Some(s.local_addr().ok()?.ip().to_string())
 }
 
-/// Every IPv4 address this PC has on a network (Wi‑Fi, Ethernet, VPNs like Tailscale…), the one
+/// Every IPv4 address this PC has on a network (Wi‑Fi, Ethernet, VPNs…), the one
 /// used for the internet first.
 fn detected_ips() -> Vec<String> {
     let mut out: Vec<String> = lan_ip().into_iter().collect();
@@ -1236,7 +1236,7 @@ mod tests {
         assert!(covers(&legacy, "10.4.5.6"));
         assert!(covers(&legacy, "172.20.0.9"));
         assert!(!covers(&legacy, "172.32.0.1"));
-        assert!(!covers(&legacy, "100.101.102.103")); // e.g. Tailscale: needs a new CA
+        assert!(!covers(&legacy, "100.101.102.103")); // outside the home ranges: needs a new CA
         assert!(!covers(&legacy, "8.8.8.8"));
         assert!(covers(&legacy, "mypc.local"));
         assert!(!covers(&legacy, "mypc.lan"));

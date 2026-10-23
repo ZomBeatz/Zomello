@@ -172,7 +172,7 @@ export function ServersPanel() {
             <a href="#" onClick={(e) => (e.preventDefault(), void openExternal(`${problem.url.replace(/^https:/, "http:")}/zomello-ca.crt`))}>
               download it
             </a>
-            , open it, and add it to the trusted certificates. Or ask the server's owner to use Tailscale or a real certificate.
+            , open it, and add it to the trusted certificates. Or ask the server's owner to use a real certificate.
           </p>
           <div className="row gap-sm">
             <button className="btn sm" onClick={() => add(problem.url)}>

@@ -15,7 +15,7 @@
   <a href="https://github.com/ZomBeatz/Zomello/releases/latest"><img alt="Download for Windows" src="https://img.shields.io/badge/Windows-Download-2580c3?style=for-the-badge&logo=windows&logoColor=white"></a>
   <a href="https://github.com/ZomBeatz/Zomello/releases/latest"><img alt="Download for Linux" src="https://img.shields.io/badge/Linux-Download-2580c3?style=for-the-badge&logo=linux&logoColor=white"></a>
   <a href="https://github.com/ZomBeatz/Zomello/releases/latest"><img alt="Download for Android" src="https://img.shields.io/badge/Android-APK-2580c3?style=for-the-badge&logo=android&logoColor=white"></a>
-  <a href="https://zombeatz.github.io/zombeatz-docs/zomello/"><img alt="Read the guide" src="https://img.shields.io/badge/Read_the-Guide-5b6375?style=for-the-badge&logo=readthedocs&logoColor=white"></a>
+  <a href="https://docs.zombeatzmedia.com/zomello/"><img alt="Read the guide" src="https://img.shields.io/badge/Read_the-Guide-5b6375?style=for-the-badge&logo=readthedocs&logoColor=white"></a>
   <a href="https://zombeatz.github.io/Zomello/"><img alt="Try the online demo" src="https://img.shields.io/badge/Try_it-Online_demo-22c55e?style=for-the-badge&logo=googlechrome&logoColor=white"></a>
   <a href="#zomello-server"><img alt="Zomello Server with Docker" src="https://img.shields.io/badge/Server-Docker-ec6a3f?style=for-the-badge&logo=docker&logoColor=white"></a>
 </p>
@@ -141,7 +141,7 @@ Then open `http://<your-server>:7311` and create the admin account.
 [latest release](https://github.com/ZomBeatz/Zomello/releases/latest) and open it. Your browser opens to set up the admin account. To start it with the computer,
 run it once with `install` (for example `zomello-server-windows-x64.exe install` from an administrator Command Prompt).
 
-The full guide, with https options, backups and password recovery, is in [docs/server.md](docs/server.md). Step-by-step help for everything else is in the [Zomello guide](https://zombeatz.github.io/zombeatz-docs/zomello/).
+The full guide, with https options, backups and password recovery, is in [docs/server.md](docs/server.md). Step-by-step help for everything else is in the [Zomello guide](https://docs.zombeatzmedia.com/zomello/).
 
 ## Questions
 
