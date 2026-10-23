@@ -56,5 +56,8 @@
   <!-- No encryption beyond Apple's own (https): answers App Store Connect's export question for you. -->
   <key>ITSAppUsesNonExemptEncryption</key>
   <false/>
+  <!-- Opening a .zomello file copies it in as a new board (it isn't edited where it is). -->
+  <key>LSSupportsOpeningDocumentsInPlace</key>
+  <false/>
 </dict>
 </plist>
