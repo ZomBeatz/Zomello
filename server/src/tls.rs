@@ -1,6 +1,6 @@
 //! https. Three ways to run:
 //!  - off:   plain http, e.g. behind Caddy / a reverse proxy that handles certificates (recommended
-//!           for a domain), or on Tailscale.
+//!           for a domain).
 //!  - files: your own certificate and key (PEM files).
 //!  - self:  Zomello makes its own certificate authority (like the desktop app's phone access).
 //!           Devices install /zomello-ca.crt once. The authority can only vouch for home-network

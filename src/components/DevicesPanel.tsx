@@ -216,7 +216,7 @@ export function DevicesPanel() {
           </div>
           <p className="small muted">
             Automatic uses the address this computer reaches the internet with. Pick another if it has several (Wi‑Fi and
-            Ethernet, or a VPN like Tailscale), or type a name your router gives it. Ask your router for a fixed address (a
+            Ethernet, or a VPN), or type a name your router gives it. Ask your router for a fixed address (a
             “DHCP reservation”) so it never changes.
           </p>
         </li>

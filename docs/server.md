@@ -59,7 +59,7 @@ When it shows a green check, the image is under **Packages** on your GitHub prof
    ```
 5. **Open** `http://<server-address>:7311` in a browser. It asks you to create the **admin account**.
 6. **Add people:** sidebar > **Admin** > **Add a person**. Send them the sign-in details it gives you.
-7. **Phones and tablets:** to install Zomello as an app they need https. See *https: pick one* below. Tailscale is the easiest.
+7. **Phones and tablets:** to install Zomello as an app they need https. See *https: pick one* below. On a home network, Zomello's own certificate is the easiest.
 
 **Updating** after you push changes and the GitHub build finishes:
 ```bash
@@ -142,18 +142,17 @@ Settings are environment variables. In `docker-compose.yml` they go under `envir
 
 Browsers only offer "Install app" on https. Pick whichever of these suits you:
 
-1. **Tailscale.** This is the easiest and safest way to reach it from anywhere: nothing is exposed to the internet. Run `tailscale serve --bg 7311` on the server, and everyone on your tailnet opens `https://<machine>.<tailnet>.ts.net`. Keep `ZOMELLO_TLS=off`.
-2. **A reverse proxy with a real domain** (Caddy, Nginx Proxy Manager, Traefik). Keep `ZOMELLO_TLS=off` and point the proxy at port 7311. With Caddy it's two lines:
+1. **A reverse proxy with a real domain** (Caddy, Nginx Proxy Manager, Traefik). Keep `ZOMELLO_TLS=off` and point the proxy at port 7311. With Caddy it's two lines:
    ```
    zomello.example.com {
        reverse_proxy localhost:7311
    }
    ```
    Live updates use a long-lived connection (server-sent events). Caddy handles them as-is. With Nginx, turn off `proxy_buffering` for `/api/events`.
-3. **Zomello's own certificate** (`ZOMELLO_TLS=self`). This is for a home network without a domain. Zomello creates its own certificate authority, limited to private addresses and the names in `ZOMELLO_HOSTS`. Each device installs it once: the sign-in page (and the Admin page) has **Download this server's certificate** with steps for Android, iPhone/iPad, Windows and Mac. The same port answers both http and https, so people can fetch the certificate over http first.
-4. **Your own certificate files** (`ZOMELLO_TLS=files` plus `ZOMELLO_TLS_CERT` / `ZOMELLO_TLS_KEY`).
+2. **Zomello's own certificate** (`ZOMELLO_TLS=self`). This is for a home network without a domain. Zomello creates its own certificate authority, limited to private addresses and the names in `ZOMELLO_HOSTS`. Each device installs it once: the sign-in page (and the Admin page) has **Download this server's certificate** with steps for Android, iPhone/iPad, Windows and Mac. The same port answers both http and https, so people can fetch the certificate over http first.
+3. **Your own certificate files** (`ZOMELLO_TLS=files` plus `ZOMELLO_TLS_CERT` / `ZOMELLO_TLS_KEY`).
 
-Don't port-forward Zomello straight to the internet. Use option 1 or 2 instead.
+Don't port-forward Zomello straight to the internet. For access away from home, connect to your home network with a VPN (your router's VPN, for example), or use option 1.
 
 ## People and boards
 
