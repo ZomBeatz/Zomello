@@ -88,5 +88,8 @@
 	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>Zomello uses the camera only to scan the QR code your computer shows, so it can connect to it.</string>
+	<!-- Opening a .zomello file copies it in as a new board (it isn't edited where it is). -->
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<false/>
 </dict>
 </plist>
