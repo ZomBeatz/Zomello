@@ -33,7 +33,10 @@ import { isServer, loadData as serverLoadData, RELOAD_EVENT, subscribe as server
 import { useInvites } from "./invites";
 import { AdminPage } from "./components/AdminPage";
 import { ShareDialog } from "./components/ShareDialog";
-import { deviceWord, inTauri, isDesktopApp, isMobileApp, isPhoneOrTablet } from "./storage";
+import { deviceWord, inTauri, isDesktopApp, isMobileApp, isPhoneOrTablet, openExternal } from "./storage";
+
+/** The full guide (ZomBeatz Docs). */
+const GUIDE_URL = "https://zombeatz.github.io/zombeatz-docs/zomello/";
 import { installLongPressMenus, useIsPhone } from "./mobile";
 import { installFileDropPolicy } from "./fileDrop";
 import { installHistorySync } from "./routing";
@@ -334,6 +337,15 @@ function HelpWindow() {
             }}
           >
             Show the welcome guide
+          </button>
+        </div>
+        <div className="help-start">
+          <div>
+            <b>Want to know everything Zomello can do?</b>
+            <p className="muted small">The full guide: every feature step by step, with pictures and search.</p>
+          </div>
+          <button className="btn" onClick={() => void openExternal(GUIDE_URL)}>
+            Open the full guide
           </button>
         </div>
         <h3 className="help-h">Good to know</h3>
