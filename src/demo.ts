@@ -118,6 +118,34 @@ export function demoData(sample: AppData, make: Make): AppData {
   card(m, m1, "Grocery run", { labels: ["Weekly"], due: 1, checklist: [["Milk", false], ["Eggs", false], ["Coffee", true]] });
   card(m, m1, "Meal prep Sunday", { labels: ["Weekly"], due: 2 });
 
+  // A few cards with everything filled in, so opening one shows what a card can hold.
+  const find = (t: string) => Object.values(data.cards).find((c) => c.title === t)!;
+  const hp = find("Homepage redesign");
+  const about = find("Write the About page");
+  const live = find("Go-live day");
+  const now = Date.now();
+  hp.description = "New hero, a clearer pricing teaser and a faster mobile layout.\n\n- Keep the brand colors\n- **Must** pass the accessibility check";
+  hp.comments = [
+    { id: uid(), text: "Mobile layout drafts are in the shared folder.", createdAt: now - 5 * 3600e3 },
+    { id: uid(), text: "Kickoff with Maya and Jordan went well.", createdAt: now - 50 * 3600e3 },
+  ];
+  hp.time = [
+    { id: uid(), start: now - 26 * 3600e3, end: now - 24.5 * 3600e3 },
+    { id: uid(), start: now - 4 * 3600e3, end: now - 2.8 * 3600e3 },
+  ];
+  hp.estimate = 360;
+  hp.links = [{ cardId: about.id, type: "relates" }, { cardId: live.id, type: "blocks" }];
+  live.links = [{ cardId: hp.id, type: "blockedBy" }];
+  about.links = [{ cardId: hp.id, type: "relates" }];
+  const small = { id: uid(), label: "Small", color: "#22c55e" };
+  const big = { id: uid(), label: "Big", color: "#ef4444" };
+  w.fields = [
+    { id: uid(), name: "Client", type: "text", options: [], showOnCard: false },
+    { id: uid(), name: "Size", type: "select", options: [small, big], showOnCard: true },
+  ];
+  hp.fields = { [w.fields[0].id]: "Acme Co.", [w.fields[1].id]: big.id };
+  about.fields = { [w.fields[1].id]: small.id };
+
   return data;
 }
 
