@@ -4,7 +4,7 @@ import { Accessibility, Bell, Download, FileUp, Minus, Plus, Eraser, LayoutTempl
 import type { Settings, ViewMode } from "../types";
 import { normalize, useStore } from "../store";
 import {
-  cleanupStoredFiles, dataLocation, exportFile, inTauri, isDesktopApp, isPhoneOrTablet, listBackups, notify, readBackup, type BackupInfo,
+  cleanupStoredFiles, dataLocation, exportFile, inTauri, isDesktopApp, isMobileApp, isPhoneOrTablet, listBackups, notify, readBackup, type BackupInfo,
 } from "../storage";
 import { PALETTE } from "../utils";
 import { SHORTCUTS } from "../shortcuts";
@@ -339,8 +339,9 @@ export function SettingsPage() {
           />
         </label>
         <p className="muted small">
-          Set a reminder on any card (card → Reminder, or right-click → Remind me). Notifications appear while Zomello is
-          running.
+          {isMobileApp
+            ? `Set a reminder on any card (card → Reminder, or press and hold → Remind me). They arrive even when Zomello is closed; the daily summary counts your cards as they were when you last opened Zomello.`
+            : "Set a reminder on any card (card → Reminder, or right-click → Remind me). Notifications appear while Zomello is running."}
         </p>
         <button className="btn sm" onClick={() => void notify("Zomello", "Notifications are working 🎧")}>
           Send a test notification

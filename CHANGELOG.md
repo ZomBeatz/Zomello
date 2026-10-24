@@ -1,5 +1,10 @@
 # Changelog
 
+## Next version
+
+- **Reminders on phones and tablets arrive even when Zomello is closed.** The app now hands each card's reminder and the daily summary to the phone ahead of time.
+- The Help link opens the guide at docs.zombeatzmedia.com.
+
 ## 0.5.3
 
 **Share boards between your devices**
