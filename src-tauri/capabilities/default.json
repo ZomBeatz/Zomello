@@ -79,6 +79,7 @@
     "allow-device-backups",
     "allow-device-backup-read",
     "allow-device-backup-delete",
+    "allow-device-backup-file",
     "allow-backup-set-password",
     "allow-backup-has-password",
     "allow-backup-open",

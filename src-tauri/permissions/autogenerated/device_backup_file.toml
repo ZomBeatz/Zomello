@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-device-backup-file"
+description = "Enables the device_backup_file command without any pre-configured scope."
+commands.allow = ["device_backup_file"]
+
+[[permission]]
+identifier = "deny-device-backup-file"
+description = "Denies the device_backup_file command without any pre-configured scope."
+commands.deny = ["device_backup_file"]

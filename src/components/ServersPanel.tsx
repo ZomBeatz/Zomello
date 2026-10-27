@@ -360,7 +360,7 @@ function BackupSettings() {
       <p className="muted small">
         While they're connected, your computer keeps a copy (one a day, for two weeks). If you reinstall Zomello or get a new{" "}
         {deviceWord}, pair it again and restore from the computer: <b>Settings → Phones &amp; tablets → Device backups</b>. Attached
-        files stay on this {deviceWord} and aren't in the backup.
+        files come along too (a few at a time, while connected).
       </p>
       {on && (
         <>

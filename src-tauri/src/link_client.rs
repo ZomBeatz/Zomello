@@ -102,6 +102,11 @@ mod log {
 
 /// One https request to the computer. Returns the status and the (streaming) body.
 async fn request(link: &Link, method: &str, path: &str, body: Option<String>) -> Result<(u16, hyper::body::Incoming), String> {
+    request_raw(link, method, path, body.map(|b| (Bytes::from(b), "application/json"))).await
+}
+
+/// The same, with any body (a file) and its type.
+async fn request_raw(link: &Link, method: &str, path: &str, body: Option<(Bytes, &str)>) -> Result<(u16, hyper::body::Incoming), String> {
     let host = link.origin.host_str().ok_or("no host")?.to_string();
     let port = link.origin.port_or_known_default().unwrap_or(443);
     let tcp = tokio::time::timeout(Duration::from_secs(6), tokio::net::TcpStream::connect((host.as_str(), port)))
@@ -124,8 +129,8 @@ async fn request(link: &Link, method: &str, path: &str, body: Option<String>) ->
         .header(header::AUTHORIZATION, format!("Bearer {}", link.token))
         .header(header::USER_AGENT, "Zomello phone link");
     let res = match body {
-        Some(b) => sender
-            .send_request(req.header(header::CONTENT_TYPE, "application/json").body(Full::new(Bytes::from(b)).boxed()).map_err(|e| e.to_string())?)
+        Some((b, kind)) => sender
+            .send_request(req.header(header::CONTENT_TYPE, kind).body(Full::new(b).boxed()).map_err(|e| e.to_string())?)
             .await,
         None => sender.send_request(req.body(Empty::<Bytes>::new().boxed()).map_err(|e| e.to_string())?).await,
     }
@@ -144,12 +149,53 @@ async fn send_snapshot(app: &AppHandle, link: &Link) -> Result<(), String> {
             data = v.to_string();
         }
     }
-    let (status, _) = request(link, "PUT", "/api/link/snapshot", Some(if data.is_empty() { "{}".into() } else { data })).await?;
+    let (status, _) = request(link, "PUT", "/api/link/snapshot", Some(if data.is_empty() { "{}".into() } else { data.clone() })).await?;
     if status >= 300 {
         DIRTY.store(true, Ordering::SeqCst);
         return Err(format!("snapshot refused ({status})"));
     }
+    // Backed up on the computer: send the attached files it doesn't have yet (not those of private boards).
+    if let Ok(v) = serde_json::from_str::<Value>(&data) {
+        if v["settings"]["backupToComputer"] == true {
+            send_files(app, link, &crate::backup::stored_refs(&v)).await;
+        }
+    }
     Ok(())
+}
+
+/// Files the computer is known to have for this phone's backups (asked once per connection).
+static SENT_FILES: Mutex<Option<std::collections::HashSet<String>>> = Mutex::new(None);
+/// At most this many files per round, so the connection isn't tied up for long.
+const FILES_PER_ROUND: usize = 20;
+
+async fn send_files(app: &AppHandle, link: &Link, refs: &[String]) {
+    let known = SENT_FILES.lock().unwrap().clone();
+    let mut have = match known {
+        Some(h) => h,
+        None => {
+            let Ok((200, body)) = request(link, "GET", "/api/link/backup-files", None).await else { return };
+            let Ok(bytes) = body.collect().await.map(|b| b.to_bytes()) else { return };
+            serde_json::from_slice::<Vec<String>>(&bytes).unwrap_or_default().into_iter().collect()
+        }
+    };
+    let Ok(dir) = crate::data_dir(app) else { return };
+    for rel in refs.iter().filter(|r| !have.contains(*r)).take(FILES_PER_ROUND).cloned().collect::<Vec<_>>() {
+        let Ok(bytes) = std::fs::read(dir.join(&rel)) else {
+            have.insert(rel); // gone from this phone: nothing to send
+            continue;
+        };
+        let path = format!("/api/link/backup-file/{}", rel.split('/').map(percent_encode).collect::<Vec<_>>().join("/"));
+        if matches!(request_raw(link, "PUT", &path, Some((Bytes::from(bytes), "application/octet-stream"))).await, Ok((204, _))) {
+            have.insert(rel);
+        }
+    }
+    *SENT_FILES.lock().unwrap() = Some(have);
+}
+
+fn percent_encode(s: &str) -> String {
+    s.bytes()
+        .map(|b| if b.is_ascii_alphanumeric() || b"-._~".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") })
+        .collect()
 }
 
 /// Connected: listen for the computer's edits, send ours, check in.
@@ -163,6 +209,8 @@ async fn run(app: &AppHandle, link: &Link) -> Result<(), String> {
     if status != 200 {
         return Err(format!("computer said {status}"));
     }
+    // A new connection: ask again which files the computer has (it may have been reset).
+    *SENT_FILES.lock().unwrap() = None;
     send_snapshot(app, link).await?;
     let mut buf = String::new();
     let mut tick = tokio::time::interval(Duration::from_secs(15));

@@ -41,6 +41,8 @@ export async function buildBoardFile(
   boardId: ID,
   /** Just these cards (and their buckets), on their way into board `into` elsewhere. */
   only?: { cardIds: ID[]; into: ID },
+  /** Where stored files come from (a device backup keeps its own copies); this device's storage by default. */
+  readFile?: (url: string) => Promise<Uint8Array>,
 ): Promise<{ bytes: Uint8Array; name: string; missing: number }> {
   const board = data.boards[boardId];
   const cards = Object.values(data.cards).filter((c) => c.boardId === boardId && (!only || only.cardIds.includes(c.id)));
@@ -50,10 +52,15 @@ export async function buildBoardFile(
   let missing = 0;
   for (const [i, url] of storedFiles(board, cards).entries()) {
     try {
-      const res = await fetch(storedSrc(url));
-      if (!res.ok) throw new Error(String(res.status));
+      let bytes: Uint8Array;
+      if (readFile) bytes = await readFile(url);
+      else {
+        const res = await fetch(storedSrc(url));
+        if (!res.ok) throw new Error(String(res.status));
+        bytes = new Uint8Array(await res.arrayBuffer());
+      }
       const path = zipPath(url, i);
-      files[path] = new Uint8Array(await res.arrayBuffer());
+      files[path] = bytes;
       index[url] = path;
     } catch {
       missing++; // the board still exports; that attachment just won't come along

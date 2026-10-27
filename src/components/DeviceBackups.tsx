@@ -57,16 +57,18 @@ export function DeviceBackups() {
     const b = await invoke<{ data: string; private: string | null }>("device_backup_read", { id: dev.id, date });
     const data = JSON.parse(b.data) as AppData;
     const boards = Object.values(data.boards ?? {});
-    return { data, boards, locked: b.private };
+    // Attached files come from the backup's own copies (they were on the device, not here).
+    const readFile = async (url: string) => new Uint8Array(await invoke<ArrayBuffer>("device_backup_file", { id: dev.id, rel: url }));
+    return { data, boards, locked: b.private, readFile };
   };
 
   const sendTo = async (dev: DeviceBackup, date: string, to: { id: string; name: string }) => {
     setBusy(dev.id);
     try {
-      const { data, boards, locked } = await read(dev, date);
+      const { data, boards, locked, readFile } = await read(dev, date);
       toast(`Sending ${boards.length} ${boards.length === 1 ? "board" : "boards"} to ${to.name}…`);
       for (const b of boards) {
-        const { bytes } = await buildBoardFile(data, b.id);
+        const { bytes } = await buildBoardFile(data, b.id, undefined, readFile);
         const tid = await invoke<string>("linked_send_board", bytes, { headers: { "x-device": to.id } });
         if (!(await received(tid, 45_000))) throw new Error(`${to.name} didn't answer. Check that Zomello is open on it and try again.`);
       }
@@ -84,9 +86,9 @@ export function DeviceBackups() {
   const copyHere = async (dev: DeviceBackup, date: string) => {
     setBusy(dev.id);
     try {
-      const { data, boards } = await read(dev, date);
+      const { data, boards, readFile } = await read(dev, date);
       for (const b of boards) {
-        const { bytes } = await buildBoardFile(data, b.id);
+        const { bytes } = await buildBoardFile(data, b.id, undefined, readFile);
         await openBoardFile(bytes, `From ${dev.name}'s backup:`);
       }
     } catch (e) {
