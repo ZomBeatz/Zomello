@@ -337,7 +337,7 @@ pub async fn open_device_window(app: AppHandle, id: String, board: Option<String
         return Ok(());
     }
     let window = tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App(format!("index.html?device={id}{hash}").into()))
-        .title(format!("{name} — Zomello"))
+        .title(format!("{name} · Zomello"))
         .inner_size(1250.0, 840.0)
         .min_inner_size(700.0, 500.0)
         .build()

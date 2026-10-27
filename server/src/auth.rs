@@ -43,7 +43,7 @@ pub fn check_password_rules(pw: &str) -> Result<(), Response> {
 pub fn check_username(u: &str) -> Result<String, Response> {
     let u = u.trim().to_lowercase();
     if u.len() < 2 || u.len() > 32 || !u.chars().all(|c| c.is_ascii_alphanumeric() || "._-".contains(c)) {
-        return Err(err(StatusCode::BAD_REQUEST, "Usernames are 2–32 letters, numbers, dots, dashes or underscores."));
+        return Err(err(StatusCode::BAD_REQUEST, "Usernames are 2 to 32 letters, numbers, dots, dashes or underscores."));
     }
     Ok(u)
 }
@@ -231,7 +231,7 @@ pub async fn update_profile(State(app): State<App>, headers: HeaderMap, Json(req
     let user = require(&app, &headers)?;
     let name = req.display_name.trim();
     if name.is_empty() || name.chars().count() > 60 {
-        return Err(err(StatusCode::BAD_REQUEST, "Use a name of 1–60 characters."));
+        return Err(err(StatusCode::BAD_REQUEST, "Use a name of 1 to 60 characters."));
     }
     crate::sync::rename_person(&app, &user.id, &user.display_name, name)?;
     Ok("ok".into_response())

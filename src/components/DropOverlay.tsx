@@ -27,7 +27,7 @@ export function DropOverlay() {
           <>
             <MousePointerClick size={36} />
             <b>Drop onto a card</b>
-            <span>Hover the card you want — or open a card first and drop anywhere.</span>
+            <span>Hover the card you want, or open a card first and drop anywhere.</span>
           </>
         )}
       </div>

@@ -138,7 +138,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
         <div className="detail-main">
           {card.links.some((l) => l.type === "blockedBy" && allCards[l.cardId]?.progress !== "completed") && (
             <div className="blocked-banner">
-              <Ban size={14} /> Blocked — waiting on linked tasks to be completed.
+              <Ban size={14} /> Blocked: waiting on linked tasks to be completed.
             </div>
           )}
 
@@ -909,7 +909,7 @@ function TimeTracker({ card }: { card: Card }) {
         {card.estimate ? <span className="muted small">/ {formatDuration(card.estimate * 60_000)}</span> : null}
         <span className="grow" />
         {running ? (
-          <button className="btn sm" onClick={stopTimer} title="Pause — the time so far is kept">
+          <button className="btn sm" onClick={stopTimer} title="Pause (the time so far is kept)">
             <Pause size={13} /> Pause
           </button>
         ) : (
@@ -949,7 +949,7 @@ function TimeTracker({ card }: { card: Card }) {
                   setCustom("");
                 }
               }}
-              title="Custom length, e.g. 45 or 1h — Enter to start"
+              title="Custom length, e.g. 45 or 1h, then Enter to start"
             />
           </>
         )}
@@ -1103,7 +1103,7 @@ function CustomFields({ card }: { card: Card }) {
                 onChange={(e) => setValue(f, e.target.value || null)}
                 style={{ borderColor: f.options.find((o) => o.id === v)?.color }}
               >
-                <option value="">—</option>
+                <option value="">None</option>
                 {f.options.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.label}

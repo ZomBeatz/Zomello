@@ -160,7 +160,7 @@ function sampleData(): AppData {
   const d = (n: number) => toISO(addDays(new Date(), n));
   const [, feature, design, research] = board.labels;
   const cards = [
-    newCard(board.id, todo.id, "👋 Open me: how cards work", 0, {
+    newCard(board.id, todo.id, "Open me: how cards work", 0, {
       description:
         "A card is one task. Everything on it saves as you type.\n\n- **Mark complete** is at the top\n- Checklists, dates, people, labels, files and notes are below\n- Close with **Esc** or by clicking outside",
       labelIds: [feature.id],
@@ -1066,7 +1066,7 @@ export const useStore = create<State>((set, get) => {
       if (!f) return;
       set({ focus: null });
       if (f.cardId && get().data.cards[f.cardId]?.time.some((t) => t.end === null)) get().stopTimer();
-      if (completed) get().toast(`⏰ Time's up — ${f.label}`);
+      if (completed) get().toast(`Time's up: ${f.label}`);
     },
     applyCardOrder(ids, movedId, patch) {
       mut((d) => {

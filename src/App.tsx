@@ -125,7 +125,7 @@ export default function App() {
 
   // Board windows are titled after their board.
   const windowTitle = useStore((s) =>
-    isBoardWindow && s.route.page === "board" ? `${s.data.boards[s.route.boardId]?.title ?? "Board"} — Zomello` : "Zomello",
+    isBoardWindow && s.route.page === "board" ? `${s.data.boards[s.route.boardId]?.title ?? "Board"} · Zomello` : "Zomello",
   );
   useEffect(() => {
     if (isBoardWindow) void setWindowTitle(windowTitle);

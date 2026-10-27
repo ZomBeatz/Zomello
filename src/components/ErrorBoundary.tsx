@@ -29,7 +29,7 @@ export class ErrorBoundary extends Component<
       <div className="crash">
         <AlertTriangle size={28} />
         <h2>Something went wrong showing this page</h2>
-        <p className="muted">Your data is safe — nothing was lost. You can try again or go back home.</p>
+        <p className="muted">Your data is safe, nothing was lost. You can try again or go back home.</p>
         <pre>{String(this.state.error.message || this.state.error)}</pre>
         <div className="row gap">
           <button className="btn" onClick={() => this.setState({ error: null })}>

@@ -31,7 +31,7 @@ export function startFocusWatcher() {
     if (!f?.endsAt || f.endsAt > Date.now()) return;
     st.endFocus(true);
     if (st.data.settings.focusSound) playChime();
-    void notify("⏰ Time's up", `${f.label} — ${Math.round(f.durationMs / 60_000)} minutes done.`);
+    void notify("Time's up", `${f.label}: ${Math.round(f.durationMs / 60_000)} minutes done.`);
   };
   tick();
   const t = setInterval(tick, 1000);

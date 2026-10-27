@@ -44,7 +44,7 @@ function Chip({ card, color, onOpen }: { card: Card; color: string; onOpen: () =
 /** A calendar-feed event: read-only, in its calendar's color. */
 function EventChip({ event: e }: { event: FeedEvent }) {
   const time = e.allDay ? "" : format(e.start, "p").replace(":00", "").replace(" ", "").toLowerCase();
-  const when = e.allDay ? "All day" : `${format(e.start, "p")}${e.end ? ` – ${format(e.end, "p")}` : ""}`;
+  const when = e.allDay ? "All day" : `${format(e.start, "p")}${e.end ? ` to ${format(e.end, "p")}` : ""}`;
   return (
     <div
       className={`cal-event ${e.allDay ? "all-day" : ""}`}

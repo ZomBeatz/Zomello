@@ -163,7 +163,7 @@ Reply with ONE \`\`\`json code block in this shape:
 
 ${FORMAT_SPEC}
 
-Use 3–6 buckets that fit the work (e.g. a workflow like To do / Doing / Done, or phases). Keep titles short and actionable.`;
+Use 3 to 6 buckets that fit the work (e.g. a workflow like To do / Doing / Done, or phases). Keep titles short and actionable.`;
 }
 
 export type DelegateTask = "workorder" | "triage" | "breakdown" | "prioritize" | "status" | "custom" | "none";
@@ -173,7 +173,7 @@ export const DELEGATE_TASKS: { id: DelegateTask; name: string; ask: string; repl
     id: "workorder",
     name: "Do them (work order, e.g. for a coding assistant)",
     ask: `Work through the numbered items below, in order (most important first). For each one:
-1. Do it — fix the bug / build the feature / complete the task. Ask me if something is ambiguous rather than guessing.
+1. Do it: fix the bug / build the feature / complete the task. Ask me if something is ambiguous rather than guessing.
 2. Check it works (build, run, test as appropriate).
 3. Report back: what you changed, anything I should know or test, and follow-ups you noticed.
 When you're finished (or if you stop part-way), reply with the status JSON below: mark finished items "completed", partly done ones "inProgress", ones you can't finish without the user "waiting", and put your summary in each item's note. Add follow-ups with addChecklist or addSubtasks.`,
@@ -200,7 +200,7 @@ When you're finished (or if you stop part-way), reply with the status JSON below
   {
     id: "status",
     name: "Summarize status",
-    ask: "Write me a short status summary: what's done, what's in progress, what's blocked or late, and what I should focus on next. Plain text is fine — no JSON needed.",
+    ask: "Write me a short status summary: what's done, what's in progress, what's blocked or late, and what I should focus on next. Plain text is fine, no JSON needed.",
     replies: false,
   },
   { id: "custom", name: "Something else…", ask: "", replies: true },
@@ -479,7 +479,7 @@ export function applyReply(r: AiReply, target: { boardId: ID | null; listId: ID 
       if (u.labels) patch.labelIds = labelIds(cur.boardId, u.labels);
       if (u.addLabels) patch.labelIds = [...new Set([...(patch.labelIds ?? cur.labelIds), ...labelIds(cur.boardId, u.addLabels)])];
       if (u.assignees) patch.assignees = u.assignees.filter((a) => st.data.settings.people.includes(a));
-      if (u.note) patch.comments = [{ id: uid(), text: `🤖 ${u.note}`, createdAt: Date.now() }, ...cur.comments];
+      if (u.note) patch.comments = [{ id: uid(), text: u.note, createdAt: Date.now() }, ...cur.comments];
       if (u.addChecklist?.length)
         patch.checklist = [...cur.checklist, ...u.addChecklist.map((text) => ({ id: uid(), text, done: false }))];
       if (u.estimate) patch.estimate = parseDuration(u.estimate);

@@ -237,7 +237,7 @@ export const CardTile = memo(function CardTile({
         {mode.dates !== "off" && card.dueDate && (
           <span className={`badge due-${due}`}>
             <Calendar size={12} />
-            {card.startDate ? `${prettyDate(card.startDate)} – ` : ""}
+            {card.startDate ? `${prettyDate(card.startDate)} to ` : ""}
             {prettyDate(card.dueDate)}
             {mode.dates === "full" && <span className="rel"> · {relativeDue(card)}</span>}
           </span>

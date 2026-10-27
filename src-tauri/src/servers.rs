@@ -184,7 +184,7 @@ pub async fn open_server_window(app: AppHandle, id: String, address: String, nam
         return Ok(());
     }
     let window = tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::External(url))
-        .title(format!("{name} — Zomello"))
+        .title(format!("{name} · Zomello"))
         .inner_size(1300.0, 860.0)
         .min_inner_size(700.0, 500.0)
         .build()

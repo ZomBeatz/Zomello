@@ -1,7 +1,7 @@
 import { addDays } from "date-fns";
 import { isServer } from "./server";
 import { useStore } from "./store";
-import { isMobileApp, notify } from "./storage";
+import { isApplePhoneOrTablet, isMobileApp, notify } from "./storage";
 import type { AppData, Card } from "./types";
 import { prettyDate, toISO, todayISO } from "./utils";
 
@@ -71,7 +71,7 @@ export function checkReminders() {
     if (sent.has(key)) continue;
     sent.add(key);
     const board = data.boards[c.boardId].title;
-    void notify(`⏰ ${c.title}`, c.dueDate ? `${board} · due ${prettyDate(c.dueDate)}` : board);
+    void notify(c.title, c.dueDate ? `${board} · due ${prettyDate(c.dueDate)}` : board);
   }
 
   const r = data.settings.reminders;
@@ -121,7 +121,7 @@ export async function scheduleOnPhone(data: AppData) {
       const at = new Date(c.reminder);
       if (isNaN(+at) || +at <= now) continue;
       const board = data.boards[c.boardId].title;
-      plan.push({ key: `r:${c.id}:${c.reminder}`, at, title: `⏰ ${c.title}`, body: c.dueDate ? `${board} · due ${prettyDate(c.dueDate)}` : board });
+      plan.push({ key: `r:${c.id}:${c.reminder}`, at, title: c.title, body: c.dueDate ? `${board} · due ${prettyDate(c.dueDate)}` : board });
     }
     if (r.digest) {
       const [hh, mm] = r.digestTime.split(":").map(Number);
@@ -142,7 +142,13 @@ export async function scheduleOnPhone(data: AppData) {
     if (ok) {
       for (const p of plan.slice(0, MAX_SCHEDULED)) {
         const id = notificationId(p.key);
-        n.sendNotification({ id, title: p.title, body: p.body, schedule: n.Schedule.at(p.at, false, true), icon: "ic_stat_zomello", iconColor: "#2580C3" });
+        // iPhone/iPad can't read the time stamp the plugin sends with Schedule.at, so name the local date and time
+        // there instead (with the year, it fires only once).
+        const d = p.at;
+        const schedule = isApplePhoneOrTablet
+          ? n.Schedule.interval({ year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate(), hour: d.getHours(), minute: d.getMinutes(), second: 0 })
+          : n.Schedule.at(d, false, true);
+        n.sendNotification({ id, title: p.title, body: p.body, schedule, icon: "ic_stat_zomello", iconColor: "#2580C3" });
         ids.push(id);
       }
     }
