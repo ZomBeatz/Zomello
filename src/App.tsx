@@ -13,6 +13,7 @@ import { BoardPage } from "./components/BoardPage";
 import { HomePage } from "./components/HomePage";
 import { MyTasksPage } from "./components/MyTasksPage";
 import { MyDayPage } from "./components/MyDayPage";
+import { BoardTemplates } from "./components/BoardTemplates";
 import { PrivateRestore } from "./components/PrivateRestore";
 import { ArchivePage } from "./components/ArchivePage";
 import { ShortcutList, SettingsPage } from "./components/SettingsPage";
@@ -63,6 +64,7 @@ export default function App() {
   const helpOpen = useStore((s) => s.helpOpen);
   const welcomeOpen = useStore((s) => s.welcomeOpen);
   const importOpen = useStore((s) => s.importOpen);
+  const templatesOpen = useStore((s) => s.templatesOpen);
   const aiDialog = useStore((s) => s.aiDialog);
   const pasteCardsAt = useStore((s) => s.pasteCards);
   const customizeBoard = useStore((s) => (s.customizeBoardId ? s.data.boards[s.customizeBoardId] : undefined));
@@ -183,7 +185,7 @@ export default function App() {
   const [navOpen, setNavOpen] = useState(false);
   // Phones: the menu closes when you go somewhere, or open a window from it (Help, Search, a card…).
   const overlayOpen = useStore(
-    (s) => s.helpOpen || s.welcomeOpen || s.searchOpen || s.quickAddOpen || s.importOpen || !!s.openCardId || !!s.customizeBoardId || !!s.shareBoardId,
+    (s) => s.helpOpen || s.welcomeOpen || s.searchOpen || s.quickAddOpen || s.importOpen || s.templatesOpen || !!s.openCardId || !!s.customizeBoardId || !!s.shareBoardId,
   );
   useEffect(() => setNavOpen(false), [route, phone, overlayOpen]);
   // "New board" from another place's section in the phone menu lands here: open the menu.
@@ -289,6 +291,7 @@ export default function App() {
       {searchOpen && <SearchPalette />}
       {quickAddOpen && <QuickAdd />}
       {importOpen && <ImportDialog />}
+      {templatesOpen && <BoardTemplates />}
       {aiDialog && <AiDialog init={aiDialog} />}
       {pasteCardsAt && <PasteCardsDialog {...pasteCardsAt} />}
       {customizeBoard && <BoardCustomize board={customizeBoard} />}

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useDragSensors, useIsPhone } from "../mobile";
 import {
-  Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Shield, UserCog, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, Sun, UserCheck, Users, X, Zap, ExternalLink, Server as ServerIcon, Smartphone, Monitor, FolderPlus, Lock,
+  Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Shield, UserCog, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, Sun, UserCheck, Users, X, Zap, ExternalLink, Server as ServerIcon, Smartphone, Monitor, FolderPlus, LayoutTemplate, Lock,
 } from "lucide-react";
 import { runningTimer, useStore } from "../store";
 import type { Board, ID, Route } from "../types";
@@ -179,6 +179,19 @@ export function Sidebar() {
             onBlur={(e) => commitNew(e.currentTarget.value.trim() ? title : "")}
           />
         );
+        const templatesLink = adding && !addIn && (
+          <button
+            className="nav-item small muted"
+            // Before the name box loses focus (which would close it).
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              commitNew("");
+              setOverlay({ templatesOpen: true });
+            }}
+          >
+            <LayoutTemplate size={14} /> <span className="label">Or start from a template…</span>
+          </button>
+        );
         const categoryGroups = categories.map((cat) => {
           const inCat = live.filter((b) => b.category === cat);
           const shut = collapsedCats.includes(cat);
@@ -236,6 +249,7 @@ export function Sidebar() {
               </DropGroup>
             </BoardsDnd>
             {!addIn && addInput}
+            {templatesLink}
             {addingSection && (
               <input
                 autoFocus

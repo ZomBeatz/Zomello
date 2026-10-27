@@ -328,6 +328,8 @@ interface State {
   toasts: Toast[];
   focus: FocusTimer | null;
   importOpen: boolean;
+  /** Home > Start from a template. */
+  templatesOpen: boolean;
   aiDialog: AiDialogState | null;
   /** "Paste cards" window: where the cards go. */
   pasteCards: { boardId: ID; listId?: ID; text?: string } | null;
@@ -343,7 +345,7 @@ interface State {
   toast(text: string, opts?: { undo?: boolean; key?: string; action?: Toast["action"] }): void;
   dismissToast(id: ID): void;
   setOverlay(
-    patch: Partial<Pick<State, "quickAddOpen" | "helpOpen" | "welcomeOpen" | "customizeBoardId" | "shareBoardId" | "searchOpen" | "importOpen" | "aiDialog" | "pasteCards">>,
+    patch: Partial<Pick<State, "quickAddOpen" | "helpOpen" | "welcomeOpen" | "customizeBoardId" | "shareBoardId" | "searchOpen" | "importOpen" | "templatesOpen" | "aiDialog" | "pasteCards">>,
   ): void;
 
   startFocus(minutes: number, cardId?: ID | null, label?: string): void;
@@ -618,6 +620,7 @@ export const useStore = create<State>((set, get) => {
     toasts: [],
     focus: loadFocus(),
     importOpen: false,
+    templatesOpen: false,
     aiDialog: null,
     pasteCards: null,
     selected: [],

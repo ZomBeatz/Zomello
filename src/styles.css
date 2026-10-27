@@ -1699,3 +1699,12 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 .cal-block:hover .block-resize::after, .cal-block.resizing .block-resize::after, [data-touch] .cal-block .block-resize::after { opacity: 1; }
 [data-touch] .cal-block .block-resize { height: 14px; }
 .cal-block.resizing { z-index: 3; box-shadow: var(--shadow-lg); }
+.template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.template-tile {
+  display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 12px 14px; border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--c);
+}
+.template-tile:hover { background: var(--surface-2); }
+.template-name { font-weight: 600; }
+.template-buckets { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.template-buckets span { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); }

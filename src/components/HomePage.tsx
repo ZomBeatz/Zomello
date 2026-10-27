@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { addDays } from "date-fns";
-import { AlertTriangle, CalendarClock, CheckCircle2, FileUp, FolderOpen, Mail, Users, Plus, Sparkles, Sun, Timer } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, FileUp, FolderOpen, LayoutTemplate, Mail, Users, Plus, Sparkles, Sun, Timer } from "lucide-react";
 import { openBoardWindow } from "../windows";
 import type { Card } from "../types";
 import { useStore } from "../store";
@@ -161,6 +161,9 @@ export function HomePage() {
             onClick={() => navigate({ page: "board", boardId: createBoard(newTitle.trim(), newColor ?? undefined) })}
           >
             <Plus size={14} /> Create board
+          </button>
+          <button className="btn ghost sm" onClick={() => useStore.getState().setOverlay({ templatesOpen: true })}>
+            <LayoutTemplate size={14} /> Start from a template
           </button>
           <button className="btn ghost sm" onClick={() => useStore.getState().setOverlay({ importOpen: true })}>
             <FileUp size={14} /> Import from Trello or Planner

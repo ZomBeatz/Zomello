@@ -3,7 +3,7 @@ import type { Priority, Progress } from "./types";
 
 /** A board in a neutral shape, ready to be turned into Zomello data by `importBoard`. */
 export interface ImportedBoard {
-  source: "Trello" | "Planner";
+  source: "Trello" | "Planner" | "Template";
   title: string;
   color?: string;
   labels: { name: string; color: string }[];
