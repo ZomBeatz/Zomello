@@ -79,6 +79,11 @@ fn migrate(db: &Connection) -> rusqlite::Result<()> {
            data TEXT NOT NULL,
            updated INTEGER NOT NULL
          );
+         CREATE TABLE IF NOT EXISTS calendar_links (
+           token_hash TEXT PRIMARY KEY,
+           user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+           created INTEGER NOT NULL
+         );
          CREATE TABLE IF NOT EXISTS attachments (
            rel TEXT PRIMARY KEY,
            uploader TEXT,

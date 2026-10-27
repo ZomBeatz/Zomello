@@ -30,6 +30,7 @@ mod auth;
 mod calendar;
 mod db;
 mod discovery;
+mod feed;
 mod platform;
 mod files;
 mod sharing;
@@ -173,6 +174,8 @@ fn router(app: App) -> Router {
         .route("/api/logout", post(auth::logout))
         .route("/api/me/password", post(auth::change_password))
         .route("/api/me/profile", post(auth::update_profile))
+        .route("/api/me/calendar-link", get(feed::status).post(feed::create).delete(feed::remove))
+        .route("/calendar/{file}", get(feed::calendar))
         .route("/api/data", get(sync::data))
         .route("/api/sync", post(sync::sync))
         .route("/api/events", get(sync::events))

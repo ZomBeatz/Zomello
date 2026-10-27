@@ -1709,3 +1709,7 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 .template-buckets { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
 .template-buckets span { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); }
 .quick-shared { margin: 0 4px 10px 30px; overflow-wrap: anywhere; }
+.calendar-link { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+.calendar-link h4 { margin: 0; display: flex; align-items: center; gap: 6px; }
+.calendar-url { overflow-wrap: anywhere; font-size: 12px; padding: 6px 8px; background: var(--surface-2); border-radius: 7px; }
+.calendar-steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }

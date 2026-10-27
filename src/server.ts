@@ -17,6 +17,13 @@ export interface SessionUser {
   isAdmin: boolean;
 }
 
+/** Your private calendar link (feed.rs): whether you have one, make a new one, or turn it off. */
+export const calendarLink = {
+  status: () => api<{ on: boolean; created: number | null }>("/api/me/calendar-link"),
+  create: () => api<{ path: string }>("/api/me/calendar-link", { method: "POST", json: {} }),
+  remove: () => api("/api/me/calendar-link", { method: "DELETE" }),
+};
+
 /** Who's signed in (set by the sign-in gate). */
 export let me: SessionUser | null = null;
 export const setMe = (u: SessionUser | null) => void (me = u);

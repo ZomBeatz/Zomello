@@ -67,13 +67,13 @@ export async function buildBoardFile(
   return { bytes, name, missing };
 }
 
-const SHARE_LATER = "\u0000share-later";
+export const SHARE_LATER = "\u0000share-later";
 
 /**
  * Save a board file: Downloads folder in the desktop app, the share sheet on phones and tablets that
  * have one, a normal download in a browser. Returns where it went ("" when it was shared).
  */
-export async function saveBoardFile(bytes: Uint8Array, name: string): Promise<string> {
+export async function saveBoardFile(bytes: Uint8Array, name: string, type = "application/x-zomello"): Promise<string> {
   if (canSaveOnAndroid()) {
     // The Android app: pick where to save it (Downloads, Drive…), with Share offered afterwards.
     const r = await saveOnAndroid(bytes, name);
@@ -85,7 +85,7 @@ export async function saveBoardFile(bytes: Uint8Array, name: string): Promise<st
     return SHARE_LATER;
   }
   if (isPhoneOrTablet) {
-    const file = new File([bytes as BlobPart], name, { type: "application/x-zomello" });
+    const file = new File([bytes as BlobPart], name, { type });
     const r = await shareFile(file);
     if (r === "shared") return "";
     if (r === "later") {
@@ -94,7 +94,7 @@ export async function saveBoardFile(bytes: Uint8Array, name: string): Promise<st
     }
   }
   if (inTauri) return invoke<string>("export_bytes", bytes, { headers: { "x-name": encodeURIComponent(name) } });
-  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/x-zomello" }));
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type }));
   const a = Object.assign(document.createElement("a"), { href: url, download: name });
   document.body.append(a);
   a.click();

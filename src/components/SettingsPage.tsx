@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
-import { Accessibility, Bell, Download, FileUp, Minus, Plus, Eraser, LayoutTemplate, MessageSquare, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
+import { Accessibility, Bell, CalendarPlus, Download, FileUp, Minus, Plus, Eraser, LayoutTemplate, MessageSquare, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
 import { sendFeedback } from "../feedback";
+import { exportCalendarFile } from "../icsExport";
 import type { AppStyle, Settings, ViewMode } from "../types";
 import { normalize, useStore } from "../store";
 import {
@@ -401,6 +402,9 @@ export function SettingsPage() {
         <div className="row gap-sm wrap">
           <button className="btn" onClick={doExport}>
             <Download size={14} /> Export JSON
+          </button>
+          <button className="btn" onClick={() => void exportCalendarFile()} title="Every dated card, for Google Calendar, Outlook or Apple Calendar">
+            <CalendarPlus size={14} /> Calendar file (.ics)
           </button>
           {/* On a shared server a restore would replace other people's boards too. */}
           {!isServer && (

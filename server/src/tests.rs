@@ -252,3 +252,30 @@ async fn files_only_for_people_on_the_board() {
         assert!(!t.get(bad, &gabe).await.ok(), "{bad} must not escape the attachments folder");
     }
 }
+
+#[tokio::test]
+async fn calendar_links_are_private_and_can_be_turned_off() {
+    let t = T::new();
+    let (gabe, sam, _) = t.people().await;
+    t.board(&gabe, "g").await;
+    let r = t
+        .post("/api/sync", &gabe, json!({ "client": "t", "upserts": { "cards": [{ "id": "g-d", "boardId": "g", "listId": "g-l", "title": "Dentist", "dueDate": "2026-10-28", "startTime": "15:00", "dueTime": "16:00", "attachments": [] }] } }))
+        .await;
+    assert!(r.ok(), "{}", r.text);
+    assert_eq!(t.get("/api/me/calendar-link", &gabe).await.json()["on"], false);
+    let path = t.post("/api/me/calendar-link", &gabe, json!({})).await.json()["path"].as_str().unwrap().to_string();
+    // No sign-in needed: the secret in the link is the key.
+    let ics = t.req("GET", &path, None, None, None).await;
+    assert_eq!(ics.status, 200);
+    assert!(ics.text.contains("SUMMARY:Dentist") && ics.text.contains("DTSTART:20261028T150000"));
+    // Someone else's calendar doesn't have it.
+    let sams = t.post("/api/me/calendar-link", &sam, json!({})).await.json()["path"].as_str().unwrap().to_string();
+    assert!(!t.req("GET", &sams, None, None, None).await.text.contains("Dentist"));
+    // A new link turns the old one off, and so does turning it off.
+    let newer = t.post("/api/me/calendar-link", &gabe, json!({})).await.json()["path"].as_str().unwrap().to_string();
+    assert_eq!(t.req("GET", &path, None, None, None).await.status, 404);
+    assert_eq!(t.req("GET", &newer, None, None, None).await.status, 200);
+    t.req("DELETE", "/api/me/calendar-link", Some(&gabe), None, Some("http://zomello.test")).await;
+    assert_eq!(t.req("GET", &newer, None, None, None).await.status, 404);
+    assert_eq!(t.req("GET", "/calendar/nope.ics", None, None, None).await.status, 404);
+}
