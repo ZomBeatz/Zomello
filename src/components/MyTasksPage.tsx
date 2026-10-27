@@ -13,7 +13,7 @@ type GroupMode = "due" | "board" | "progress" | "priority";
 
 export function MyTasksPage() {
   const data = useStore((s) => s.data);
-  const { openCard, updateCard, createCard, navigate } = useStore.getState();
+  const { createCard } = useStore.getState();
   const me = data.settings.me;
   const [group, setGroup] = useState<GroupMode>("due");
   const [includeUnassigned, setIncludeUnassigned] = useState(false);
@@ -137,47 +137,9 @@ export function MyTasksPage() {
               <span className="count">{g.cards.length}</span>
             </h3>
             <ul className="task-rows">
-              {g.cards.map((c) => {
-                const b = data.boards[c.boardId];
-                const cl = checklistStats(c);
-                const tracked = trackedMs(c);
-                return (
-                  <li key={c.id} onClick={() => openCard(c.id)} onContextMenu={(e) => openCardMenu(e, c.id)}>
-                    <button
-                      className="progress-toggle"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        updateCard(c.id, { progress: c.progress === "completed" ? "notStarted" : "completed" });
-                      }}
-                    >
-                      <ProgressIcon progress={c.progress} />
-                    </button>
-                    <span className={`grow ellipsis ${c.progress === "completed" ? "strike" : ""}`}>{c.title}</span>
-                    <PriorityBadge priority={c.priority} />
-                    {cl.total > 0 && (
-                      <span className="badge">
-                        <CheckSquare size={12} /> {cl.done}/{cl.total}
-                      </span>
-                    )}
-                    {tracked > 0 && (
-                      <span className="badge">
-                        <Timer size={12} /> {formatDuration(tracked)}
-                      </span>
-                    )}
-                    <button
-                      className="board-tag"
-                      style={{ "--c": b.color } as React.CSSProperties}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate({ page: "board", boardId: b.id });
-                      }}
-                    >
-                      {b.title} › {data.lists[c.listId]?.title}
-                    </button>
-                    <span className={`due-text due-${dueStatus(c)}`}>{c.dueDate ? prettyDate(c.dueDate) : ""}</span>
-                  </li>
-                );
-              })}
+              {g.cards.map((c) => (
+                <TaskRow key={c.id} card={c} />
+              ))}
             </ul>
           </section>
         ))}
@@ -187,5 +149,53 @@ export function MyTasksPage() {
         </Empty>
       )}
     </div>
+  );
+}
+
+/** One task in My Tasks and My Day: tick it off, open it, or jump to its board. */
+export function TaskRow({ card: c, time, extra }: { card: Card; time?: string; extra?: React.ReactNode }) {
+  const data = useStore((s) => s.data);
+  const { openCard, updateCard, navigate } = useStore.getState();
+  const b = data.boards[c.boardId];
+  const cl = checklistStats(c);
+  const tracked = trackedMs(c);
+  return (
+    <li onClick={() => openCard(c.id)} onContextMenu={(e) => openCardMenu(e, c.id)}>
+      <button
+        className="progress-toggle"
+        aria-label={c.progress === "completed" ? "Mark incomplete" : "Mark complete"}
+        onClick={(e) => {
+          e.stopPropagation();
+          updateCard(c.id, { progress: c.progress === "completed" ? "notStarted" : "completed" });
+        }}
+      >
+        <ProgressIcon progress={c.progress} />
+      </button>
+      {time && <span className="task-time">{time}</span>}
+      <span className={`grow ellipsis ${c.progress === "completed" ? "strike" : ""}`}>{c.title}</span>
+      <PriorityBadge priority={c.priority} />
+      {cl.total > 0 && (
+        <span className="badge">
+          <CheckSquare size={12} /> {cl.done}/{cl.total}
+        </span>
+      )}
+      {tracked > 0 && (
+        <span className="badge">
+          <Timer size={12} /> {formatDuration(tracked)}
+        </span>
+      )}
+      <button
+        className="board-tag"
+        style={{ "--c": b.color } as React.CSSProperties}
+        onClick={(e) => {
+          e.stopPropagation();
+          navigate({ page: "board", boardId: b.id });
+        }}
+      >
+        {b.title} › {data.lists[c.listId]?.title}
+      </button>
+      <span className={`due-text due-${dueStatus(c)}`}>{c.dueDate ? prettyDate(c.dueDate) : ""}</span>
+      {extra}
+    </li>
   );
 }

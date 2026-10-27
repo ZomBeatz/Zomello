@@ -7,7 +7,7 @@ import type { Board, Card, ID } from "../types";
 import { useStore } from "../store";
 import {
   agingLevel, checklistStats, describeRecurrence, dueStatus, formatDuration, formatFieldValue, fromISO, isBlocked,
-  parentIndex, plainText, prettyDate, priorityMeta, subtaskIds, timeAgo, trackedMs,
+  parentIndex, plainText, prettyDateTime, priorityMeta, subtaskIds, timeAgo, trackedMs,
 } from "../utils";
 import { storedSrc } from "../storage";
 import { Avatar, PriorityBadge, ProgressIcon } from "./ui";
@@ -78,6 +78,7 @@ export const CardTile = memo(function CardTile({
   const hideChecked = listHide ?? !!board.display.hideChecked;
   const shownItems = hideChecked ? card.checklist.filter((i) => !i.done) : card.checklist;
   const hiddenDone = card.checklist.length - shownItems.length;
+  const maxItems = (board.display.checklistMax ?? 6) || Infinity;
   const due = dueStatus(card);
   const done = card.progress === "completed";
   const running = card.time.some((t) => t.end === null);
@@ -177,7 +178,7 @@ export const CardTile = memo(function CardTile({
       )}
       {mode.checklist === "full" && cl.total > 0 && (shownItems.length > 0 || hiddenDone > 0) && (
         <ul className="tile-checklist">
-          {shownItems.slice(0, 6).map((i) => (
+          {shownItems.slice(0, maxItems).map((i) => (
             <li key={i.id} className={i.done ? "done" : ""}>
               {/* Only the checkbox is a control here; everything else opens the card like the rest of the tile. */}
               <input
@@ -191,7 +192,7 @@ export const CardTile = memo(function CardTile({
               <ItemLabelDots boardId={card.boardId} item={i} />
             </li>
           ))}
-          {shownItems.length > 6 && <li className="muted small">+{shownItems.length - 6} more</li>}
+          {shownItems.length > maxItems && <li className="muted small">+{shownItems.length - maxItems} more</li>}
           {hiddenDone > 0 && <li className="muted small tile-done-note">✓ {hiddenDone} done</li>}
         </ul>
       )}
@@ -237,14 +238,14 @@ export const CardTile = memo(function CardTile({
         {mode.dates !== "off" && card.dueDate && (
           <span className={`badge due-${due}`}>
             <Calendar size={12} />
-            {card.startDate ? `${prettyDate(card.startDate)} to ` : ""}
-            {prettyDate(card.dueDate)}
+            {card.startDate ? `${prettyDateTime(card.startDate, card.startTime)} to ` : ""}
+            {prettyDateTime(card.dueDate, card.dueTime)}
             {mode.dates === "full" && <span className="rel"> · {relativeDue(card)}</span>}
           </span>
         )}
         {mode.dates === "full" && !card.dueDate && card.startDate && (
           <span className="badge">
-            <Calendar size={12} /> starts {prettyDate(card.startDate)}
+            <Calendar size={12} /> starts {prettyDateTime(card.startDate, card.startTime)}
           </span>
         )}
         {card.recurrence && (

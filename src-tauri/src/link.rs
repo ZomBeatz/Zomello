@@ -36,6 +36,8 @@ struct Linked {
 #[derive(Default)]
 pub struct Links {
     phones: Mutex<HashMap<String, Linked>>,
+    /// The board list last sent to the phones (see `send_board_list`).
+    board_list: Mutex<String>,
 }
 
 /// No word for this long: the phone has gone (out of range, app put away).
@@ -87,6 +89,10 @@ pub async fn link_events(State(app): State<AppHandle>, headers: HeaderMap) -> Re
         dev.id.clone(),
         Linked { name: dev.name.clone(), snapshot: None, last: crate::now_secs(), conn: conn.clone(), tx },
     );
+    // Its menu shows this computer's boards and sections; send them now, and again whenever they change.
+    if let Some(p) = app.state::<Links>().phones.lock().unwrap().get(&dev.id) {
+        let _ = p.tx.send(("boards".into(), board_list(&crate::read_data(&app).unwrap_or_default()).to_string()));
+    }
     let leave = Leave { app: app.clone(), id: dev.id, conn };
     let s = stream::unfold((rx, leave), |(mut rx, leave)| async move {
         let (name, data) = rx.recv().await?;
@@ -94,6 +100,37 @@ pub async fn link_events(State(app): State<AppHandle>, headers: HeaderMap) -> Re
     });
     let s: std::pin::Pin<Box<dyn Stream<Item = Result<sse::Event, Infallible>> + Send>> = Box::pin(s);
     sse::Sse::new(s).keep_alive(sse::KeepAlive::new().interval(Duration::from_secs(15))).into_response()
+}
+
+/// This computer's boards as a phone's menu shows them: titles, colors, sections and stars, in order (no
+/// card contents, and no private boards).
+pub fn board_list(json: &str) -> Value {
+    let data: Value = serde_json::from_str(&crate::private::without_private(json)).unwrap_or_default();
+    let mut boards: Vec<&Value> = data["boards"].as_object().into_iter().flatten().map(|(_, b)| b).filter(|b| b["archived"] != true).collect();
+    boards.sort_by(|a, b| a["order"].as_f64().unwrap_or(0.0).total_cmp(&b["order"].as_f64().unwrap_or(0.0)));
+    let boards: Vec<Value> = boards
+        .iter()
+        .map(|b| json!({ "id": b["id"], "title": b["title"], "color": b["color"], "category": b["category"], "starred": b["starred"] == true }))
+        .collect();
+    let sections = data["settings"]["sections"].as_array().cloned().unwrap_or_default();
+    json!({ "boards": boards, "sections": sections })
+}
+
+/// After a save here: if the boards or sections changed, tell the connected phones, so their menus match
+/// without opening this computer's boards first.
+pub fn send_board_list(app: &AppHandle, json: &str) {
+    let Some(links) = app.try_state::<Links>() else { return };
+    let list = board_list(json).to_string();
+    {
+        let mut last = links.board_list.lock().unwrap();
+        if *last == list {
+            return;
+        }
+        *last = list.clone();
+    }
+    for p in links.phones.lock().unwrap().values() {
+        let _ = p.tx.send(("boards".into(), list.clone()));
+    }
 }
 
 /// `PUT /api/link/snapshot`: the phone's boards (its whole data file).

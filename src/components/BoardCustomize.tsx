@@ -307,6 +307,20 @@ export function BoardCustomize({ board }: { board: Board }) {
             Hide ticked checklist items on cards
             <small className="muted">(when Checklist shows Details)</small>
           </label>
+          <label className="check-row">
+            Checklist items shown on a card
+            <select
+              value={board.display.checklistMax ?? 6}
+              onChange={(e) => setDisplay({ checklistMax: Number(e.target.value) })}
+            >
+              {[3, 6, 10, 15, 25].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+              <option value={0}>All</option>
+            </select>
+          </label>
         </section>
 
         <FieldsEditor board={board} />

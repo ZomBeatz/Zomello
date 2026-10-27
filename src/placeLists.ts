@@ -68,8 +68,14 @@ export function usePlaces(): Places | null {
     window.addEventListener(CHANGED, load);
     const onVisible = () => document.visibilityState === "visible" && load();
     document.addEventListener("visibilitychange", onVisible);
+    // The linked computer sends its board list whenever it changes (link_client.rs).
+    let unlisten: (() => void) | undefined;
+    void import("@tauri-apps/api/event")
+      .then(({ listen }) => listen("zomello://places-changed", load))
+      .then((u) => (alive ? (unlisten = u) : u()), () => {});
     return () => {
       alive = false;
+      unlisten?.();
       window.removeEventListener(CHANGED, load);
       document.removeEventListener("visibilitychange", onVisible);
     };

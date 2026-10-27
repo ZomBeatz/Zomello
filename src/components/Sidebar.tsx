@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useDragSensors, useIsPhone } from "../mobile";
 import {
-  Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Shield, UserCog, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, UserCheck, Users, X, Zap, ExternalLink, Server as ServerIcon, Smartphone, Monitor, FolderPlus, Lock,
+  Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Shield, UserCog, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, Sun, UserCheck, Users, X, Zap, ExternalLink, Server as ServerIcon, Smartphone, Monitor, FolderPlus, Lock,
 } from "lucide-react";
 import { runningTimer, useStore } from "../store";
 import type { Board, ID, Route } from "../types";
@@ -130,6 +130,7 @@ export function Sidebar() {
       </button>
       <NavItem icon={<Search size={16} />} label="Search" kbd="Ctrl K" onClick={() => setOverlay({ searchOpen: true })} />
       <NavItem icon={<Home size={16} />} label="Home" on={route.page === "home"} onClick={() => navigate({ page: "home" })} />
+      <NavItem icon={<Sun size={16} />} label="My Day" on={route.page === "myday"} onClick={() => navigate({ page: "myday" })} />
       <NavItem icon={<UserCheck size={16} />} label="My Tasks" on={route.page === "mytasks"} onClick={() => navigate({ page: "mytasks" })} />
 
       {starred.length > 0 && (

@@ -101,6 +101,12 @@ export interface Card {
   startDate: string | null;
   /** ISO date, yyyy-MM-dd */
   dueDate: string | null;
+  /** Local time "HH:mm" on the start date (or the due date when there's no start date). None = all day. */
+  startTime?: string | null;
+  /** Local time "HH:mm" on the due date. None = all day. */
+  dueTime?: string | null;
+  /** The day it was added to My Day (yyyy-MM-dd); it's in My Day only on that day. */
+  myDay?: string | null;
   checklist: ChecklistItem[];
   attachments: Attachment[];
   comments: Comment[];
@@ -198,6 +204,8 @@ export interface BoardDisplay {
   aging: boolean;
   /** Checklists shown on cards ("Details") leave out ticked items. */
   hideChecked?: boolean;
+  /** How many checklist items a card shows before "+3 more" (default 6; 0 = all). */
+  checklistMax?: number;
 }
 
 export interface Board {
@@ -364,6 +372,7 @@ export interface AppData {
 export type Route =
   | { page: "home" }
   | { page: "mytasks" }
+  | { page: "myday" }
   | { page: "board"; boardId: ID }
   | { page: "archive" }
   | { page: "settings" }

@@ -57,16 +57,21 @@ pub fn places_read(app: AppHandle, webview: Webview) -> Value {
 #[tauri::command]
 pub fn places_save_boards(app: AppHandle, webview: Webview, boards: Value, sections: Option<Value>) -> Result<(), String> {
     let key = place_of(&webview)?;
+    save_boards_of(&app, &key, &boards, &sections.unwrap_or(Value::Null))
+}
+
+/// A place's board list: from its own page, or (for the linked computer) sent over the link.
+pub fn save_boards_of(app: &AppHandle, key: &str, boards: &Value, sections: &Value) -> Result<(), String> {
     if !boards.is_array() {
         return Err("boards must be a list".into());
     }
-    let mut v = read(&app);
+    let mut v = read(app);
     if !v["boards"].is_object() {
         v["boards"] = Value::Object(Map::new());
     }
-    let sections = sections.filter(Value::is_array).unwrap_or_else(|| json!([]));
+    let sections = if sections.is_array() { sections.clone() } else { json!([]) };
     v["boards"][key] = json!({ "at": crate::now_secs(), "boards": boards, "sections": sections });
-    write(&app, &v)
+    write(app, &v)
 }
 
 /// The phone's own look (theme, style, colors, text size, accessibility). Any place's page shown in the

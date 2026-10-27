@@ -19,6 +19,48 @@ export const prettyDate = (s: string) => {
   return format(d, d.getFullYear() === new Date().getFullYear() ? "MMM d" : "MMM d, yyyy");
 };
 
+/** "HH:mm" in the reader's own clock style ("5:30 PM" or "17:30"). */
+export const prettyTime = (t: string) => {
+  const [h, m] = t.split(":").map(Number);
+  return format(new Date(2000, 0, 1, h || 0, m || 0), "p");
+};
+
+/** A date plus an optional time, e.g. "Oct 28, 5:30 PM". */
+export const prettyDateTime = (date: string, time?: string | null) => (time ? `${prettyDate(date)}, ${prettyTime(time)}` : prettyDate(date));
+
+const at = (day: string, time: string) => {
+  const [h, m] = time.split(":").map(Number);
+  const d = parseISO(day);
+  d.setHours(h || 0, m || 0, 0, 0);
+  return d;
+};
+
+/**
+ * Where a card sits on the calendar: from its start to its due date, with the times when it has them.
+ * `end` is exclusive (an all-day card ends at midnight after its last day). Null when it has no dates.
+ */
+export function cardSpan(c: Card): { start: Date; end: Date; allDay: boolean } | null {
+  const first = c.startDate ?? c.dueDate;
+  const last = c.dueDate ?? c.startDate;
+  if (!first || !last) return null;
+  const sameDay = first === last;
+  if (!c.startTime && !c.dueTime) return { start: parseISO(first), end: addDays(parseISO(last), 1), allDay: true };
+  let start: Date;
+  let end: Date;
+  if (c.startTime && c.dueTime) {
+    start = at(first, c.startTime);
+    end = at(last, c.dueTime);
+  } else if (c.startTime) {
+    start = at(first, c.startTime);
+    end = sameDay ? new Date(+start + 3600e3) : addDays(parseISO(last), 1);
+  } else {
+    end = at(last, c.dueTime!);
+    start = sameDay ? new Date(+end - 1800e3) : parseISO(first);
+  }
+  if (+end <= +start) end = new Date(+start + 1800e3);
+  return { start, end, allDay: false };
+}
+
 export const PRIORITIES: { id: Priority; name: string; color: string }[] = [
   { id: "urgent", name: "Urgent", color: "#ef4444" },
   { id: "important", name: "Important", color: "#f97316" },
