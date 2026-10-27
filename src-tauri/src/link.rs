@@ -136,9 +136,14 @@ pub fn send_board_list(app: &AppHandle, json: &str) {
 /// `PUT /api/link/snapshot`: the phone's boards (its whole data file).
 pub async fn link_snapshot(State(app): State<AppHandle>, headers: HeaderMap, body: Bytes) -> Response {
     let Some(dev) = phone(&app, &headers) else { return StatusCode::UNAUTHORIZED.into_response() };
-    let text = String::from_utf8_lossy(&body).into_owned();
-    if serde_json::from_str::<Value>(&text).is_err() {
+    let Ok(mut v) = serde_json::from_slice::<Value>(&body) else {
         return (StatusCode::BAD_REQUEST, "not JSON").into_response();
+    };
+    // Locked private boards only go into the backup; nothing here can open them.
+    let locked = v.as_object_mut().and_then(|m| m.remove("privateBackup")).and_then(|x| x.as_str().map(str::to_string));
+    let text = v.to_string();
+    if v["settings"]["backupToComputer"] == true {
+        crate::backup::keep(&app, &dev.id, &dev.name, &text, locked.as_deref());
     }
     {
         let links = app.state::<Links>();
@@ -149,6 +154,15 @@ pub async fn link_snapshot(State(app): State<AppHandle>, headers: HeaderMap, bod
     }
     changed(&app, &dev.id);
     StatusCode::NO_CONTENT.into_response()
+}
+
+/// Locked private boards from a backup, for the phone to open with its password.
+#[tauri::command]
+pub fn linked_send_private(app: AppHandle, id: String, blob: String) -> Result<(), String> {
+    let links = app.state::<Links>();
+    let phones = links.phones.lock().unwrap();
+    let p = phones.get(&id).ok_or("That device isn't connected right now.")?;
+    p.tx.send(("private-backup".into(), blob)).map_err(|_| "That device isn't connected right now.".to_string())
 }
 
 /// `POST /api/link/board-received` `{ id }`: the phone has a board this computer sent it.
@@ -213,6 +227,16 @@ pub fn forget(app: &AppHandle, id: Option<&str>) {
 pub fn linked_devices(app: AppHandle) -> Vec<Value> {
     let hidden = remote::hidden_devices(&app);
     device_list(&app, |id| !hidden.iter().any(|h| h == id))
+}
+
+/// Every phone and tablet connected right now, `[{ id, name }]` (for sending a backup back to one).
+#[tauri::command]
+pub fn linked_connected(app: AppHandle) -> Vec<Value> {
+    let links = app.state::<Links>();
+    let phones = links.phones.lock().unwrap();
+    let mut out: Vec<Value> = phones.iter().map(|(id, p)| json!({ "id": id, "name": p.name })).collect();
+    out.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
+    out
 }
 
 /// Connected phones (with a snapshot) that `keep` allows, with their boards, by name.
@@ -329,34 +353,11 @@ pub fn linked_send_board(app: AppHandle, request: tauri::ipc::Request) -> Result
     let phones = links.phones.lock().unwrap();
     let p = phones.get(&id).ok_or("Your phone isn't connected right now.")?;
     let tid = remote::random_hex(8);
-    let data = json!({ "id": tid, "file": base64_encode(bytes) }).to_string();
+    let data = json!({ "id": tid, "file": crate::link_client::base64_encode(bytes) }).to_string();
     p.tx.send(("board".into(), data)).map_err(|_| "Your phone isn't connected right now.".to_string())?;
     Ok(tid)
 }
 
-fn base64_encode(bytes: &[u8]) -> String {
-    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
-    for c in bytes.chunks(3) {
-        let n = (c[0] as u32) << 16 | (*c.get(1).unwrap_or(&0) as u32) << 8 | *c.get(2).unwrap_or(&0) as u32;
-        out.push(T[(n >> 18) as usize & 63] as char);
-        out.push(T[(n >> 12) as usize & 63] as char);
-        out.push(if c.len() > 1 { T[(n >> 6) as usize & 63] as char } else { '=' });
-        out.push(if c.len() > 2 { T[n as usize & 63] as char } else { '=' });
-    }
-    out
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn base64_round_trip() {
-        for s in ["", "f", "fo", "foo", "foob", "fooba", "foobar"] {
-            let e = super::base64_encode(s.as_bytes());
-            assert_eq!(e, ["", "Zg==", "Zm8=", "Zm9v", "Zm9vYg==", "Zm9vYmE=", "Zm9vYmFy"][s.len()]);
-        }
-    }
-}
 
 /// Open a phone's boards in their own window (or bring it forward).
 #[tauri::command]

@@ -5,6 +5,7 @@ import { Download, KeyRound, QrCode, RefreshCw, ShieldCheck, Smartphone, Unlink,
 import { useStore } from "../store";
 import { ask, InlineEdit, Modal } from "./ui";
 import { copyText } from "./Markdown";
+import { DeviceBackups } from "./DeviceBackups";
 
 interface DeviceInfo {
   id: string;
@@ -339,6 +340,8 @@ export function DevicesPanel() {
           ))}
         </ul>
       )}
+
+      <DeviceBackups />
 
       {pairing && (
         <PairingWindow

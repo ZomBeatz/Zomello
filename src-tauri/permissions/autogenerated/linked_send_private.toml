@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-linked-send-private"
+description = "Enables the linked_send_private command without any pre-configured scope."
+commands.allow = ["linked_send_private"]
+
+[[permission]]
+identifier = "deny-linked-send-private"
+description = "Denies the linked_send_private command without any pre-configured scope."
+commands.deny = ["linked_send_private"]

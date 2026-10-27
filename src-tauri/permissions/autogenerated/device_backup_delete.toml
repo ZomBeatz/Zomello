@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-device-backup-delete"
+description = "Enables the device_backup_delete command without any pre-configured scope."
+commands.allow = ["device_backup_delete"]
+
+[[permission]]
+identifier = "deny-device-backup-delete"
+description = "Denies the device_backup_delete command without any pre-configured scope."
+commands.deny = ["device_backup_delete"]

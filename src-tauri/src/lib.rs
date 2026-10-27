@@ -4,6 +4,7 @@ use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager};
 
+mod backup;
 mod calendar;
 #[cfg(desktop)]
 mod desktop;
@@ -549,7 +550,12 @@ pub fn run() {
         link::linked_data,
         link::linked_send,
         link::linked_send_board,
-        link::open_device_window
+        link::linked_send_private,
+        link::linked_connected,
+        link::open_device_window,
+        backup::device_backups,
+        backup::device_backup_read,
+        backup::device_backup_delete
     ]);
     // Phones and tablets: the same app with its own boards, minus windows, tray and the phone server.
     #[cfg(mobile)]
@@ -579,7 +585,11 @@ pub fn run() {
         attachment_abs_path,
         list_attachments,
         delete_attachment,
-        calendar::fetch_calendar
+        calendar::fetch_calendar,
+        backup::backup_set_password,
+        backup::backup_has_password,
+        backup::backup_open,
+        backup::backup_pending
     ]);
 
     builder

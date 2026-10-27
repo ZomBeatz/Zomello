@@ -53,6 +53,15 @@ fn main() {
                 "remote_regenerate_cert",
                 "remote_export_cert",
                 "remote_qr",
+                "linked_send_private",
+                "linked_connected",
+                "device_backups",
+                "device_backup_read",
+                "device_backup_delete",
+                "backup_set_password",
+                "backup_has_password",
+                "backup_open",
+                "backup_pending",
     ])))
     .expect("failed to run tauri-build");
 }

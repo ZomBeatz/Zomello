@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-linked-connected"
+description = "Enables the linked_connected command without any pre-configured scope."
+commands.allow = ["linked_connected"]
+
+[[permission]]
+identifier = "deny-linked-connected"
+description = "Denies the linked_connected command without any pre-configured scope."
+commands.deny = ["linked_connected"]

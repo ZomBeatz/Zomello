@@ -73,6 +73,15 @@
     "allow-store-package",
     "allow-places-send-board",
     "allow-places-take-board",
-    "allow-linked-send-board"
+    "allow-linked-send-board",
+    "allow-linked-send-private",
+    "allow-linked-connected",
+    "allow-device-backups",
+    "allow-device-backup-read",
+    "allow-device-backup-delete",
+    "allow-backup-set-password",
+    "allow-backup-has-password",
+    "allow-backup-open",
+    "allow-backup-pending"
   ]
 }
