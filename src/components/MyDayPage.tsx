@@ -6,6 +6,7 @@ import { useStore } from "../store";
 import { byOrder, cardSpan, isLate, prettyDate, PRIORITIES, toISO, todayISO } from "../utils";
 import { Empty } from "./ui";
 import { TaskRow } from "./MyTasksPage";
+import { useWhen, withWhen } from "./WhenChip";
 
 const rank = (c: Card) => PRIORITIES.findIndex((p) => p.id === c.priority);
 
@@ -19,6 +20,7 @@ export function MyDayPage() {
   const { createCard, updateCard } = useStore.getState();
   const me = data.settings.me;
   const [title, setTitle] = useState("");
+  const { when, chip } = useWhen(title);
   const [suggest, setSuggest] = useState(false);
   const liveBoards = useMemo(() => Object.values(data.boards).filter((b) => !b.archived).sort(byOrder), [data.boards]);
   const [target, setTarget] = useState<ID>(liveBoards[0]?.id ?? "");
@@ -74,7 +76,8 @@ export function MyDayPage() {
       .filter((l) => l.boardId === target && !l.archived)
       .sort(byOrder)[0];
     if (!list) return;
-    createCard(list.id, t, { assignees: me ? [me] : [], myDay: today });
+    const w = withWhen(t, when);
+    createCard(list.id, w.title, { assignees: me ? [me] : [], myDay: today, ...w.extra });
     setTitle("");
   };
 
@@ -138,6 +141,7 @@ export function MyDayPage() {
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && add()}
           />
+          {chip}
           <select value={target} onChange={(e) => setTarget(e.target.value)} aria-label="Board for the new task">
             {liveBoards.map((b) => (
               <option key={b.id} value={b.id}>

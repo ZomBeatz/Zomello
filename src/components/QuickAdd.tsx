@@ -4,6 +4,7 @@ import type { ID, Priority } from "../types";
 import { useStore } from "../store";
 import { byOrder, PRIORITIES } from "../utils";
 import { Modal } from "./ui";
+import { useWhen } from "./WhenChip";
 
 /** Create a task on any board from anywhere (N / Ctrl+N). */
 export function QuickAdd() {
@@ -22,20 +23,24 @@ export function QuickAdd() {
   const [priority, setPriority] = useState<Priority>("medium");
   const [mine, setMine] = useState(true);
   const [template, setTemplate] = useState("");
+  const { when, chip } = useWhen(due ? "" : title);
   const close = () => setOverlay({ quickAddOpen: false });
 
   const submit = (openAfter: boolean) => {
     if (!effectiveList || (!title.trim() && !template)) return;
+    // A date typed at the end of the title ("tomorrow 3pm") counts, unless a date was picked.
+    const name = when ? when.title : title.trim();
     const extra = {
-      ...(title.trim() ? { title: title.trim() } : {}),
+      ...(name ? { title: name } : {}),
       // Leave the date alone when none was picked (a repeating template sets its own).
       ...(due ? { dueDate: due } : {}),
+      ...(when ? { dueDate: when.dueDate, ...(when.dueTime ? { dueTime: when.dueTime } : {}) } : {}),
       priority,
       ...(mine && data.settings.me ? { assignees: [data.settings.me] } : {}),
     };
     const id = template
       ? createFromTemplate(template, effectiveList, extra)
-      : createCard(effectiveList, title.trim(), extra);
+      : createCard(effectiveList, name, extra);
     useStore.getState().toast(`Added "${useStore.getState().data.cards[id].title}" to ${data.boards[boardId].title}`, { undo: true });
     close();
     if (openAfter) openCard(id);
@@ -56,8 +61,9 @@ export function QuickAdd() {
         )}
         <div className="quick-title">
           <Zap size={18} />
-          <input autoFocus placeholder="What needs doing?" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <input autoFocus placeholder="What needs doing? (try “Dentist tomorrow 3pm”)" value={title} onChange={(e) => setTitle(e.target.value)} />
         </div>
+        {chip && <div className="quick-when">{chip}</div>}
         <div className="quick-grid">
           <label>
             Board

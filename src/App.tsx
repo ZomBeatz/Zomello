@@ -5,7 +5,8 @@ import { isDemo } from "./demo";
 import { installOpenedFiles } from "./boardFile";
 import { goToPlace, missedPlace } from "./places";
 import { installPlaceLists } from "./placeLists";
-import { Menu, Plus, Search, Smartphone, X } from "lucide-react";
+import { Menu, MessageSquare, Plus, Search, Smartphone, X } from "lucide-react";
+import { sendFeedback } from "./feedback";
 import { useStore } from "./store";
 import { Sidebar } from "./components/Sidebar";
 import { BoardPage } from "./components/BoardPage";
@@ -361,6 +362,15 @@ function HelpWindow() {
           </div>
           <button className="btn" onClick={() => void openExternal(GUIDE_URL)}>
             Open the full guide
+          </button>
+        </div>
+        <div className="help-start">
+          <div>
+            <b>Found a problem, or have an idea?</b>
+            <p className="muted small">Send us an email. Your Zomello version and device are filled in for you.</p>
+          </div>
+          <button className="btn" onClick={sendFeedback}>
+            <MessageSquare size={14} /> Send feedback
           </button>
         </div>
         <h3 className="help-h">Good to know</h3>

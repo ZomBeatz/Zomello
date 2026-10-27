@@ -1552,6 +1552,7 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 /* About + the beat pads */
 .about-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .about-row p { margin: 0; }
+.about-feedback { margin-top: 8px; }
 .beat-pads { display: flex; gap: 8px; margin-left: auto; align-items: center; }
 .beat-pad {
   width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border);
@@ -1689,3 +1690,7 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 .place-section.drop-into > .place-head { outline: 2px dashed var(--accent); outline-offset: -2px; background: var(--accent-soft); }
 .phone-nav-head.drop-into, [data-computer-boards].drop-into { outline: 2px dashed var(--accent); outline-offset: -2px; background: var(--accent-soft); border-radius: 8px; }
 .private-mark { display: inline-flex; margin-left: auto; flex-shrink: 0; }
+.when-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 2px 4px 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--text); width: fit-content; }
+.when-chip svg { color: var(--accent); }
+.quick-when { padding: 0 4px 8px 30px; }
+.add-card-form .when-chip { margin: -2px 0 2px; }

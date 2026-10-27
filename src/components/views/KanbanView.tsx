@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import type { BadgeKey, BadgeMode, Board, Card, GroupBy, ID, List, Progress } from "../../types";
 import { useStore } from "../../store";
+import { useWhen, withWhen } from "../WhenChip";
 import { buildGroups, SORT_MODES, sortCards, type Group } from "../../utils";
 import { CardTile } from "../CardTile";
 import { InlineEdit, MenuItem, Modal, Popover } from "../ui";
@@ -648,10 +649,11 @@ function AddCard({ group, lists }: { group: Group; lists: List[] }) {
   const createCard = useStore((s) => s.createCard);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
+  const { when, chip } = useWhen(title);
   const submit = () => {
-    const t = title.trim();
-    if (!t) return;
-    createCard(group.list?.id ?? lists[0].id, t, group.patch!(null));
+    if (!title.trim()) return;
+    const w = withWhen(title, when);
+    createCard(group.list?.id ?? lists[0].id, w.title, { ...group.patch!(null), ...w.extra });
     setTitle("");
   };
   const templates = useStore((s) => s.data.templates);
@@ -717,6 +719,7 @@ function AddCard({ group, lists }: { group: Group; lists: List[] }) {
           setOpen(false);
         }}
       />
+      {chip}
       <div className="row gap">
         <button className="btn primary sm" onMouseDown={(e) => e.preventDefault()} onClick={submit}>
           Add card

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
-import { Accessibility, Bell, Download, FileUp, Minus, Plus, Eraser, LayoutTemplate, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
+import { Accessibility, Bell, Download, FileUp, Minus, Plus, Eraser, LayoutTemplate, MessageSquare, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
+import { sendFeedback } from "../feedback";
 import type { AppStyle, Settings, ViewMode } from "../types";
 import { normalize, useStore } from "../store";
 import {
@@ -548,6 +549,9 @@ function AboutPanel() {
             <b>Zomello</b> {__APP_VERSION__}
           </p>
           <p className="muted small">Boards, tasks &amp; planning, kept on your own computer. Made by ZomBeatz Media.</p>
+          <button className="btn sm about-feedback" onClick={sendFeedback}>
+            <MessageSquare size={14} /> Send feedback
+          </button>
         </div>
         <div className="beat-pads" aria-label="Beat pads">
           {pads.map((p) => (
