@@ -1708,3 +1708,4 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 .template-name { font-weight: 600; }
 .template-buckets { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
 .template-buckets span { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); }
+.quick-shared { margin: 0 4px 10px 30px; overflow-wrap: anywhere; }

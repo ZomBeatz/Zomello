@@ -18,13 +18,15 @@ export function QuickAdd() {
     .sort(byOrder);
   const [listId, setListId] = useState<ID>("");
   const effectiveList = lists.some((l) => l.id === listId) ? listId : lists[0]?.id;
-  const [title, setTitle] = useState("");
+  const prefill = useStore((s) => s.quickAddPrefill);
+  const [title, setTitle] = useState(prefill?.title ?? "");
+  const [description] = useState(prefill?.description ?? "");
   const [due, setDue] = useState("");
   const [priority, setPriority] = useState<Priority>("medium");
   const [mine, setMine] = useState(true);
   const [template, setTemplate] = useState("");
   const { when, chip } = useWhen(due ? "" : title);
-  const close = () => setOverlay({ quickAddOpen: false });
+  const close = () => setOverlay({ quickAddOpen: false, quickAddPrefill: null });
 
   const submit = (openAfter: boolean) => {
     if (!effectiveList || (!title.trim() && !template)) return;
@@ -32,6 +34,7 @@ export function QuickAdd() {
     const name = when ? when.title : title.trim();
     const extra = {
       ...(name ? { title: name } : {}),
+      ...(description ? { description } : {}),
       // Leave the date alone when none was picked (a repeating template sets its own).
       ...(due ? { dueDate: due } : {}),
       ...(when ? { dueDate: when.dueDate, ...(when.dueTime ? { dueTime: when.dueTime } : {}) } : {}),
@@ -64,6 +67,7 @@ export function QuickAdd() {
           <input autoFocus placeholder="What needs doing? (try “Dentist tomorrow 3pm”)" value={title} onChange={(e) => setTitle(e.target.value)} />
         </div>
         {chip && <div className="quick-when">{chip}</div>}
+        {description && <p className="quick-shared muted small">Adds what you shared as the card's description: {description.length > 140 ? `${description.slice(0, 140)}…` : description}</p>}
         <div className="quick-grid">
           <label>
             Board

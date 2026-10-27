@@ -111,7 +111,7 @@ export async function scheduleOnPhone(data: AppData) {
   }
   if (before.length) await n.cancel(before).catch(() => {});
 
-  const plan: { key: string; at: Date; title: string; body: string }[] = [];
+  const plan: { key: string; at: Date; title: string; body: string; cardId?: string }[] = [];
   const r = data.settings.reminders;
   const now = Date.now();
   if (r.enabled) {
@@ -121,7 +121,7 @@ export async function scheduleOnPhone(data: AppData) {
       const at = new Date(c.reminder);
       if (isNaN(+at) || +at <= now) continue;
       const board = data.boards[c.boardId].title;
-      plan.push({ key: `r:${c.id}:${c.reminder}`, at, title: c.title, body: c.dueDate ? `${board} · due ${prettyDate(c.dueDate)}` : board });
+      plan.push({ key: `r:${c.id}:${c.reminder}`, at, title: c.title, body: c.dueDate ? `${board} · due ${prettyDate(c.dueDate)}` : board, cardId: c.id });
     }
     if (r.digest) {
       const [hh, mm] = r.digestTime.split(":").map(Number);
@@ -135,6 +135,7 @@ export async function scheduleOnPhone(data: AppData) {
     }
   }
   plan.sort((a, b) => +a.at - +b.at);
+  await registerActions(n);
   const ids: number[] = [];
   if (plan.length) {
     let ok = await n.isPermissionGranted();
@@ -148,7 +149,16 @@ export async function scheduleOnPhone(data: AppData) {
         const schedule = isApplePhoneOrTablet
           ? n.Schedule.interval({ year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate(), hour: d.getHours(), minute: d.getMinutes(), second: 0 })
           : n.Schedule.at(d, false, true);
-        n.sendNotification({ id, title: p.title, body: p.body, schedule, icon: "ic_stat_zomello", iconColor: "#2580C3" });
+        n.sendNotification({
+          id,
+          title: p.title,
+          body: p.body,
+          schedule,
+          icon: "ic_stat_zomello",
+          iconColor: "#2580C3",
+          // A card's reminder gets Done and Snooze buttons (see handleAction).
+          ...(p.cardId ? { actionTypeId: ACTIONS, extra: { cardId: p.cardId } } : {}),
+        });
         ids.push(id);
       }
     }
@@ -160,6 +170,83 @@ export async function scheduleOnPhone(data: AppData) {
   }
 }
 
+// ---- Done and Snooze on a reminder (phones and tablets) ----
+const ACTIONS = "zomello-reminder";
+let registered = false;
+
+async function registerActions(n: typeof import("@tauri-apps/plugin-notification")) {
+  if (registered) return;
+  registered = true;
+  await n
+    .registerActionTypes([
+      {
+        id: ACTIONS,
+        actions: [
+          { id: "done", title: "Done", foreground: true },
+          { id: "snooze", title: "Snooze 1 hour", foreground: true },
+        ],
+      },
+    ])
+    .catch(() => (registered = false));
+}
+
+const SNOOZE_MS = 3600e3;
+
+/** A reminder's button, or the reminder itself, was tapped. */
+function handleAction(actionId: string, notification: unknown) {
+  const raw = typeof notification === "string" ? safeJson(notification) : notification;
+  const cardId = (raw as { extra?: { cardId?: string } } | null)?.extra?.cardId;
+  const st = useStore.getState();
+  const card = cardId ? st.data.cards[cardId] : undefined;
+  if (!card) return;
+  if (actionId === "done") {
+    st.updateCard(card.id, { progress: "completed" });
+    st.toast(`Marked “${card.title}” done`, { undo: true });
+  } else if (actionId === "snooze") {
+    const at = new Date(Date.now() + SNOOZE_MS);
+    const pad = (x: number) => String(x).padStart(2, "0");
+    const reminder = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
+    st.updateCard(card.id, { reminder });
+    st.toast(`Reminding you about “${card.title}” again at ${at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`, { undo: true });
+  } else {
+    // The reminder itself: open its card.
+    st.openCard(card.id);
+  }
+}
+
+function safeJson(s: string): unknown {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return null;
+  }
+}
+
+/** Listen for reminder actions: on Android through Zomello's own activity (so one that opened the app isn't missed), elsewhere the plugin. */
+function installActions(): () => void {
+  const android = (window as unknown as { ZomelloAndroid?: { takeNotificationAction?(): string | null } }).ZomelloAndroid;
+  if (android?.takeNotificationAction) {
+    const take = () => {
+      const a = safeJson(android.takeNotificationAction!() ?? "") as { action?: string; notification?: string } | null;
+      if (a?.action) handleAction(a.action, a.notification);
+    };
+    take();
+    window.addEventListener("zomello-notification-action", take);
+    return () => window.removeEventListener("zomello-notification-action", take);
+  }
+  let un: (() => void) | undefined;
+  let gone = false;
+  void import("@tauri-apps/plugin-notification").then(async (n) => {
+    const l = await n.onAction((e) => handleAction(e.actionId, e.notification)).catch(() => null);
+    if (gone) void l?.unregister();
+    else un = () => void l?.unregister();
+  });
+  return () => {
+    gone = true;
+    un?.();
+  };
+}
+
 export function startReminders() {
   // The phone's own boards (not a server opened in the app): let the system deliver them.
   if (isMobileApp && !isServer) {
@@ -169,7 +256,8 @@ export function startReminders() {
     const unsub = useStore.subscribe((s, prev) => {
       if (s.data !== prev.data) later();
     });
-    return () => (clearTimeout(timer), unsub());
+    const offActions = installActions();
+    return () => (clearTimeout(timer), unsub(), offActions());
   }
   checkReminders();
   const t = setInterval(checkReminders, CHECK_EVERY_MS);

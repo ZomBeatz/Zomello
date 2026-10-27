@@ -49,6 +49,40 @@ class MainActivity : TauriActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
+    keepNotificationAction(intent)
+    keepShared(intent)
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    keepNotificationAction(intent)
+    keepShared(intent)
+  }
+
+  // Text or a link shared to Zomello from another app: the page makes a task of it (takeShared).
+  private var pendingShare: String? = null
+
+  private fun keepShared(intent: Intent?) {
+    if (intent?.action != Intent.ACTION_SEND || intent.type?.startsWith("text/") != true) return
+    val text = intent.getStringExtra(Intent.EXTRA_TEXT) ?: return
+    pendingShare = org.json.JSONObject()
+      .put("text", text)
+      .put("subject", intent.getStringExtra(Intent.EXTRA_SUBJECT) ?: "")
+      .toString()
+    webView?.evaluateJavascript("window.dispatchEvent(new Event('zomello-shared'))", null)
+  }
+
+  // A reminder's button (Done, Snooze) or the reminder itself was tapped: Zomello opened for it. The page
+  // may not be loaded yet, so keep it until the page asks (takeNotificationAction), and tell it if it's there.
+  private var pendingAction: String? = null
+
+  private fun keepNotificationAction(intent: Intent?) {
+    val action = intent?.getStringExtra("NotificationUserAction") ?: return
+    pendingAction = org.json.JSONObject()
+      .put("action", action)
+      .put("notification", intent.getStringExtra("LocalNotficationObject"))
+      .toString()
+    webView?.evaluateJavascript("window.dispatchEvent(new Event('zomello-notification-action'))", null)
   }
 
   // Sign-ins (pairing with your computer, server accounts) are cookies, which the WebView writes to
@@ -122,6 +156,22 @@ class MainActivity : TauriActivity() {
         if (packageManager.getComponentEnabledSetting(component) == state) continue
         packageManager.setComponentEnabledSetting(component, state, PackageManager.DONT_KILL_APP)
       }
+    }
+
+    /** Text shared to Zomello, waiting for the page, once: {"text", "subject"}. */
+    @JavascriptInterface
+    fun takeShared(): String? {
+      val s = pendingShare
+      pendingShare = null
+      return s
+    }
+
+    /** A reminder action waiting for the page (see keepNotificationAction), once. */
+    @JavascriptInterface
+    fun takeNotificationAction(): String? {
+      val a = pendingAction
+      pendingAction = null
+      return a
     }
 
     /** Which launcher icon is on now. */
