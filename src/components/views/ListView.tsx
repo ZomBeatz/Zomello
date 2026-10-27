@@ -5,6 +5,7 @@ import { useStore } from "../../store";
 import { checklistStats, dueStatus, prettyDateTime, PRIORITIES, PROGRESS } from "../../utils";
 import { Avatar, ProgressIcon } from "../ui";
 import { openCardMenu } from "../ContextMenu";
+import { useWhen, withWhen } from "../WhenChip";
 
 type SortKey = "title" | "bucket" | "progress" | "priority" | "start" | "due" | "updated";
 const PRI_RANK: Record<Priority, number> = { urgent: 0, important: 1, medium: 2, low: 3 };
@@ -16,6 +17,7 @@ export function ListView({ board, lists, cards }: { board: Board; lists: List[];
   const createCard = useStore((s) => s.createCard);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "bucket", dir: 1 });
   const [newTitle, setNewTitle] = useState("");
+  const { when, chip } = useWhen(newTitle);
   const listIdx = useMemo(() => Object.fromEntries(lists.map((l, i) => [l.id, i])), [lists]);
   const listName = useMemo(() => Object.fromEntries(lists.map((l) => [l.id, l.title])), [lists]);
 
@@ -55,11 +57,13 @@ export function ListView({ board, lists, cards }: { board: Board; lists: List[];
             onChange={(e) => setNewTitle(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && newTitle.trim()) {
-                createCard(lists[0].id, newTitle.trim());
+                const w = withWhen(newTitle, when);
+                createCard(lists[0].id, w.title, w.extra);
                 setNewTitle("");
               }
             }}
           />
+          {chip}
         </div>
       )}
       <table className="table">

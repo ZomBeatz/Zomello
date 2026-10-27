@@ -8,6 +8,7 @@ import {
 } from "../utils";
 import { Empty, PriorityBadge, ProgressIcon } from "./ui";
 import { openCardMenu } from "./ContextMenu";
+import { useWhen, withWhen } from "./WhenChip";
 
 type GroupMode = "due" | "board" | "progress" | "priority";
 
@@ -19,6 +20,7 @@ export function MyTasksPage() {
   const [includeUnassigned, setIncludeUnassigned] = useState(false);
   const [showDone, setShowDone] = useState(false);
   const [title, setTitle] = useState("");
+  const { when, chip } = useWhen(title);
   const liveBoards = useMemo(() => Object.values(data.boards).filter((b) => !b.archived).sort(byOrder), [data.boards]);
   const [target, setTarget] = useState<ID>(liveBoards[0]?.id ?? "");
 
@@ -70,7 +72,8 @@ export function MyTasksPage() {
       .filter((l) => l.boardId === target && !l.archived)
       .sort(byOrder)[0];
     if (!list) return;
-    createCard(list.id, t, { assignees: me ? [me] : [], ...(group === "due" ? { dueDate: todayISO() } : {}) });
+    const w = withWhen(t, when);
+    createCard(list.id, w.title, { assignees: me ? [me] : [], ...(group === "due" ? { dueDate: todayISO() } : {}), ...w.extra });
     setTitle("");
   };
 
@@ -117,6 +120,7 @@ export function MyTasksPage() {
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && add()}
           />
+          {chip}
           <select value={target} onChange={(e) => setTarget(e.target.value)}>
             {liveBoards.map((b) => (
               <option key={b.id} value={b.id}>
