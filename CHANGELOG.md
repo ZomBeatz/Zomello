@@ -17,7 +17,6 @@
 
 **Also**
 - **Reminders on phones and tablets arrive even when Zomello is closed.** The app hands each card's reminder and the daily summary to the phone ahead of time.
-- **App icons for the hidden styles:** found Bass Drop or Party Cat? Settings > Appearance > App icon puts its icon on your home screen (on a computer, on the windows and the tray).
 - Choose how many checklist items a card shows on the board (Customize > Show on cards).
 - Plainer wording all over the app, and the Help link opens the guide at docs.zombeatzmedia.com.
 
