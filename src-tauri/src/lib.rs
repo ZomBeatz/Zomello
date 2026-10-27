@@ -5,6 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager};
 
 mod app_icon;
+mod apple_group;
 mod backup;
 mod calendar;
 #[cfg(desktop)]
@@ -594,7 +595,9 @@ pub fn run() {
         backup::backup_has_password,
         backup::backup_open,
         backup::backup_pending,
-        app_icon::set_app_icon
+        app_icon::set_app_icon,
+        apple_group::widget_update,
+        apple_group::share_inbox_take
     ]);
 
     builder

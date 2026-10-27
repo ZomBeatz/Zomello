@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-share-inbox-take"
+description = "Enables the share_inbox_take command without any pre-configured scope."
+commands.allow = ["share_inbox_take"]
+
+[[permission]]
+identifier = "deny-share-inbox-take"
+description = "Denies the share_inbox_take command without any pre-configured scope."
+commands.deny = ["share_inbox_take"]

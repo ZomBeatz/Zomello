@@ -12,6 +12,7 @@ settingGroups:
     base:
       PRODUCT_NAME: Zomello
       PRODUCT_BUNDLE_IDENTIFIER: com.zombeatz.zomello
+      DEVELOPMENT_TEAM: QYN992WB7T
 targetTemplates:
   app:
     type: application
@@ -60,6 +61,9 @@ targets:
         CFBundleVersion: "0.5.4"
     entitlements:
       path: zomello_iOS/zomello_iOS.entitlements
+      properties:
+        # Shared with the My Day widget and "Add to Zomello" (ZomelloWidget, ZomelloShare).
+        com.apple.security.application-groups: [group.com.zombeatz.zomello]
     scheme:
       environmentVariables:
         RUST_BACKTRACE: full
@@ -77,6 +81,8 @@ targets:
         EXCLUDED_ARCHS[sdk=iphoneos*]: x86_64
       groups: [app]
     dependencies:
+      - target: ZomelloWidget
+      - target: ZomelloShare
       - framework: libapp.a
         embed: false
       - sdk: CoreGraphics.framework
@@ -94,3 +100,68 @@ targets:
         outputFiles:
           - $(SRCROOT)/Externals/x86_64/${CONFIGURATION}/libapp.a
           - $(SRCROOT)/Externals/arm64/${CONFIGURATION}/libapp.a
+
+  # The My Day home-screen widget (reads what Zomello writes to the app group).
+  ZomelloWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: ZomelloWidget
+    info:
+      path: ZomelloWidget/Info.plist
+      properties:
+        CFBundleDisplayName: My Day
+        CFBundleShortVersionString: 0.5.4
+        CFBundleVersion: "0.5.4"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: ZomelloWidget/ZomelloWidget.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.zombeatz.zomello]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.zombeatz.zomello.widget
+        DEVELOPMENT_TEAM: QYN992WB7T
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SKIP_INSTALL: true
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+
+  # "Add to Zomello" in the share sheet (leaves what was shared in the app group for Zomello).
+  ZomelloShare:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: ZomelloShare
+    info:
+      path: ZomelloShare/Info.plist
+      properties:
+        CFBundleDisplayName: Zomello
+        CFBundleShortVersionString: 0.5.4
+        CFBundleVersion: "0.5.4"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+    entitlements:
+      path: ZomelloShare/ZomelloShare.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.zombeatz.zomello]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.zombeatz.zomello.share
+        DEVELOPMENT_TEAM: QYN992WB7T
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SKIP_INSTALL: true
+    dependencies:
+      - sdk: Social.framework
+      - sdk: UniformTypeIdentifiers.framework

@@ -54,7 +54,7 @@ strip = true
 # iPhone and iPad: switching to a style's app icon.
 [target.'cfg(target_os = "ios")'.dependencies]
 objc2 = "0.6"
-objc2-foundation = { version = "0.3", features = ["NSString"] }
+objc2-foundation = { version = "0.3", features = ["NSString", "NSFileManager", "NSURL"] }
 objc2-ui-kit = { version = "0.3", features = ["UIApplication", "UIResponder", "block2"] }
 
 # Phones and tablets only: scanning your computer's pairing QR code.
