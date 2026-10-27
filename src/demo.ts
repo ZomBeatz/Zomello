@@ -85,6 +85,8 @@ export function demoData(sample: AppData, make: Make): AppData {
   card(w, w4, "Go-live day", { labels: ["Dev"], who: ["Jordan", "Alex"], priority: "important", start: 18, due: 20 });
   card(w, w4, "Set up analytics", { labels: ["Dev"], who: ["Maya"], start: 13, due: 16 });
   card(w, w4, "Pick a launch date", { labels: ["Content"], progress: "completed" });
+  card(w, w2, "Team check-in", { labels: ["Content"], who: ["Alex", "Maya"], due: 0 });
+  card(w, w3, "Client review call", { labels: ["Design"], who: ["Alex"], priority: "important", due: 1 });
 
   const t = board("Trip to Japan", "✈️", "#ec6a3f", "Personal", { Booking: "#ec6a3f", Packing: "#0ea5e9", Ideas: "#eab308" });
   const t1 = list(t, "To book"), t2 = list(t, "Booked"), t3 = list(t, "Packing");
@@ -137,6 +139,10 @@ export function demoData(sample: AppData, make: Make): AppData {
   hp.links = [{ cardId: about.id, type: "relates" }, { cardId: live.id, type: "blocks" }];
   live.links = [{ cardId: hp.id, type: "blockedBy" }];
   about.links = [{ cardId: hp.id, type: "relates" }];
+  // Times show these at their hours in the calendar's Week and Day views; one is picked for My Day.
+  Object.assign(find("Team check-in"), { startTime: "10:00", dueTime: "10:30" });
+  Object.assign(find("Client review call"), { startTime: "14:00", dueTime: "15:00" });
+  Object.assign(find("Fix contact form emails"), { myDay: day(0) });
   const small = { id: uid(), label: "Small", color: "#22c55e" };
   const big = { id: uid(), label: "Big", color: "#ef4444" };
   w.fields = [
