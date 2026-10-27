@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { archiveCard, deleteCard } from "../actions";
+import { cardDestinations, cardsFor, sendCards } from "../cardTransfer";
 import { createPortal } from "react-dom";
 import { addDays, addHours, format, nextMonday, setHours, setMinutes } from "date-fns";
 import {
@@ -22,6 +23,7 @@ import {
   GitFork,
   Kanban,
   Link2,
+  MonitorSmartphone,
   Repeat,
   Sun,
   Tag,
@@ -338,6 +340,30 @@ function cardMenu(cardId: ID): MenuEntry[] {
           })
         : [{ label: <span className="muted">No other boards</span> }],
     },
+    // Your other devices (a phone connected to this computer, or your computer and servers from a phone).
+    ...((): MenuEntry[] => {
+      const dests = cardDestinations();
+      if (!dests.length) return [];
+      const ids = cardsFor(cardId);
+      const many = ids.length > 1 ? ` (${ids.length})` : "";
+      const to = (move: boolean): MenuEntry => ({
+        label: `${move ? "Move" : "Copy"} to device${many}`,
+        icon: <MonitorSmartphone size={14} />,
+        submenu: dests.map((d) => ({
+          label: d.name,
+          submenu: d.boards.map((b) => ({
+            label: (
+              <span className="row gap-sm">
+                <span className="board-dot" style={{ background: b.color }} />
+                {b.title}
+              </span>
+            ),
+            onClick: () => void sendCards(ids, d, b.id, move),
+          })),
+        })),
+      });
+      return [to(true), to(false)];
+    })(),
     {
       label: "Link to task…",
       icon: <Link2 size={14} />,

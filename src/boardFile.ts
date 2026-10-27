@@ -21,6 +21,8 @@ export interface BoardBundle {
   board: Board;
   lists: List[];
   cards: Card[];
+  /** Cards sent to a board on another device (see cardTransfer.ts): they join that board if it's there. */
+  into?: ID;
 }
 
 /** Every stored file a board uses: card attachments and an image background. */
@@ -34,10 +36,15 @@ function storedFiles(board: Board, cards: Card[]): string[] {
 /** Paths inside the zip: `files/<n>/<name>`, so two files with the same name never collide. */
 const zipPath = (url: string, i: number) => `files/${i}/${(url.split("/").pop() || "file").replace(/^data:.*/, "file")}`;
 
-export async function buildBoardFile(data: { boards: Record<ID, Board>; lists: Record<ID, List>; cards: Record<ID, Card> }, boardId: ID): Promise<{ bytes: Uint8Array; name: string; missing: number }> {
+export async function buildBoardFile(
+  data: { boards: Record<ID, Board>; lists: Record<ID, List>; cards: Record<ID, Card> },
+  boardId: ID,
+  /** Just these cards (and their buckets), on their way into board `into` elsewhere. */
+  only?: { cardIds: ID[]; into: ID },
+): Promise<{ bytes: Uint8Array; name: string; missing: number }> {
   const board = data.boards[boardId];
-  const lists = Object.values(data.lists).filter((l) => l.boardId === boardId);
-  const cards = Object.values(data.cards).filter((c) => c.boardId === boardId);
+  const cards = Object.values(data.cards).filter((c) => c.boardId === boardId && (!only || only.cardIds.includes(c.id)));
+  const lists = Object.values(data.lists).filter((l) => l.boardId === boardId && (!only || cards.some((c) => c.listId === l.id)));
   const files: Record<string, Uint8Array> = {};
   const index: Record<string, string> = {};
   let missing = 0;
@@ -54,7 +61,7 @@ export async function buildBoardFile(data: { boards: Record<ID, Board>; lists: R
   }
   // Calendar feed addresses can be private links, and server ownership means nothing elsewhere.
   const { ownerId: _o, members: _m, calendarFeeds: _f, ...cleanBoard } = board;
-  const bundle = { format: FORMAT, version: VERSION, exportedAt: Date.now(), board: cleanBoard, lists, cards, files: index };
+  const bundle = { format: FORMAT, version: VERSION, exportedAt: Date.now(), board: cleanBoard, lists, cards, files: index, ...(only ? { into: only.into } : {}) };
   const bytes = zipSync({ "board.json": strToU8(JSON.stringify(bundle)), ...files }, { level: 6 });
   const name = `${board.title.replace(/[\\/:*?"<>|]+/g, " ").trim() || "Board"}${BOARD_EXT}`;
   return { bytes, name, missing };
@@ -218,6 +225,15 @@ export async function openBoardFile(bytes: Uint8Array, verb = "Added"): Promise<
   const st = useStore.getState();
   try {
     const opened = readBoardFile(bytes);
+    const into = opened.bundle.into;
+    if (into && st.data.boards[into] && !st.data.boards[into].archived) {
+      // Cards sent to one of this device's boards: they join it.
+      const prepared = await prepareImport(opened, 0);
+      const n = useStore.getState().addArrivedCards(prepared, into);
+      useStore.getState().navigate({ page: "board", boardId: into });
+      useStore.getState().toast(`${verb} ${n} ${n === 1 ? "card" : "cards"} in “${st.data.boards[into].title}”`, { undo: true });
+      return;
+    }
     const order = Math.max(-1, ...Object.values(st.data.boards).map((b) => b.order)) + 1;
     const taken = Object.values(st.data.boards).map((b) => b.title);
     const prepared = await prepareImport(opened, order, taken);

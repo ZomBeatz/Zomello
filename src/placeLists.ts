@@ -58,12 +58,22 @@ export async function savePlaceList(): Promise<void> {
 const CHANGED = "zomello-places-changed";
 const announce = () => window.dispatchEvent(new Event(CHANGED));
 
+/** Every place's boards, as last read (for menus that are built on the spot). */
+export let placesNow: Places | null = null;
+
 export function usePlaces(): Places | null {
   const [p, setP] = useState<Places | null>(null);
   useEffect(() => {
     if (!placesMode) return;
     let alive = true;
-    const load = () => void call<Places>("places_read").then((v) => alive && setP(v), () => {});
+    const load = () =>
+      void call<Places>("places_read").then(
+        (v) => {
+          placesNow = v;
+          if (alive) setP(v);
+        },
+        () => {},
+      );
     load();
     window.addEventListener(CHANGED, load);
     const onVisible = () => document.visibilityState === "visible" && load();

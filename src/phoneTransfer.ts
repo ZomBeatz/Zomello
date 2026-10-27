@@ -14,7 +14,7 @@ import type { AppData, Card, ID } from "./types";
 type Phone = Pick<LinkedDevice, "id" | "name">;
 
 /** Wait for the phone to say it has transfer `tid`. */
-function received(tid: string, ms: number): Promise<boolean> {
+export function received(tid: string, ms: number): Promise<boolean> {
   return new Promise((resolve) => {
     let un: (() => void) | undefined;
     const t = setTimeout(() => {
