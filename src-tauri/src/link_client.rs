@@ -135,8 +135,15 @@ async fn request(link: &Link, method: &str, path: &str, body: Option<String>) ->
 
 async fn send_snapshot(app: &AppHandle, link: &Link) -> Result<(), String> {
     DIRTY.store(false, Ordering::SeqCst);
-    // Private boards stay on this phone.
-    let data = crate::private::without_private(&crate::read_data(app).unwrap_or_default());
+    // Private boards stay on this phone (unless it backs them up, locked with its password).
+    let all = crate::read_data(app).unwrap_or_default();
+    let mut data = crate::private::without_private(&all);
+    if let Some(locked) = crate::backup::locked_private(app, &all) {
+        if let Ok(mut v) = serde_json::from_str::<Value>(&data) {
+            v["privateBackup"] = Value::String(locked);
+            data = v.to_string();
+        }
+    }
     let (status, _) = request(link, "PUT", "/api/link/snapshot", Some(if data.is_empty() { "{}".into() } else { data })).await?;
     if status >= 300 {
         DIRTY.store(true, Ordering::SeqCst);
@@ -210,6 +217,13 @@ async fn handle(app: &AppHandle, link: &Link, event: &str) {
     }
     if name == "board" {
         return receive_board(app, link, &data).await;
+    }
+    if name == "private-backup" {
+        // Locked private boards from a backup on the computer: the page asks for the password.
+        if crate::backup::save_pending(app, &data).is_ok() {
+            let _ = app.emit("zomello://private-backup", ());
+        }
+        return;
     }
     if name == "boards" {
         if let Ok(v) = serde_json::from_str::<Value>(&data) {
@@ -289,7 +303,20 @@ fn pem_certs(pem: &str) -> Vec<Vec<u8>> {
     out
 }
 
-fn base64_decode(s: &str) -> Option<Vec<u8>> {
+pub(crate) fn base64_encode(bytes: &[u8]) -> String {
+    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for c in bytes.chunks(3) {
+        let n = (c[0] as u32) << 16 | (*c.get(1).unwrap_or(&0) as u32) << 8 | *c.get(2).unwrap_or(&0) as u32;
+        out.push(T[(n >> 18) as usize & 63] as char);
+        out.push(T[(n >> 12) as usize & 63] as char);
+        out.push(if c.len() > 1 { T[(n >> 6) as usize & 63] as char } else { '=' });
+        out.push(if c.len() > 2 { T[n as usize & 63] as char } else { '=' });
+    }
+    out
+}
+
+pub(crate) fn base64_decode(s: &str) -> Option<Vec<u8>> {
     let val = |c: u8| -> Option<u32> {
         Some(match c {
             b'A'..=b'Z' => c - b'A',
@@ -321,6 +348,15 @@ fn base64_decode(s: &str) -> Option<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
+
+    #[test]
+    fn base64_round_trip() {
+        for s in ["", "f", "fo", "foo", "foob", "fooba", "foobar"] {
+            let e = super::base64_encode(s.as_bytes());
+            assert_eq!(e, ["", "Zg==", "Zm8=", "Zm9v", "Zm9vYg==", "Zm9vYmE=", "Zm9vYmFy"][s.len()]);
+            assert_eq!(super::base64_decode(&e).unwrap(), s.as_bytes());
+        }
+    }
 
     #[test]
     fn applies_edits_by_id() {

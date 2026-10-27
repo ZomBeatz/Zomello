@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { AlertTriangle, Check, ExternalLink, Monitor, Plus, Radar, ScanQrCode, Server, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AlertTriangle, Check, ExternalLink, KeyRound, Monitor, Plus, Radar, ScanQrCode, Server, Trash2 } from "lucide-react";
 import { useStore } from "../store";
 import { canFindServers, checkServer, findServers, nameFromUrl, NO_SERVERS, openServer, type FoundServer, type ServerCheck } from "../servers";
 import { uid } from "../utils";
@@ -313,12 +313,101 @@ function ComputerConnect() {
       </label>
       <p className="muted small">
         Your other phones and tablets connected to the same computer can then open and edit this {deviceWord}'s boards, while both
-        are on the same Wi‑Fi. Boards marked <b>Private: only on this device</b> (in a board's menu) never leave this {deviceWord}.
+        are on the same Wi‑Fi. Boards marked <b>Private: only on this device</b> (in a board's menu) never leave this {deviceWord}, except
+        locked in a backup if you choose that below.
       </p>
       <p className="muted small">
         Your boards travel encrypted, and stay on your computer: this {deviceWord} shows them while it can reach it. Switch back any time
         with <b>Boards on this {deviceWord}</b> in the menu.
       </p>
+      {computer && <BackupSettings />}
+    </div>
+  );
+}
+
+/** Phones and tablets: let your computer keep a copy of this device's boards, private ones locked with a password. */
+function BackupSettings() {
+  const on = useStore((s) => !!s.data.settings.backupToComputer);
+  const priv = useStore((s) => !!s.data.settings.backupPrivate);
+  const [hasPw, setHasPw] = useState<boolean | null>(null);
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [error, setError] = useState("");
+  const set = (patch: { backupToComputer?: boolean; backupPrivate?: boolean }) => useStore.getState().updateSettings(patch);
+  useEffect(() => {
+    void import("@tauri-apps/api/core").then(({ invoke }) => invoke<boolean>("backup_has_password").then(setHasPw, () => setHasPw(false)));
+  }, []);
+  const savePw = async (password: string | null) => {
+    setError("");
+    if (password !== null && password !== pw2) return setError("The two passwords don't match.");
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      await invoke("backup_set_password", { password });
+      setHasPw(password !== null);
+      setPw("");
+      setPw2("");
+      useStore.getState().toast(password ? "Backup password saved on this " + deviceWord : "Backup password removed");
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+  return (
+    <div className="backup-settings">
+      <label className="check-row">
+        <input type="checkbox" checked={on} onChange={(e) => set({ backupToComputer: e.target.checked })} />
+        Back up this {deviceWord}'s boards on my computer
+      </label>
+      <p className="muted small">
+        While they're connected, your computer keeps a copy (one a day, for two weeks). If you reinstall Zomello or get a new{" "}
+        {deviceWord}, pair it again and restore from the computer: <b>Settings → Phones &amp; tablets → Device backups</b>. Attached
+        files stay on this {deviceWord} and aren't in the backup.
+      </p>
+      {on && (
+        <>
+          <label className="check-row">
+            <input type="checkbox" checked={priv} onChange={(e) => set({ backupPrivate: e.target.checked })} />
+            Include private boards, locked with a password
+          </label>
+          {priv && (
+            <div className="backup-password">
+              <p className="muted small">
+                Your computer stores them locked and can't open them. Only this password does, so keep it somewhere safe: without it,
+                they can't be restored.
+              </p>
+              {hasPw ? (
+                <div className="row gap-sm wrap">
+                  <span className="small ok-text">
+                    <KeyRound size={13} /> Password set. Private boards are included.
+                  </span>
+                  <button className="btn sm" onClick={() => setHasPw(false)}>
+                    Change password
+                  </button>
+                  <button className="btn ghost sm" onClick={() => void savePw(null)}>
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                hasPw === false && (
+                  <form
+                    className="row gap-sm wrap"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void savePw(pw);
+                    }}
+                  >
+                    <input type="password" autoComplete="new-password" placeholder="Backup password (8 or more characters)" value={pw} onChange={(e) => setPw(e.target.value)} />
+                    <input type="password" autoComplete="new-password" placeholder="The same again" value={pw2} onChange={(e) => setPw2(e.target.value)} />
+                    <button className="btn sm primary" disabled={pw.length < 8}>
+                      Save password
+                    </button>
+                  </form>
+                )
+              )}
+              {error && <p className="danger-text small">{error}</p>}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

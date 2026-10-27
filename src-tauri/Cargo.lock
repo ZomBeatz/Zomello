@@ -5994,6 +5994,7 @@ dependencies = [
  "mdns-sd",
  "qrcode",
  "rcgen",
+ "ring",
  "rustls",
  "serde",
  "serde_json",

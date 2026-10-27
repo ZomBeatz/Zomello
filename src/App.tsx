@@ -12,6 +12,7 @@ import { BoardPage } from "./components/BoardPage";
 import { HomePage } from "./components/HomePage";
 import { MyTasksPage } from "./components/MyTasksPage";
 import { MyDayPage } from "./components/MyDayPage";
+import { PrivateRestore } from "./components/PrivateRestore";
 import { ArchivePage } from "./components/ArchivePage";
 import { ShortcutList, SettingsPage } from "./components/SettingsPage";
 import { CardModal } from "./components/CardModal";
@@ -285,6 +286,7 @@ export default function App() {
         <WelcomeGuide onClose={() => useStore.getState().setOverlay({ welcomeOpen: false })} />
       )}
       <DropOverlay />
+      {isMobileApp && !isRemote && !isServer && <PrivateRestore />}
       <Toasts />
       <ContextMenuHost />
       <ConfirmHost />

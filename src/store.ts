@@ -404,6 +404,8 @@ interface State {
    * first), labels and custom fields match by name (missing labels are added). Returns how many arrived.
    */
   addArrivedCards(x: { board: Board; lists: List[]; cards: Card[]; people: string[] }, into: ID): number;
+  /** Boards from a backup, as they were (same ids); ones already here are left alone. Returns how many were added. */
+  restoreBoards(part: Pick<AppData, "boards" | "lists" | "cards"> & { ui?: AppData["ui"] }): number;
   /** Set `order` by position for `ids` and apply `patch` to the moved card. */
   applyCardOrder(ids: ID[], movedId: ID, patch: Partial<Card>): void;
   linkCards(a: ID, b: ID, type: LinkType): void;
@@ -1047,6 +1049,25 @@ export const useStore = create<State>((set, get) => {
           boards: { ...d.boards, [into]: { ...dst, labels } },
           cards: { ...d.cards, ...next },
           settings: { ...d.settings, people: [...new Set([...d.settings.people, ...people])] },
+        };
+      });
+      return n;
+    },
+    restoreBoards(part) {
+      let n = 0;
+      mut((d) => {
+        const add = Object.values(part.boards ?? {}).filter((b) => !d.boards[b.id]);
+        n = add.length;
+        if (!n) return d;
+        const ids = new Set(add.map((b) => b.id));
+        const pick = <T extends { boardId: ID }>(m: Record<ID, T> | undefined) =>
+          Object.fromEntries(Object.entries(m ?? {}).filter(([, x]) => ids.has(x.boardId)));
+        return {
+          ...d,
+          boards: { ...d.boards, ...Object.fromEntries(add.map((b) => [b.id, b])) },
+          lists: { ...d.lists, ...pick(part.lists) },
+          cards: { ...d.cards, ...pick(part.cards) },
+          ui: { ...d.ui, ...Object.fromEntries(Object.entries(part.ui ?? {}).filter(([id]) => ids.has(id))) },
         };
       });
       return n;

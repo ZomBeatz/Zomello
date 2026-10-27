@@ -332,6 +332,10 @@ export interface Settings {
   sections?: string[];
   /** Phones and tablets: your other devices connected to the same computer may see this one's boards. */
   shareWithDevices?: boolean;
+  /** Phones and tablets: your computer keeps a copy of this device's boards (see backup.rs). */
+  backupToComputer?: boolean;
+  /** ...including private boards, locked with a password set on this device. */
+  backupPrivate?: boolean;
   /** Party Cat's cat sings now and then (and when clicked). */
   catSings?: boolean;
   /** Desktop app: closing the window keeps Zomello running in the tray. */

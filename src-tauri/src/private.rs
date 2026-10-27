@@ -44,6 +44,21 @@ pub fn without_private(json: &str) -> String {
     data.to_string()
 }
 
+/// Just the private boards (with their buckets, cards and view settings), or None when there are none.
+pub fn only_private(json: &str) -> Option<String> {
+    let data = serde_json::from_str::<Value>(json).ok()?;
+    let (boards, lists, cards) = private_ids(&data);
+    if boards.is_empty() {
+        return None;
+    }
+    let mut out = Map::new();
+    for (kind, ids) in [("boards", &boards), ("lists", &lists), ("cards", &cards), ("ui", &boards)] {
+        let m: Map<String, Value> = ids.iter().filter_map(|id| Some((id.clone(), data[kind].get(id)?.clone()))).collect();
+        out.insert(kind.to_string(), Value::Object(m));
+    }
+    Some(Value::Object(out).to_string())
+}
+
 /// `incoming` (saved by a device that never saw the private boards) with `current`'s private boards
 /// put back, so a save from a phone can't remove them.
 pub fn keep_private(incoming: &str, current: &str) -> String {
