@@ -156,6 +156,21 @@ pub async fn link_snapshot(State(app): State<AppHandle>, headers: HeaderMap, bod
     StatusCode::NO_CONTENT.into_response()
 }
 
+/// `GET /api/link/backup-files`: the attached files this computer already keeps for the phone's backups.
+pub async fn backup_files(State(app): State<AppHandle>, headers: HeaderMap) -> Response {
+    let Some(dev) = phone(&app, &headers) else { return StatusCode::UNAUTHORIZED.into_response() };
+    Json(crate::backup::stored_files(&app, &dev.id)).into_response()
+}
+
+/// `PUT /api/link/backup-file/attachments/...`: one attached file for the phone's backups.
+pub async fn backup_file(State(app): State<AppHandle>, headers: HeaderMap, UrlPath(rel): UrlPath<String>, body: Bytes) -> Response {
+    let Some(dev) = phone(&app, &headers) else { return StatusCode::UNAUTHORIZED.into_response() };
+    match crate::backup::save_file(&app, &dev.id, &rel, &body) {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(e) => (StatusCode::BAD_REQUEST, e).into_response(),
+    }
+}
+
 /// Locked private boards from a backup, for the phone to open with its password.
 #[tauri::command]
 pub fn linked_send_private(app: AppHandle, id: String, blob: String) -> Result<(), String> {

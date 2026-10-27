@@ -307,6 +307,8 @@ fn start(app: &AppHandle) {
         .route("/api/link/snapshot", axum::routing::put(crate::link::link_snapshot))
         .route("/api/link/ping", post(crate::link::link_ping))
         .route("/api/link/board-received", post(crate::link::link_board_received))
+        .route("/api/link/backup-files", get(crate::link::backup_files))
+        .route("/api/link/backup-file/{*rel}", axum::routing::put(crate::link::backup_file))
         // Your other connected devices' boards, for a device viewing this computer (link.rs).
         .route("/api/devices", get(crate::link::shared_devices))
         .route("/api/devices/events", get(devices_events))

@@ -558,7 +558,8 @@ pub fn run() {
         app_icon::set_app_icon,
         backup::device_backups,
         backup::device_backup_read,
-        backup::device_backup_delete
+        backup::device_backup_delete,
+        backup::device_backup_file
     ]);
     // Phones and tablets: the same app with its own boards, minus windows, tray and the phone server.
     #[cfg(mobile)]

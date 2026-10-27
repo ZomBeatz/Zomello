@@ -61,6 +61,38 @@ fn unseal(blob: &str, password: &str) -> Result<Vec<u8>, String> {
     Ok(plain.to_vec())
 }
 
+/// The stored files a device's boards use (`attachments/...`): card attachments and board background images.
+pub fn stored_refs(data: &Value) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for c in data["cards"].as_object().into_iter().flatten().map(|(_, c)| c) {
+        for a in c["attachments"].as_array().into_iter().flatten() {
+            if a["stored"] == true {
+                if let Some(u) = a["url"].as_str() {
+                    out.push(u.to_string());
+                }
+            }
+        }
+    }
+    for b in data["boards"].as_object().into_iter().flatten().map(|(_, b)| b) {
+        if b["background"]["type"] == "image" {
+            if let Some(u) = b["background"]["value"].as_str() {
+                out.push(u.to_string());
+            }
+        }
+    }
+    out.retain(|u| safe_rel(u));
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// A stored file's path as boards write it, and nothing that could point outside the attachments folder.
+pub fn safe_rel(rel: &str) -> bool {
+    use std::path::{Component, Path};
+    let p = Path::new(rel);
+    rel.len() < 400 && p.starts_with("attachments") && p.components().all(|c| matches!(c, Component::Normal(_)))
+}
+
 // ---- On the phone ----
 
 /// Set (or with `None`, forget) the password that locks private boards in backups. Only a key made from
@@ -201,6 +233,7 @@ mod computer {
             let _ = fs::remove_file(d.join(format!("{}.json", days.remove(0))));
         }
         let _ = crate::atomic_write(&d.join("device.json"), json!({ "name": name }).to_string().as_bytes());
+        prune_files(app, id, &d);
     }
 
     fn days_of(d: &std::path::Path) -> Vec<String> {
@@ -211,6 +244,65 @@ mod computer {
             .filter_map(|e| e.file_name().to_str()?.strip_suffix(".json").map(str::to_string))
             .filter(|n| n != "device" && safe(n))
             .collect()
+    }
+
+    fn files_dir(app: &AppHandle, id: &str) -> Result<PathBuf, String> {
+        Ok(dir(app, id)?.join("files"))
+    }
+
+    /// The attached files already kept for a device (so it only sends new ones).
+    pub fn stored_files(app: &AppHandle, id: &str) -> Vec<String> {
+        let Ok(root) = files_dir(app, id) else { return vec![] };
+        let mut out = Vec::new();
+        let mut stack = vec![root.clone()];
+        while let Some(d) = stack.pop() {
+            for e in fs::read_dir(&d).into_iter().flatten().flatten() {
+                let p = e.path();
+                if p.is_dir() {
+                    stack.push(p);
+                } else if let Ok(rel) = p.strip_prefix(&root) {
+                    out.push(rel.to_string_lossy().replace('\\', "/"));
+                }
+            }
+        }
+        out
+    }
+
+    /// One attached file from a device, kept with its backups.
+    pub fn save_file(app: &AppHandle, id: &str, rel: &str, bytes: &[u8]) -> Result<(), String> {
+        if !safe_rel(rel) {
+            return Err("not an attachment".into());
+        }
+        let path = files_dir(app, id)?.join(rel);
+        fs::create_dir_all(path.parent().ok_or("bad path")?).map_err(|e| e.to_string())?;
+        crate::atomic_write(&path, bytes)
+    }
+
+    /// A kept file, for rebuilding the boards when a backup is sent back or copied here.
+    #[tauri::command]
+    pub fn device_backup_file(app: AppHandle, id: String, rel: String) -> Result<tauri::ipc::Response, String> {
+        if !safe_rel(&rel) {
+            return Err("not an attachment".into());
+        }
+        let bytes = fs::read(files_dir(&app, &id)?.join(&rel)).map_err(|_| "That file isn't in the backup.".to_string())?;
+        Ok(tauri::ipc::Response::new(bytes))
+    }
+
+    /// Files no kept day uses any more go.
+    fn prune_files(app: &AppHandle, id: &str, d: &std::path::Path) {
+        let mut used = std::collections::HashSet::new();
+        for date in days_of(d) {
+            let Some(v) = fs::read_to_string(d.join(format!("{date}.json"))).ok().and_then(|t| serde_json::from_str::<Value>(&t).ok()) else { continue };
+            if let Some(data) = v["data"].as_str().and_then(|t| serde_json::from_str::<Value>(t).ok()) {
+                used.extend(stored_refs(&data));
+            }
+        }
+        let Ok(root) = files_dir(app, id) else { return };
+        for rel in stored_files(app, id) {
+            if !used.contains(&rel) {
+                let _ = fs::remove_file(root.join(&rel));
+            }
+        }
     }
 
     /// Every device's backups, newest first: `[{ id, name, days: [{ date, at, boards, private }] }]`.
@@ -281,6 +373,20 @@ mod computer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn finds_stored_files_safely() {
+        let data = json!({
+            "cards": { "c": { "attachments": [
+                { "stored": true, "url": "attachments/1/photo.jpg" },
+                { "stored": false, "url": "https://example.com" },
+                { "stored": true, "url": "attachments/../../etc/passwd" }
+            ] } },
+            "boards": { "b": { "background": { "type": "image", "value": "attachments/2/bg.png" } } }
+        });
+        assert_eq!(stored_refs(&data), vec!["attachments/1/photo.jpg", "attachments/2/bg.png"]);
+        assert!(!safe_rel("/etc/passwd") && !safe_rel("attachments/../x") && safe_rel("attachments/a/b c.pdf"));
+    }
 
     #[test]
     fn locks_and_opens_with_the_password() {

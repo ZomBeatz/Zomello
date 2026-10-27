@@ -58,6 +58,7 @@ fn main() {
                 "device_backups",
                 "device_backup_read",
                 "device_backup_delete",
+                "device_backup_file",
                 "backup_set_password",
                 "backup_has_password",
                 "backup_open",
