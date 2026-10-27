@@ -332,6 +332,8 @@ export interface Settings {
   sections?: string[];
   /** Phones and tablets: your other devices connected to the same computer may see this one's boards. */
   shareWithDevices?: boolean;
+  /** The app icon on this device: a found style's, or classic (see app_icon.rs). */
+  appIcon?: AppStyle;
   /** Phones and tablets: your computer keeps a copy of this device's boards (see backup.rs). */
   backupToComputer?: boolean;
   /** ...including private boards, locked with a password set on this device. */

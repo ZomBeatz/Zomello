@@ -1,9 +1,25 @@
 # Changelog
 
-## Next version
+## 0.5.4
 
-- **Reminders on phones and tablets arrive even when Zomello is closed.** The app now hands each card's reminder and the daily summary to the phone ahead of time.
-- The Help link opens the guide at docs.zombeatzmedia.com.
+**Calendar**
+- **Day, Week and Month views.** Week and Day show the hours, like Outlook: drag a card to a time to schedule it, or double-click an empty time to add one.
+- **Start and end times on cards.** Next to a card's start and due dates, add a time (or leave it empty for all day).
+- **Cards that run over several days show as one bar** across those days, in Month and in Week.
+
+**My Day**
+- A new page (in the menu, or press D) with what to do today on every board: what's late, what's due or scheduled today (timed things in time order), and what you added yourself. Add any card from its menu with **Add to My Day**; added cards leave My Day at midnight. **Suggestions** offers what's coming up.
+
+**Your devices**
+- **Move or copy cards to another device:** a card's menu has **Move to device** and **Copy to device**, with the boards on your computer, your phone or a Zomello Server. A selection of cards goes together.
+- **Device backups:** a phone or tablet can have your computer keep a copy of its boards (Settings > Servers on the phone). After a reinstall, send it back from the computer (Settings > Phones & tablets > Device backups). Private boards can be included, locked with a password only you know.
+- When your computer's boards or sections change, the phone's menu shows it right away (before, it waited until you opened one of the computer's boards).
+
+**Also**
+- **Reminders on phones and tablets arrive even when Zomello is closed.** The app hands each card's reminder and the daily summary to the phone ahead of time.
+- **App icons for the hidden styles:** found Bass Drop or Party Cat? Settings > Appearance > App icon puts its icon on your home screen (on a computer, on the windows and the tray).
+- Choose how many checklist items a card shows on the board (Customize > Show on cards).
+- Plainer wording all over the app, and the Help link opens the guide at docs.zombeatzmedia.com.
 
 ## 0.5.3
 

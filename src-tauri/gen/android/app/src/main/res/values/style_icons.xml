@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Made by scripts/make-style-icons.py -->
+<resources>
+  <color name="ic_launcher_bassdrop_background">#1D1036</color>
+  <color name="ic_launcher_partycat_background">#0F1C2E</color>
+</resources>

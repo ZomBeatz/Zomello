@@ -4,6 +4,7 @@ use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager};
 
+mod app_icon;
 mod backup;
 mod calendar;
 #[cfg(desktop)]
@@ -457,6 +458,7 @@ async fn open_board_window(app: AppHandle, board_id: String, title: String) -> R
         .build()
         .map_err(|e| e.to_string())?;
     enable_spellcheck(&window);
+    app_icon::apply(&window);
     Ok(())
 }
 
@@ -553,6 +555,7 @@ pub fn run() {
         link::linked_send_private,
         link::linked_connected,
         link::open_device_window,
+        app_icon::set_app_icon,
         backup::device_backups,
         backup::device_backup_read,
         backup::device_backup_delete
@@ -589,7 +592,8 @@ pub fn run() {
         backup::backup_set_password,
         backup::backup_has_password,
         backup::backup_open,
-        backup::backup_pending
+        backup::backup_pending,
+        app_icon::set_app_icon
     ]);
 
     builder

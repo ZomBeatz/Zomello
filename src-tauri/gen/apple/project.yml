@@ -56,8 +56,8 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: 0.5.3
-        CFBundleVersion: "0.5.3"
+        CFBundleShortVersionString: 0.5.4
+        CFBundleVersion: "0.5.4"
     entitlements:
       path: zomello_iOS/zomello_iOS.entitlements
     scheme:
@@ -67,6 +67,8 @@ targets:
     settings:
       base:
         ENABLE_BITCODE: false
+        # The hidden styles' app icons (Settings > Appearance > App icon), from scripts/make-style-icons.py.
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: AppIcon-BassDrop AppIcon-PartyCat
         ARCHS: [arm64]
         VALID_ARCHS: arm64 
         LIBRARY_SEARCH_PATHS[arch=x86_64]: $(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)

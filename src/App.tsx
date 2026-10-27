@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DemoBanner } from "./components/DemoBanner";
 import { PasteCardsDialog } from "./components/PasteCardsDialog";
 import { isDemo } from "./demo";
@@ -35,7 +35,7 @@ import { isServer, loadData as serverLoadData, RELOAD_EVENT, subscribe as server
 import { useInvites } from "./invites";
 import { AdminPage } from "./components/AdminPage";
 import { ShareDialog } from "./components/ShareDialog";
-import { deviceWord, inTauri, isDesktopApp, isMobileApp, isPhoneOrTablet, openExternal } from "./storage";
+import { deviceWord, inTauri, isDesktopApp, isMobileApp, isPhoneOrTablet, openExternal, setAppIcon } from "./storage";
 
 /** The full guide (ZomBeatz Docs). */
 const GUIDE_URL = "https://docs.zombeatzmedia.com/zomello/";
@@ -207,6 +207,17 @@ export default function App() {
     // Accessibility switches become data-* attributes the stylesheet keys off.
     for (const [k, v] of Object.entries(settings.a11y)) root.toggleAttribute(`data-${k.toLowerCase()}`, v);
   }, [settings.theme, settings.style, settings.accent, settings.density, settings.a11y]);
+
+  // The app icon belongs to this device, so only its own main page sets it.
+  const appIcon = settings.appIcon ?? "classic";
+  const iconChanged = useRef(false);
+  useEffect(() => {
+    if (!loaded || !inTauri || isExtraWindow || isRemote || isServer) return;
+    // Computers start with the classic icon anyway.
+    if (appIcon === "classic" && !isMobileApp && !iconChanged.current) return;
+    iconChanged.current = true;
+    void setAppIcon(appIcon);
+  }, [loaded, appIcon]);
 
   useEffect(() => {
     // Zoom is the PC's setting; phones and tablets pinch-zoom on their own.
