@@ -84,6 +84,8 @@
     "allow-backup-has-password",
     "allow-backup-open",
     "allow-backup-pending",
-    "allow-set-app-icon"
+    "allow-set-app-icon",
+    "allow-widget-update",
+    "allow-share-inbox-take"
   ]
 }

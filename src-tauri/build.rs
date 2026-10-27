@@ -64,6 +64,8 @@ fn main() {
                 "backup_open",
                 "backup_pending",
                 "set_app_icon",
+                "widget_update",
+                "share_inbox_take",
     ])))
     .expect("failed to run tauri-build");
 }

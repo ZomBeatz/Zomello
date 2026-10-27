@@ -1,6 +1,7 @@
 import { addDays } from "date-fns";
 import { myDayLists } from "./myDay";
 import { isServer } from "./server";
+import { isApplePhoneOrTablet, isMobileApp } from "./storage";
 import { useStore } from "./store";
 import type { AppData, Card } from "./types";
 import { cardSpan, prettyTime, toISO } from "./utils";
@@ -36,10 +37,20 @@ export function widgetData(data: AppData, now = new Date()) {
   return { days, at: Date.now() };
 }
 
+/** Android hands the widget its content through MainActivity; iPhone and iPad through the app group (apple_group.rs). */
+function writer(): ((json: string) => void) | null {
+  const b = bridge();
+  if (b?.updateWidget) return (json) => b.updateWidget!(json);
+  if (isMobileApp && isApplePhoneOrTablet)
+    return (json) => void import("@tauri-apps/api/core").then(({ invoke }) => invoke("widget_update", { json })).catch(() => {});
+  return null;
+}
+
 export function installWidget(): () => void {
   const b = bridge();
+  const write = writer();
   // Only this device's own boards (not a Zomello Server opened in the app).
-  if (!b?.updateWidget || isServer) return () => {};
+  if (!write || isServer) return () => {};
   let timer: ReturnType<typeof setTimeout> | undefined;
   let last = "";
   const send = () => {
@@ -48,7 +59,7 @@ export function installWidget(): () => void {
     const key = json.replace(/"at":\d+/, "");
     if (key === last) return;
     last = key;
-    b.updateWidget!(json);
+    write(json);
   };
   const later = () => (clearTimeout(timer), (timer = setTimeout(send, 1500)));
   send();
@@ -58,7 +69,7 @@ export function installWidget(): () => void {
   document.addEventListener("visibilitychange", onVisible);
   // Tapped the widget: open My Day.
   const open = () => {
-    if (b.takeOpen?.() === "myday") useStore.getState().navigate({ page: "myday" });
+    if (b?.takeOpen?.() === "myday") useStore.getState().navigate({ page: "myday" });
   };
   open();
   window.addEventListener("zomello-open", open);
