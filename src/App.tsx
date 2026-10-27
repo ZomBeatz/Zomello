@@ -11,6 +11,7 @@ import { Sidebar } from "./components/Sidebar";
 import { BoardPage } from "./components/BoardPage";
 import { HomePage } from "./components/HomePage";
 import { MyTasksPage } from "./components/MyTasksPage";
+import { MyDayPage } from "./components/MyDayPage";
 import { ArchivePage } from "./components/ArchivePage";
 import { ShortcutList, SettingsPage } from "./components/SettingsPage";
 import { CardModal } from "./components/CardModal";
@@ -259,6 +260,7 @@ export default function App() {
         <ErrorBoundary resetKey={route} onHome={() => useStore.getState().navigate({ page: "home" })}>
           {route.page === "home" && <HomePage />}
           {route.page === "mytasks" && <MyTasksPage />}
+          {route.page === "myday" && <MyDayPage />}
           {route.page === "board" && boardExists && <BoardPage key={route.boardId} boardId={route.boardId} />}
           {route.page === "board" && !boardExists && <HomePage />}
           {route.page === "archive" && <ArchivePage />}

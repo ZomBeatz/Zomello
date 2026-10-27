@@ -53,6 +53,8 @@ pub fn link_ops_ack(seq: u64) {
 
 struct Link {
     origin: tauri::Url,
+    /// The computer's place in places.json (its page's origin, as saved there).
+    place: String,
     token: String,
     tls: Arc<rustls::ClientConfig>,
 }
@@ -69,7 +71,7 @@ fn link_of(app: &AppHandle) -> Option<Link> {
         .ok()?
         .with_root_certificates(roots)
         .with_no_client_auth();
-    Some(Link { origin, token: l["token"].as_str()?.to_string(), tls: Arc::new(tls) })
+    Some(Link { origin, place: l["origin"].as_str()?.to_string(), token: l["token"].as_str()?.to_string(), tls: Arc::new(tls) })
 }
 
 /// Start the link (phones and tablets). Runs while the app does.
@@ -194,8 +196,8 @@ async fn run(app: &AppHandle, link: &Link) -> Result<(), String> {
     }
 }
 
-/// An event from the computer: `event: ops` with the edits made there, or `event: board` with a board
-/// it sent this phone.
+/// An event from the computer: `event: ops` with the edits made there, `event: board` with a board it
+/// sent this phone, or `event: boards` with its board list (for the menu's Computer section).
 async fn handle(app: &AppHandle, link: &Link, event: &str) {
     let mut name = "message";
     let mut data = String::new();
@@ -208,6 +210,14 @@ async fn handle(app: &AppHandle, link: &Link, event: &str) {
     }
     if name == "board" {
         return receive_board(app, link, &data).await;
+    }
+    if name == "boards" {
+        if let Ok(v) = serde_json::from_str::<Value>(&data) {
+            if places::save_boards_of(app, &link.place, &v["boards"], &v["sections"]).is_ok() {
+                let _ = app.emit("zomello://places-changed", ());
+            }
+        }
+        return;
     }
     if name != "ops" {
         return;

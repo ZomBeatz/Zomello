@@ -15,6 +15,7 @@ export const SHORTCUTS: { group: string; items: [string, string][] }[] = [
       ["Ctrl Shift Z  or  Ctrl Y", "Redo"],
       ["H", "Home"],
       ["M", "My Tasks"],
+      ["D", "My Day"],
       ["[", "Collapse / expand the sidebar"],
       ["Ctrl Scroll", "Zoom in / out"],
       ["Ctrl +  or  Ctrl −", "Zoom in / out"],
@@ -138,6 +139,8 @@ export function handleShortcut(e: KeyboardEvent) {
       return st.navigate({ page: "home" });
     case "m":
       return st.navigate({ page: "mytasks" });
+    case "d":
+      return st.navigate({ page: "myday" });
     case "[":
       return st.updateSettings({ sidebarCollapsed: !st.data.settings.sidebarCollapsed });
   }

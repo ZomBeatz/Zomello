@@ -15,7 +15,7 @@ export function toHash(route: Route, cardId: ID | null): string {
   return cardId ? `${base}/card/${cardId}` : base;
 }
 
-const PAGES = new Set(["home", "mytasks", "archive", "settings", "admin"]);
+const PAGES = new Set(["home", "myday", "mytasks", "archive", "settings", "admin"]);
 
 /** What a hash points at, if it's one of ours and still exists. */
 export function fromHash(hash: string): { route: Route; cardId: ID | null } | null {

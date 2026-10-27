@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Plus } from "lucide-react";
 import type { Board, Card, List, Priority } from "../../types";
 import { useStore } from "../../store";
-import { checklistStats, dueStatus, prettyDate, PRIORITIES, PROGRESS } from "../../utils";
+import { checklistStats, dueStatus, prettyDateTime, PRIORITIES, PROGRESS } from "../../utils";
 import { Avatar, ProgressIcon } from "../ui";
 import { openCardMenu } from "../ContextMenu";
 
@@ -128,8 +128,8 @@ export function ListView({ board, lists, cards }: { board: Board; lists: List[];
                     ))}
                   </select>
                 </td>
-                <td className="muted">{c.startDate ? prettyDate(c.startDate) : ""}</td>
-                <td className={`due-text due-${dueStatus(c)}`}>{c.dueDate ? prettyDate(c.dueDate) : ""}</td>
+                <td className="muted">{c.startDate ? prettyDateTime(c.startDate, c.startTime) : ""}</td>
+                <td className={`due-text due-${dueStatus(c)}`}>{c.dueDate ? prettyDateTime(c.dueDate, c.dueTime) : ""}</td>
                 <td>
                   <span className="card-avatars">
                     {c.assignees.map((a) => (

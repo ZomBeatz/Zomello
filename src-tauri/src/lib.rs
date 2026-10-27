@@ -157,7 +157,10 @@ fn load_data(app: AppHandle) -> Result<Option<String>, String> {
 fn save_data(app: AppHandle, data: String) -> Result<(), String> {
     write_data(&app, &data)?;
     #[cfg(desktop)]
-    remote::notify_desktop_save(&app, &data);
+    {
+        remote::notify_desktop_save(&app, &data);
+        link::send_board_list(&app, &data);
+    }
     // Phones: a computer showing this phone's boards gets the change.
     link_client::data_changed();
     Ok(())

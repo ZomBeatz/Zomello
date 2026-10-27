@@ -444,10 +444,20 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
             </select>
           </Field>
           <Field label="Start date" hidden={!show("startDate")}>
-            <DateInput value={card.startDate} onChange={(startDate) => set({ startDate })} />
+            <DateInput
+              value={card.startDate}
+              time={card.startTime ?? null}
+              onChange={(startDate) => set({ startDate, ...(startDate ? {} : { startTime: null }) })}
+              onTime={(startTime) => set({ startTime })}
+            />
           </Field>
           <Field label="Due date" hidden={!show("dueDate")}>
-            <DateInput value={card.dueDate} onChange={(dueDate) => set({ dueDate })} />
+            <DateInput
+              value={card.dueDate}
+              time={card.dueTime ?? null}
+              onChange={(dueDate) => set({ dueDate, ...(dueDate ? {} : { dueTime: null }) })}
+              onTime={(dueTime) => set({ dueTime })}
+            />
           </Field>
           <Field label="Reminder" hidden={!show("reminder")}>
             <div className="row gap-sm">
@@ -563,10 +573,30 @@ function Field({ label, children, hidden }: { label: string; children: React.Rea
   );
 }
 
-function DateInput({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
+/** A date, and (once there's a date) an optional time: no time means all day. */
+function DateInput({
+  value,
+  onChange,
+  time,
+  onTime,
+}: {
+  value: string | null;
+  onChange: (v: string | null) => void;
+  time?: string | null;
+  onTime?: (t: string | null) => void;
+}) {
   return (
-    <div className="row gap-sm">
+    <div className="row gap-sm date-input">
       <input type="date" value={value ?? ""} onChange={(e) => onChange(e.target.value || null)} />
+      {value && onTime && (
+        <input
+          type="time"
+          value={time ?? ""}
+          title="Leave empty for all day"
+          aria-label="Time (leave empty for all day)"
+          onChange={(e) => onTime(e.target.value || null)}
+        />
+      )}
       {value && (
         <button className="icon-btn tiny" title="Clear" onClick={() => onChange(null)}>
           <X size={13} />

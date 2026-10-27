@@ -23,6 +23,7 @@ import {
   Kanban,
   Link2,
   Repeat,
+  Sun,
   Tag,
   Trash2,
   UserPlus,
@@ -209,6 +210,11 @@ function cardMenu(cardId: ID): MenuEntry[] {
       label: done ? "Mark incomplete" : "Mark complete",
       icon: done ? <CircleDashed size={14} /> : <CheckCircle2 size={14} />,
       onClick: () => set({ progress: done ? "notStarted" : "completed" }),
+    },
+    {
+      label: card.myDay === toISO(today) ? "Remove from My Day" : "Add to My Day",
+      icon: <Sun size={14} />,
+      onClick: () => set({ myDay: card.myDay === toISO(today) ? null : toISO(today) }),
     },
     { separator: true },
     {
