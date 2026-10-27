@@ -157,7 +157,7 @@ export function SettingsPage() {
                 if (!(await ask("Hide the styles you've found? Zomello goes back to classic, and they can be found again the same way.", { okText: "Hide them" })))
                   return;
                 updateSettings({ unlockedStyles: [], style: "classic" });
-                useStore.getState().toast("Hidden again. 🤫");
+                useStore.getState().toast("Hidden again.");
               }}
             >
               Hide found styles
@@ -228,7 +228,7 @@ export function SettingsPage() {
             <option value="timeline">Timeline view</option>
           </select>
         </div>
-        <p className="muted small">Each board also has its own look — open a board and press Customize (or B).</p>
+        <p className="muted small">Each board also has its own look: open a board and press Customize (or B).</p>
       </section>
 
       <section className="panel" id="set-accessibility">
@@ -343,7 +343,7 @@ export function SettingsPage() {
             ? `Set a reminder on any card (card → Reminder, or press and hold → Remind me). They arrive even when Zomello is closed; the daily summary counts your cards as they were when you last opened Zomello.`
             : "Set a reminder on any card (card → Reminder, or right-click → Remind me). Notifications appear while Zomello is running."}
         </p>
-        <button className="btn sm" onClick={() => void notify("Zomello", "Notifications are working 🎧")}>
+        <button className="btn sm" onClick={() => void notify("Zomello", "Notifications are working.")}>
           Send a test notification
         </button>
       </section>

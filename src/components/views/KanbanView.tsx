@@ -249,7 +249,7 @@ export function KanbanView({
     const list = group.list!;
     if (list.sort !== "custom") {
       // A sorted bucket decides positions itself, so a drop never rewrites anyone's custom order.
-      if (sameGroup) st.toast(`“${list.title}” is sorted by ${SORT_MODES.find((m) => m.id === list.sort)!.name} — switch it to Custom order to arrange cards by hand.`, { key: "sort-hint" });
+      if (sameGroup) st.toast(`“${list.title}” is sorted by ${SORT_MODES.find((m) => m.id === list.sort)!.name}. Switch it to Custom order to arrange cards by hand.`, { key: "sort-hint" });
       else st.moveCardToList(id, list.id);
       return;
     }

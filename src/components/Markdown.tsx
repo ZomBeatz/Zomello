@@ -30,7 +30,7 @@ export async function copyText(text: string, done = "Copied to clipboard") {
       ta.remove();
     }
   }
-  useStore.getState().toast(ok ? done : "Couldn't copy — select the text and press Ctrl+C", { key: "copy" });
+  useStore.getState().toast(ok ? done : "Couldn't copy. Select the text and press Ctrl+C.", { key: "copy" });
 }
 const copy = copyText;
 

@@ -42,7 +42,7 @@ export function AiDialog({ init }: { init: AiDialogState }) {
         {tab === "export" && <ExportTab init={init} onNext={() => setTab("apply")} />}
         {tab === "apply" && <ApplyTab init={init} onDone={close} />}
         <p className="muted small ai-note">
-          Zomello doesn't connect to any AI — copy the text into whichever assistant you like, then paste its reply under
+          Zomello doesn't connect to any AI. Copy the text into whichever assistant you like, then paste its reply under
           “Apply AI reply”. Nothing changes until you press Apply, and Ctrl+Z undoes it.
         </p>
       </div>
@@ -309,7 +309,7 @@ function ApplyTab({ init, onDone }: { init: AiDialogState; onDone: () => void })
           className="ai-paste"
           rows={9}
           spellCheck={false}
-          placeholder={'Paste the whole reply — Zomello finds the ```json block. A plain bulleted list works too (indented bullets become checklist items).'}
+          placeholder={'Paste the whole reply. Zomello finds the ```json block. A plain bulleted list works too (indented bullets become checklist items).'}
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
@@ -330,7 +330,7 @@ function ApplyTab({ init, onDone }: { init: AiDialogState; onDone: () => void })
             )}
             {sum.cards > 0 && <li>Add {sum.cards} card{sum.cards === 1 ? "" : "s"} (sub-tasks included) to the bucket below</li>}
             {sum.updates > 0 && <li>Update {sum.updates} existing card{sum.updates === 1 ? "" : "s"} on the board below</li>}
-            {!sum.board && !sum.cards && !sum.updates && <li>Nothing — no cards or updates were found.</li>}
+            {!sum.board && !sum.cards && !sum.updates && <li>No cards or updates were found.</li>}
           </ul>
           {needsTarget && (
             <div className="row gap wrap">

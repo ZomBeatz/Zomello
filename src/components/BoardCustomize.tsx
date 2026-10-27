@@ -124,7 +124,7 @@ export function BoardCustomize({ board }: { board: Board }) {
         <section>
           <h4>About this board</h4>
           <p className="muted small">
-            A few lines of context — what the board is for, the project, where things live. Included in every AI prompt and
+            A few lines of context: what the board is for, the project, where things live. Included in every AI prompt and
             export from this board, so you don't have to re-explain it.
           </p>
           <AboutBoard board={board} />
@@ -313,7 +313,7 @@ export function BoardCustomize({ board }: { board: Board }) {
 
         <section>
           <h4>Card details window</h4>
-          <p className="muted small">Hide parts of the card window you don't use on this board. Nothing is deleted — tick it again to bring it back.</p>
+          <p className="muted small">Hide parts of the card window you don't use on this board. Nothing is deleted; tick it again to bring it back.</p>
           <div className="badge-grid">
             {SECTIONS.map((sct) => (
               <label key={sct.key} className="check-row">
@@ -362,7 +362,7 @@ function FieldsEditor({ board }: { board: Board }) {
   return (
     <section>
       <h4>Custom fields</h4>
-      <p className="muted small">Extra information every card on this board can have — e.g. Client, Cost, Version, Approved.</p>
+      <p className="muted small">Extra information every card on this board can have, for example Client, Cost, Version, Approved.</p>
       <div className="fields-editor">
         {board.fields.map((f, i) => (
           <div key={f.id} className="field-def">

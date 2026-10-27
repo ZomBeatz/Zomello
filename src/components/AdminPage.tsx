@@ -110,7 +110,7 @@ export function AdminPage() {
             <a className="btn sm" href="/api/admin/backup" download>
               <Download size={14} /> Download a backup now
             </a>
-            {info.backups[0] && <span className="muted small">Latest daily backup: {info.backups.find((b) => b.name.startsWith("zomello-2"))?.name ?? "—"}</span>}
+            {info.backups[0] && <span className="muted small">Latest daily backup: {info.backups.find((b) => b.name.startsWith("zomello-2"))?.name ?? "none yet"}</span>}
           </div>
           {info.selfCert && <CertHint />}
         </section>

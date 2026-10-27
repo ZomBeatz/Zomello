@@ -26,7 +26,7 @@ export const SHORTCUTS: { group: string; items: [string, string][] }[] = [
   {
     group: "On a board",
     items: [
-      ["1 – 5", "Board / List / Calendar / Timeline / Charts"],
+      ["1 to 5", "Board / List / Calendar / Timeline / Charts"],
       ["/", "Filter cards"],
       ["B", "Customize the board"],
     ],
@@ -43,7 +43,7 @@ export const SHORTCUTS: { group: string; items: [string, string][] }[] = [
       ["Shift D", "Duplicate"],
       ["Right-click", "All card actions"],
       ["Ctrl click", "Select cards (then copy a work order / hand to AI)"],
-      ["Shift Space", "Pick up a focused card / bucket — then arrows to move, Space to drop, Esc to cancel"],
+      ["Shift Space", "Pick up a focused card / bucket, then arrows to move, Space to drop, Esc to cancel"],
     ],
   },
   {

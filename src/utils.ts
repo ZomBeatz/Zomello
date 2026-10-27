@@ -362,7 +362,7 @@ export const SORT_MODES: { id: import("./types").SortMode; name: string; hint: s
   { id: "custom", name: "Custom order", hint: "Drag cards to arrange them" },
   { id: "due", name: "Due date", hint: "Soonest first; no date last" },
   { id: "priority", name: "Priority", hint: "Urgent first" },
-  { id: "alpha", name: "Name (A–Z)", hint: "Alphabetical" },
+  { id: "alpha", name: "Name (A to Z)", hint: "Alphabetical" },
   { id: "progress", name: "Progress", hint: "In progress, then not started" },
   { id: "created", name: "Newest", hint: "Most recently created first" },
   { id: "updated", name: "Recently updated", hint: "Last changed first" },
@@ -440,7 +440,7 @@ export function subtaskLoopReason(parentId: string, targetId: string, cards: Rec
   if (parentId === targetId) return "This is the same task";
   if (cards[parentId] && subtaskIds(cards[parentId]).includes(targetId)) return "Already in this checklist";
   if (reaches(targetId, parentId, (id) => (cards[id] ? subtaskIds(cards[id]) : [])))
-    return "Would create a loop — this task is above it in the chain";
+    return "Would create a loop: this task is above it in the chain";
   return null;
 }
 
@@ -452,7 +452,7 @@ export function blockLoopReason(a: string, b: string, type: LinkType, cards: Rec
   if (a === b) return "This is the same task";
   if (type === "relates") return null;
   const [blocker, blocked] = type === "blocks" ? [a, b] : [b, a];
-  if (reaches(blocked, blocker, blocksOf(cards))) return "Would create a loop — they'd end up blocking each other";
+  if (reaches(blocked, blocker, blocksOf(cards))) return "Would create a loop: they'd end up blocking each other";
   return null;
 }
 

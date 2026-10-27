@@ -447,7 +447,7 @@ async fn open_board_window(app: AppHandle, board_id: String, title: String) -> R
         return Ok(());
     }
     let window = tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App(format!("index.html?board={id}").into()))
-        .title(format!("{title} — Zomello"))
+        .title(format!("{title} · Zomello"))
         .inner_size(1200.0, 820.0)
         .min_inner_size(700.0, 500.0)
         .build()

@@ -59,7 +59,7 @@ export function TimelineView({ lists, cards }: { lists: List[]; cards: Card[] })
           <ChevronLeft size={18} />
         </button>
         <h2>
-          {format(days[0], "MMM d")} – {format(days[days.length - 1], "MMM d, yyyy")}
+          {format(days[0], "MMM d")} to {format(days[days.length - 1], "MMM d, yyyy")}
         </h2>
         <button className="icon-btn" title="Next week" aria-label="Next week" onClick={() => setStart((d) => addDays(d, 7))}>
           <ChevronRight size={18} />
