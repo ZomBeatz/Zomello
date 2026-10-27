@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AppWindow, ArrowRightLeft, Archive, Lock, Bot, Check, ClipboardCopy, ClipboardPaste, Copy, ExternalLink, FileDown, FolderOpen, FolderX, LayoutTemplate, LogOut, Palette, Pencil, Plus, Star, Trash2, Users } from "lucide-react";
+import { AppWindow, ArrowRightLeft, Archive, Lock, Bot, CalendarPlus, Check, ClipboardCopy, ClipboardPaste, Copy, ExternalLink, FileDown, FolderOpen, FolderX, LayoutTemplate, LogOut, Palette, Pencil, Plus, Star, Trash2, Users } from "lucide-react";
 import { boardCategories } from "../utils";
 import type { Board } from "../types";
 import { useStore } from "../store";
@@ -10,6 +10,7 @@ import { isServer, leaveBoard, ownsBoard } from "../server";
 import { workOrder } from "../ai";
 import { copyText } from "./Markdown";
 import { exportBoard } from "../boardFile";
+import { exportCalendarFile } from "../icsExport";
 import { inTauri, isDesktopApp, isMobileApp } from "../storage";
 import { linkedNow } from "../deviceWindow";
 import { sendBoardToPhone } from "../phoneTransfer";
@@ -111,6 +112,11 @@ export function boardMenu(board: Board, opts: { onRename?: () => void } = {}): M
       label: "Save as board file…",
       icon: <FileDown size={14} />,
       onClick: () => void exportBoard(board.id),
+    },
+    {
+      label: "Save dates as a calendar file…",
+      icon: <CalendarPlus size={14} />,
+      onClick: () => void exportCalendarFile(board.id),
     },
     // On a shared server, only a board's owner archives or deletes it; others can leave it.
     ...(ownsBoard(board)

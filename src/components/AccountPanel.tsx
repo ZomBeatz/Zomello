@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { KeyRound, LogOut, UserCog } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CalendarPlus, Copy, KeyRound, LogOut, UserCog } from "lucide-react";
 import { useStore } from "../store";
-import { changePassword, loadData, logout, me, updateProfile } from "../server";
-import { InlineEdit } from "./ui";
+import { calendarLink, changePassword, loadData, logout, me, updateProfile } from "../server";
+import { copyText } from "./Markdown";
+import { ask, InlineEdit } from "./ui";
 
 /** Zomello Server: your name, password, and signing out. */
 export function AccountPanel() {
@@ -76,6 +77,82 @@ export function AccountPanel() {
       >
         <LogOut size={14} /> Sign out
       </button>
+      <CalendarLink />
     </section>
+  );
+}
+
+/** A private link your calendar app subscribes to, so your Zomello dates show there (see feed.rs). */
+function CalendarLink() {
+  const [on, setOn] = useState<boolean | null>(null);
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    void calendarLink.status().then((s) => setOn(s.on), () => setOn(false));
+  }, []);
+  const make = async () => {
+    if (on && !(await ask("Make a new link? The old one stops working, so calendars using it need the new one.", { okText: "Make a new link" }))) return;
+    try {
+      const { path } = await calendarLink.create();
+      setUrl(location.origin + path);
+      setOn(true);
+    } catch (e) {
+      useStore.getState().toast(String(e instanceof Error ? e.message : e));
+    }
+  };
+  const off = async () => {
+    if (!(await ask("Turn off your calendar link? Calendars using it stop getting your Zomello dates.", { okText: "Turn off", danger: true }))) return;
+    await calendarLink.remove().catch(() => {});
+    setUrl(null);
+    setOn(false);
+  };
+  return (
+    <div className="calendar-link">
+      <h4>
+        <CalendarPlus size={15} /> Your dates in your calendar app
+      </h4>
+      <p className="muted small">
+        A private link that Google Calendar, Outlook or Apple Calendar can subscribe to. It shows the dated cards on every board you
+        can see (not completed ones), with their times, and updates whenever your calendar app checks (often every few hours). Anyone
+        with the link can see those cards, so keep it to yourself.
+      </p>
+      {url ? (
+        <>
+          <div className="row gap-sm wrap">
+            <code className="grow calendar-url">{url}</code>
+            <button className="btn sm" onClick={() => void copyText(url, "Copied the calendar link")}>
+              <Copy size={14} /> Copy
+            </button>
+          </div>
+          <ul className="small calendar-steps">
+            <li>
+              <b>Google Calendar</b> (on a computer): <b>Other calendars</b> + &gt; <b>From URL</b>, paste the link.
+            </li>
+            <li>
+              <b>Outlook:</b> <b>Add calendar</b> &gt; <b>Subscribe from web</b>, paste the link.
+            </li>
+            <li>
+              <b>Apple Calendar:</b> <a href={url.replace(/^https?:/, "webcal:")}>open it in Calendar</a>, or File &gt; New Calendar
+              Subscription.
+            </li>
+          </ul>
+          <p className="muted small">
+            This link is shown once. Google and Outlook fetch it from the internet, so this server must be reachable from outside your
+            home network (for example with your own domain); Apple Calendar on the same network works either way.
+          </p>
+        </>
+      ) : (
+        on && <p className="small">You have a calendar link. Lost it? Make a new one (the old one then stops working).</p>
+      )}
+      <div className="row gap-sm wrap">
+        <button className="btn sm" onClick={() => void make()} disabled={on === null}>
+          {on ? "Make a new link" : "Make my calendar link"}
+        </button>
+        {on && (
+          <button className="btn sm ghost" onClick={() => void off()}>
+            Turn off
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
