@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The My Day widget (MyDayWidget.kt). Zomello updates it whenever your boards change; this period
+     only redraws it now and then, so it switches to the new day after midnight. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="80dp"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/widget_my_day"
+    android:previewLayout="@layout/widget_my_day"
+    android:description="@string/widget_description"
+    android:widgetCategory="home_screen" />
