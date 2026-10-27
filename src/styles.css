@@ -70,6 +70,8 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 button { font: inherit; color: inherit; cursor: pointer; background: none; border: none; padding: 0; }
+/* Quick repeated taps on a button always count: never a double-tap zoom (iPad and iPhone swallow them otherwise). */
+button { touch-action: manipulation; }
 input, textarea, select {
   font: inherit;
   color: var(--text);
@@ -1580,7 +1582,9 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .about-logo.bop { animation: none; } }
 /* Quick repeated taps (the I-I-I part) must count every time, never become a double-tap zoom. */
 .beat-pad { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-@media (hover: none) and (pointer: coarse) { .beat-pad { width: 44px; height: 44px; } }
+[data-touch] .beat-pad { width: 48px; height: 48px; }
+[data-touch] .beat-pads { gap: 14px; }
+@media (any-pointer: coarse) { .beat-pad { width: 48px; height: 48px; } .beat-pads { gap: 14px; } }
 .tile-done-note { color: var(--ok); }
 .spin-cat-spot { display: flex; justify-content: center; padding: 4px 0 8px; }
 .spin-cat { background-image: url("/spin-cat.webp"); background-repeat: no-repeat; background-position: 0 0; border-radius: 12px; image-rendering: auto; }
