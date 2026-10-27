@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import { Accessibility, Bell, Download, FileUp, Minus, Plus, Eraser, LayoutTemplate, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
-import type { Settings, ViewMode } from "../types";
+import type { AppStyle, Settings, ViewMode } from "../types";
 import { normalize, useStore } from "../store";
 import {
-  cleanupStoredFiles, dataLocation, exportFile, inTauri, isDesktopApp, isMobileApp, isPhoneOrTablet, listBackups, notify, readBackup, type BackupInfo,
+  cleanupStoredFiles, dataLocation, deviceWord, exportFile, inTauri, isDesktopApp, isMobileApp, isPhoneOrTablet, listBackups, notify, readBackup, type BackupInfo,
 } from "../storage";
 import { PALETTE } from "../utils";
 import { SHORTCUTS } from "../shortcuts";
@@ -156,12 +156,27 @@ export function SettingsPage() {
               onClick={async () => {
                 if (!(await ask("Hide the styles you've found? Zomello goes back to classic, and they can be found again the same way.", { okText: "Hide them" })))
                   return;
-                updateSettings({ unlockedStyles: [], style: "classic" });
+                updateSettings({ unlockedStyles: [], style: "classic", appIcon: "classic" });
                 useStore.getState().toast("Hidden again.");
               }}
             >
               Hide found styles
             </button>
+          </div>
+        )}
+        {settings.unlockedStyles.length > 0 && inTauri && (
+          <div className="field-row">
+            <label>App icon</label>
+            <div className="seg">
+              {(["classic", ...settings.unlockedStyles] as AppStyle[]).map((s) => (
+                <button key={s} className={(settings.appIcon ?? "classic") === s ? "active" : ""} onClick={() => updateSettings({ appIcon: s })}>
+                  {s === "classic" ? "Classic" : s === "bassdrop" ? "Bass Drop" : "Party Cat"}
+                </button>
+              ))}
+            </div>
+            <small className="muted">
+              {isMobileApp ? `The icon on this ${deviceWord}'s home screen.` : "The icon on Zomello's windows and in the tray while it runs."}
+            </small>
           </div>
         )}
         {settings.style === "partycat" && (

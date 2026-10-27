@@ -1,6 +1,6 @@
 [package]
 name = "zomello"
-version = "0.5.3"
+version = "0.5.4"
 description = "Zomello: local-first kanban & planner"
 edition = "2021"
 
@@ -50,6 +50,12 @@ codegen-units = 1
 lto = true
 opt-level = "s"
 strip = true
+
+# iPhone and iPad: switching to a style's app icon.
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSString"] }
+objc2-ui-kit = { version = "0.3", features = ["UIApplication", "UIResponder", "block2"] }
 
 # Phones and tablets only: scanning your computer's pairing QR code.
 [target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]

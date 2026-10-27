@@ -1,5 +1,6 @@
 package com.zombeatz.zomello
 
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -13,6 +14,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import java.io.File
+
+/** Launcher icons (activity aliases in AndroidManifest.xml) by style. */
+private val ICONS = mapOf("classic" to "IconClassic", "bassdrop" to "IconBassDrop", "partycat" to "IconPartyCat")
 
 class MainActivity : TauriActivity() {
   private var webView: WebView? = null
@@ -102,6 +106,32 @@ class MainActivity : TauriActivity() {
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
       }
       runOnUiThread { startActivity(Intent.createChooser(send, name)) }
+    }
+
+    // The aliases live next to MainActivity (its package can differ from the installed app's id).
+    private fun iconComponent(alias: String) =
+      ComponentName(this@MainActivity, "${MainActivity::class.java.name.substringBeforeLast('.')}.$alias")
+
+    /** The launcher icon: "classic", "bassdrop" or "partycat" (turns on that launcher entry, off the others). */
+    @JavascriptInterface
+    fun setAppIcon(style: String) {
+      val on = ICONS[style] ?: return
+      for (alias in ICONS.values) {
+        val state = if (alias == on) PackageManager.COMPONENT_ENABLED_STATE_ENABLED else PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+        val component = iconComponent(alias)
+        if (packageManager.getComponentEnabledSetting(component) == state) continue
+        packageManager.setComponentEnabledSetting(component, state, PackageManager.DONT_KILL_APP)
+      }
+    }
+
+    /** Which launcher icon is on now. */
+    @JavascriptInterface
+    fun appIcon(): String {
+      for ((style, alias) in ICONS) {
+        val s = packageManager.getComponentEnabledSetting(iconComponent(alias))
+        if (s == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) return style
+      }
+      return "classic"
     }
 
     @JavascriptInterface

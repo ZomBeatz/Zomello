@@ -57,6 +57,7 @@ export const deviceWord: "iPad" | "tablet" | "phone" =
 interface AndroidFiles {
   saveFile?(base64: string, name: string): void;
   shareFile?(base64: string, name: string): void;
+  setAppIcon?(style: string): void;
 }
 const androidFiles = () => (window as unknown as { ZomelloAndroid?: AndroidFiles }).ZomelloAndroid;
 export const canSaveOnAndroid = () => !!androidFiles()?.saveFile;
@@ -77,6 +78,18 @@ export function saveOnAndroid(bytes: Uint8Array, name: string): Promise<"saved" 
     window.addEventListener("zomello-file-saved", on);
     androidFiles()!.saveFile!(toBase64(bytes), name);
   });
+}
+
+/**
+ * The app icon of a style ("classic", "bassdrop", "partycat"): Android switches its launcher icon, iPhone/iPad
+ * their alternate icon, computers the window and tray icon (see app_icon.rs).
+ */
+export async function setAppIcon(style: string): Promise<void> {
+  const android = androidFiles();
+  if (android?.setAppIcon) return android.setAppIcon(style);
+  if (!inTauri) return;
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke("set_app_icon", { style }).catch(() => {});
 }
 
 /** Android app: hand a file to another app (email, chat, Drive…). */

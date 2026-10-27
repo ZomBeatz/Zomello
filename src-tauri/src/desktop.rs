@@ -9,7 +9,7 @@ use tauri::{
 };
 use tauri_plugin_autostart::ManagerExt;
 
-const TRAY_ID: &str = "zomello";
+pub const TRAY_ID: &str = "zomello";
 /// Passed when Zomello starts at login, so it starts quietly in the tray.
 pub const HIDDEN_ARG: &str = "--hidden";
 
@@ -87,8 +87,8 @@ fn build_tray(app: &AppHandle) -> Result<(), String> {
                 show_main(tray.app_handle());
             }
         });
-    if let Some(icon) = app.default_window_icon() {
-        tray = tray.icon(icon.clone());
+    if let Some(icon) = crate::app_icon::current(app) {
+        tray = tray.icon(icon);
     }
     tray.build(app).map(|_| ()).map_err(|e| e.to_string())
 }

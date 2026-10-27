@@ -381,5 +381,6 @@ pub async fn open_device_window(app: AppHandle, id: String, board: Option<String
         .build()
         .map_err(|e| e.to_string())?;
     crate::enable_spellcheck(&window);
+    crate::app_icon::apply(&window);
     Ok(())
 }

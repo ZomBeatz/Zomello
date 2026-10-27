@@ -5981,7 +5981,7 @@ checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
 
 [[package]]
 name = "zomello"
-version = "0.5.3"
+version = "0.5.4"
 dependencies = [
  "axum",
  "bytes",
@@ -5992,6 +5992,9 @@ dependencies = [
  "hyper-util",
  "if-addrs 0.13.4",
  "mdns-sd",
+ "objc2",
+ "objc2-foundation",
+ "objc2-ui-kit",
  "qrcode",
  "rcgen",
  "ring",

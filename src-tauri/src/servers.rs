@@ -190,6 +190,7 @@ pub async fn open_server_window(app: AppHandle, id: String, address: String, nam
         .build()
         .map_err(|e| e.to_string())?;
     crate::enable_spellcheck(&window);
+    crate::app_icon::apply(&window);
     Ok(())
 }
 
