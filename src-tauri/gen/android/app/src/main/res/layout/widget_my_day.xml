@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The My Day widget: a heading, up to six tasks, and how many more (filled in by MyDayWidget.kt). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="14dp"
+    android:background="@drawable/widget_bg">
+
+    <TextView
+        android:id="@+id/heading"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="6dp"
+        android:text="@string/widget_name"
+        android:textColor="#FF4FB0EC"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/row0"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingVertical="3dp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textColor="#FFFFFFFF"
+        android:textSize="14sp"
+        android:visibility="gone" />
+    <TextView
+        android:id="@+id/row1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingVertical="3dp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textColor="#FFFFFFFF"
+        android:textSize="14sp"
+        android:visibility="gone" />
+    <TextView
+        android:id="@+id/row2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingVertical="3dp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textColor="#FFFFFFFF"
+        android:textSize="14sp"
+        android:visibility="gone" />
+    <TextView
+        android:id="@+id/row3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingVertical="3dp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textColor="#FFFFFFFF"
+        android:textSize="14sp"
+        android:visibility="gone" />
+    <TextView
+        android:id="@+id/row4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingVertical="3dp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textColor="#FFFFFFFF"
+        android:textSize="14sp"
+        android:visibility="gone" />
+    <TextView
+        android:id="@+id/row5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingVertical="3dp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textColor="#FFFFFFFF"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/more"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="2dp"
+        android:textColor="#FF8A93A6"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/widget_empty"
+        android:textColor="#FF8A93A6"
+        android:textSize="13sp" />
+</LinearLayout>

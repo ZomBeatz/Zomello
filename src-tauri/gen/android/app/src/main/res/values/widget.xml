@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_name">My Day</string>
+    <string name="widget_description">What\'s late, due and planned today, from every Zomello board</string>
+    <string name="widget_empty">Nothing planned today. Tap to open Zomello.</string>
+    <string name="widget_stale">Open Zomello to bring My Day up to date.</string>
+</resources>

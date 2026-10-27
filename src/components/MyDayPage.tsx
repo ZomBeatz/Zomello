@@ -1,14 +1,13 @@
 import { useMemo, useState } from "react";
-import { addDays, format, isSameDay, startOfDay } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { Lightbulb, Plus, Sun, X } from "lucide-react";
 import type { Card, ID } from "../types";
 import { useStore } from "../store";
-import { byOrder, cardSpan, isLate, prettyDate, PRIORITIES, toISO, todayISO } from "../utils";
+import { byOrder, cardSpan, prettyDate, todayISO } from "../utils";
 import { Empty } from "./ui";
 import { TaskRow } from "./MyTasksPage";
+import { myDayLists } from "../myDay";
 import { useWhen, withWhen } from "./WhenChip";
-
-const rank = (c: Card) => PRIORITIES.findIndex((p) => p.id === c.priority);
 
 /**
  * What to do today, from every board: what's late, what's due or scheduled today (timed things in time order),
@@ -26,48 +25,8 @@ export function MyDayPage() {
   const [target, setTarget] = useState<ID>(liveBoards[0]?.id ?? "");
   const today = todayISO();
 
-  const { late, scheduled, added, done, ideas } = useMemo(() => {
-    const live = new Set(liveBoards.map((b) => b.id));
-    const cards = Object.values(data.cards).filter(
-      (c) => !c.archived && live.has(c.boardId) && data.lists[c.listId] && !data.lists[c.listId].archived,
-    );
-    const mine = (c: Card) => !me || c.assignees.length === 0 || c.assignees.includes(me);
-    const open = cards.filter((c) => c.progress !== "completed");
-    const dayStart = startOfDay(new Date());
-    const dayEnd = addDays(dayStart, 1);
-    const onToday = (c: Card) => {
-      const s = cardSpan(c);
-      return !!s && s.start < dayEnd && s.end > dayStart;
-    };
-    const late = open.filter((c) => mine(c) && isLate(c)).sort((a, b) => a.dueDate!.localeCompare(b.dueDate!) || rank(a) - rank(b));
-    const scheduled = open
-      .filter((c) => mine(c) && !isLate(c) && onToday(c))
-      .sort((a, b) => {
-        const sa = cardSpan(a)!, sb = cardSpan(b)!;
-        // Timed things first, in time order; then the rest by priority.
-        if (!sa.allDay || !sb.allDay) return sa.allDay ? 1 : sb.allDay ? -1 : +sa.start - +sb.start;
-        return rank(a) - rank(b);
-      });
-    const shown = new Set([...late, ...scheduled].map((c) => c.id));
-    const added = open.filter((c) => c.myDay === today && !shown.has(c.id)).sort((a, b) => rank(a) - rank(b));
-    for (const c of added) shown.add(c.id);
-    const done = cards.filter(
-      (c) => c.progress === "completed" && c.completedAt && isSameDay(c.completedAt, new Date()) && (mine(c) || c.myDay === today),
-    );
-    const tomorrow = toISO(addDays(new Date(), 1));
-    const ideas = open
-      .filter((c) => mine(c) && !shown.has(c.id))
-      .filter(
-        (c) =>
-          c.dueDate === tomorrow ||
-          c.startDate === tomorrow ||
-          c.progress === "inProgress" ||
-          (!c.dueDate && (c.priority === "urgent" || c.priority === "important")),
-      )
-      .sort((a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999") || rank(a) - rank(b))
-      .slice(0, 10);
-    return { late, scheduled, added, done, ideas };
-  }, [data, liveBoards, me, today]);
+  // Recomputed when the data changes, and when the day does (the page stays open past midnight).
+  const { late, scheduled, added, done, ideas } = useMemo(() => myDayLists(data, new Date()), [data, today]);
 
   const add = () => {
     const t = title.trim();

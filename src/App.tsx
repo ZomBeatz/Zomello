@@ -28,6 +28,7 @@ import { handleShortcut } from "./shortcuts";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { startReminders } from "./reminders";
 import { installShareIn } from "./shareIn";
+import { installWidget } from "./widget";
 import { applyZoom, installZoomControls } from "./zoom";
 import { startFocusWatcher } from "./focus";
 import { isBoardWindow, isDeviceWindow, isExtraWindow, onOtherWindowData, setWindowTitle } from "./windows";
@@ -92,8 +93,9 @@ export default function App() {
     // Reminders and the focus timer's alarm run in the main window only (no double notifications).
     if (!loaded || isExtraWindow || isRemote) return;
     const a = startReminders();
+    const w = installWidget();
     const b = startFocusWatcher();
-    return () => (a(), b());
+    return () => (a(), b(), w());
   }, [loaded]);
 
   // Android: text shared to Zomello from another app opens Quick add (wherever its boards are).

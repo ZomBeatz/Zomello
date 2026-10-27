@@ -51,12 +51,22 @@ class MainActivity : TauriActivity() {
     super.onCreate(savedInstanceState)
     keepNotificationAction(intent)
     keepShared(intent)
+    keepOpen(intent)
   }
 
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
     keepNotificationAction(intent)
     keepShared(intent)
+    keepOpen(intent)
+  }
+
+  // The My Day widget was tapped: the page opens My Day (takeOpen).
+  private var pendingOpen: String? = null
+
+  private fun keepOpen(intent: Intent?) {
+    pendingOpen = intent?.getStringExtra("zomelloOpen") ?: return
+    webView?.evaluateJavascript("window.dispatchEvent(new Event('zomello-open'))", null)
   }
 
   // Text or a link shared to Zomello from another app: the page makes a task of it (takeShared).
@@ -156,6 +166,20 @@ class MainActivity : TauriActivity() {
         if (packageManager.getComponentEnabledSetting(component) == state) continue
         packageManager.setComponentEnabledSetting(component, state, PackageManager.DONT_KILL_APP)
       }
+    }
+
+    /** The My Day widget's content (see src/widget.ts): saved and drawn on every widget. */
+    @JavascriptInterface
+    fun updateWidget(json: String) {
+      MyDayWidget.save(this@MainActivity, json)
+    }
+
+    /** What the widget asked to open ("myday"), once. */
+    @JavascriptInterface
+    fun takeOpen(): String? {
+      val o = pendingOpen
+      pendingOpen = null
+      return o
     }
 
     /** Text shared to Zomello, waiting for the page, once: {"text", "subject"}. */

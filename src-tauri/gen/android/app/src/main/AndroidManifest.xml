@@ -38,6 +38,18 @@
             
             <!-- tauri-file-associations. AUTO-GENERATED. DO NOT REMOVE. -->
         </activity>
+        <!-- The My Day home-screen widget. -->
+        <receiver
+            android:name=".MyDayWidget"
+            android:exported="false"
+            android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/my_day_widget_info" />
+        </receiver>
         <!-- The launcher icon: one of these is on at a time (Settings > Appearance > App icon, see MainActivity.setAppIcon). -->
         <activity-alias
             android:name=".IconClassic"
