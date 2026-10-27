@@ -15,6 +15,19 @@
 - **Device backups:** a phone or tablet can have your computer keep a copy of its boards (Settings > Servers on the phone). After a reinstall, send it back from the computer (Settings > Phones & tablets > Device backups). Private boards can be included, locked with a password only you know.
 - When your computer's boards or sections change, the phone's menu shows it right away (before, it waited until you opened one of the computer's boards).
 
+**Adding tasks**
+- **Type the date in the title:** "Dentist tomorrow 3pm", "Call Sam friday at 2:30", "Report due Oct 28". Zomello sets the date and time and shows what it found; the × keeps the words in the title instead.
+- **Board templates:** start a board from a weekly plan, moving house, a school term, a trip, a project, household chores, an event or a job search.
+- **Share to Zomello (Android):** share a link or text from any app and pick **Add to Zomello**.
+
+**More**
+- **My Day widget (Android)** for your home screen.
+- **Done and Snooze** on reminders on phones and tablets.
+- **Resize timed cards** in the calendar's Week and Day views by dragging their bottom edge.
+- **Your Zomello dates in your calendar app:** save a calendar file from any board, or (on a Zomello Server) make a private calendar link that Google Calendar, Outlook or Apple Calendar subscribe to.
+- **Device backups include attached files.**
+- **Send feedback** in Help and Settings > About starts an email with your version and device filled in.
+
 **Also**
 - **Reminders on phones and tablets arrive even when Zomello is closed.** The app hands each card's reminder and the daily summary to the phone ahead of time.
 - Choose how many checklist items a card shows on the board (Customize > Show on cards).
