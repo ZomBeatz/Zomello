@@ -399,6 +399,11 @@ interface State {
   deviceOffline: boolean;
   /** Add a board that arrives complete (a .zomello board file), with its people. */
   addBoardBundle(x: { board: Board; lists: List[]; cards: Card[]; people: string[] }): void;
+  /**
+   * Cards sent from another device into board `into`: each goes to the bucket with the same name (else the
+   * first), labels and custom fields match by name (missing labels are added). Returns how many arrived.
+   */
+  addArrivedCards(x: { board: Board; lists: List[]; cards: Card[]; people: string[] }, into: ID): number;
   /** Set `order` by position for `ids` and apply `patch` to the moved card. */
   applyCardOrder(ids: ID[], movedId: ID, patch: Partial<Card>): void;
   linkCards(a: ID, b: ID, type: LinkType): void;
@@ -992,6 +997,59 @@ export const useStore = create<State>((set, get) => {
         cards: { ...d.cards, ...Object.fromEntries(cards.map((c) => [c.id, c])) },
         settings: { ...d.settings, people: [...new Set([...d.settings.people, ...people])] },
       }));
+    },
+    addArrivedCards({ board: src, lists: srcLists, cards, people }, into) {
+      let n = 0;
+      mut((d) => {
+        const dst = d.boards[into];
+        const dstLists = Object.values(d.lists).filter((l) => l.boardId === into && !l.archived).sort(byOrder);
+        if (!dst || !dstLists.length) return d;
+        const labels = [...dst.labels];
+        const labelFor = (lid: ID) => {
+          const l = src.labels.find((x) => x.id === lid);
+          if (!l) return null;
+          let m = labels.find((x) => x.name === l.name);
+          if (!m) labels.push((m = { id: uid(), name: l.name, color: l.color }));
+          return m.id;
+        };
+        const listFor = (lid: ID) => {
+          const name = srcLists.find((l) => l.id === lid)?.title;
+          return (dstLists.find((l) => l.title === name) ?? dstLists[0]).id;
+        };
+        const fieldsFor = (c: Card) => {
+          const out: Card["fields"] = {};
+          for (const f of src.fields ?? []) {
+            const match = dst.fields.find((g) => g.name === f.name && g.type === f.type);
+            if (!match || c.fields[f.id] == null) continue;
+            let v = c.fields[f.id];
+            if (f.type === "select") v = match.options.find((o) => o.label === f.options.find((x) => x.id === v)?.label)?.id ?? null;
+            out[match.id] = v;
+          }
+          return out;
+        };
+        const next: Record<ID, Card> = {};
+        const top = (listId: ID) =>
+          Math.max(-1, ...Object.values(d.cards).filter((x) => x.listId === listId).map((x) => x.order), ...Object.values(next).filter((x) => x.listId === listId).map((x) => x.order));
+        for (const c of [...cards].sort(byOrder)) {
+          const listId = listFor(c.listId);
+          next[c.id] = {
+            ...c,
+            boardId: into,
+            listId,
+            order: top(listId) + 1,
+            labelIds: c.labelIds.map(labelFor).filter((x): x is ID => !!x),
+            fields: fieldsFor(c),
+          };
+        }
+        n = cards.length;
+        return {
+          ...d,
+          boards: { ...d.boards, [into]: { ...dst, labels } },
+          cards: { ...d.cards, ...next },
+          settings: { ...d.settings, people: [...new Set([...d.settings.people, ...people])] },
+        };
+      });
+      return n;
     },
     importBoard(b, opts) {
       const st = get();
