@@ -1694,3 +1694,8 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 .when-chip svg { color: var(--accent); }
 .quick-when { padding: 0 4px 8px 30px; }
 .add-card-form .when-chip { margin: -2px 0 2px; }
+.cal-block .block-resize { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; cursor: ns-resize; touch-action: none; }
+.cal-block .block-resize::after { content: ""; position: absolute; left: 50%; bottom: 2px; width: 18px; height: 3px; margin-left: -9px; border-radius: 2px; background: color-mix(in srgb, var(--bar) 70%, transparent); opacity: 0; }
+.cal-block:hover .block-resize::after, .cal-block.resizing .block-resize::after, [data-touch] .cal-block .block-resize::after { opacity: 1; }
+[data-touch] .cal-block .block-resize { height: 14px; }
+.cal-block.resizing { z-index: 3; box-shadow: var(--shadow-lg); }

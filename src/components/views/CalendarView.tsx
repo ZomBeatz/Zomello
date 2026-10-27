@@ -85,22 +85,63 @@ function Bar({ dragId, card, color, style, onOpen, cont }: {
   );
 }
 
-/** A timed card in the Week and Day views, at its hours. */
-function Block({ card, color, style, onOpen, label }: { card: Card; color: string; style: React.CSSProperties; onOpen: () => void; label: string }) {
+/** A timed card in the Week and Day views, at its hours. Drag its bottom edge to make it longer or shorter. */
+function Block({ card, color, style, onOpen, label, endMinutes, onResize }: {
+  card: Card; color: string; style: React.CSSProperties; onOpen: () => void; label: string;
+  /** Where it ends now (minutes after midnight), and what to do with a new end. */
+  endMinutes: number;
+  onResize: (endMinutes: number) => void;
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `blk:${card.id}` });
+  const [extra, setExtra] = useState<number | null>(null);
+  const resizing = useRef<{ y: number; done: boolean } | null>(null);
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+  const minutesFor = (dy: number) => Math.round(((dy * 60) / HOUR_PX) / 15) * 15;
   return (
     <div
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      className={`cal-block ${card.progress === "completed" ? "done" : ""} ${isDragging ? "ghost" : ""}`}
-      style={{ ...style, "--bar": color } as React.CSSProperties}
-      onClick={onOpen}
+      className={`cal-block ${card.progress === "completed" ? "done" : ""} ${isDragging ? "ghost" : ""} ${extra !== null ? "resizing" : ""}`}
+      style={{ ...style, ...(extra !== null ? { height: Math.max(12, (style.height as number) + (extra * HOUR_PX) / 60) } : {}), "--bar": color } as React.CSSProperties}
+      onClick={() => {
+        // The click that ends a resize isn't an "open".
+        if (resizing.current?.done) return void (resizing.current = null);
+        onOpen();
+      }}
       onContextMenu={(e) => openCardMenu(e, card.id)}
       title={`${card.title}\n${label}`}
     >
       <span className="block-title">{card.title}</span>
       <span className="ev-time">{label}</span>
+      <span
+        className="block-resize"
+        title="Drag to change when it ends"
+        aria-hidden
+        // Not a move: keep the drag-and-drop from starting.
+        onMouseDown={stop}
+        onTouchStart={stop}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          e.currentTarget.setPointerCapture(e.pointerId);
+          resizing.current = { y: e.clientY, done: false };
+          setExtra(0);
+        }}
+        onPointerMove={(e) => {
+          if (resizing.current) setExtra(minutesFor(e.clientY - resizing.current.y));
+        }}
+        onPointerUp={(e) => {
+          if (!resizing.current) return;
+          const delta = minutesFor(e.clientY - resizing.current.y);
+          resizing.current.done = true;
+          setExtra(null);
+          if (delta) onResize(Math.min(24 * 60 - 1, endMinutes + delta));
+        }}
+        onPointerCancel={() => {
+          resizing.current = null;
+          setExtra(null);
+        }}
+      />
     </div>
   );
 }
@@ -380,6 +421,7 @@ export function CalendarView({ board, lists, cards }: { board: Board; lists: Lis
             onOpen={openCard}
             onAdd={lists.length ? addOn : undefined}
             onPickDay={(d) => (setCursor(d), setView("day"))}
+            onResize={(c, startTime, dueTime) => updateCard(c.id, { startTime, dueTime })}
           />
         )}
       </div>
@@ -469,7 +511,7 @@ function MonthGrid({ days, month, multi, byDay, eventsByDay, colorOf, chip, onOp
   );
 }
 
-function TimeGrid({ days, cards, multi, feedEvents, colorOf, onOpen, onAdd, onPickDay }: {
+function TimeGrid({ days, cards, multi, feedEvents, colorOf, onOpen, onAdd, onPickDay, onResize }: {
   days: Date[];
   cards: Card[];
   multi: Card[];
@@ -478,6 +520,7 @@ function TimeGrid({ days, cards, multi, feedEvents, colorOf, onOpen, onAdd, onPi
   onOpen: (id: string) => void;
   onAdd?: (iso: string, extra?: Partial<Card>) => void;
   onPickDay: (d: Date) => void;
+  onResize: (card: Card, startTime: string, dueTime: string) => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const [now, setNow] = useState(() => new Date());
@@ -609,6 +652,12 @@ function TimeGrid({ days, cards, multi, feedEvents, colorOf, onOpen, onAdd, onPi
                       style={style}
                       onOpen={() => onOpen(b.card.id)}
                       label={`${format(b.start, "p")} to ${format(b.end, "p")}`}
+                      endMinutes={isSameDay(b.start, b.end) ? b.end.getHours() * 60 + b.end.getMinutes() : 24 * 60 - 1}
+                      onResize={(end) => {
+                        const startMin = b.start.getHours() * 60 + b.start.getMinutes();
+                        const e = Math.max(startMin + 15, end);
+                        onResize(b.card, hhmm(b.start), hhmm(new Date(2000, 0, 1, Math.floor(e / 60), e % 60)));
+                      }}
                     />
                   );
                 })}
