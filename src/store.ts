@@ -330,6 +330,8 @@ interface State {
   importOpen: boolean;
   /** Home > Start from a template. */
   templatesOpen: boolean;
+  /** Quick add opened with something already in it (text shared to Zomello from another app). */
+  quickAddPrefill: { title: string; description: string } | null;
   aiDialog: AiDialogState | null;
   /** "Paste cards" window: where the cards go. */
   pasteCards: { boardId: ID; listId?: ID; text?: string } | null;
@@ -345,7 +347,7 @@ interface State {
   toast(text: string, opts?: { undo?: boolean; key?: string; action?: Toast["action"] }): void;
   dismissToast(id: ID): void;
   setOverlay(
-    patch: Partial<Pick<State, "quickAddOpen" | "helpOpen" | "welcomeOpen" | "customizeBoardId" | "shareBoardId" | "searchOpen" | "importOpen" | "templatesOpen" | "aiDialog" | "pasteCards">>,
+    patch: Partial<Pick<State, "quickAddOpen" | "helpOpen" | "welcomeOpen" | "customizeBoardId" | "shareBoardId" | "searchOpen" | "importOpen" | "templatesOpen" | "quickAddPrefill" | "aiDialog" | "pasteCards">>,
   ): void;
 
   startFocus(minutes: number, cardId?: ID | null, label?: string): void;
@@ -621,6 +623,7 @@ export const useStore = create<State>((set, get) => {
     focus: loadFocus(),
     importOpen: false,
     templatesOpen: false,
+    quickAddPrefill: null,
     aiDialog: null,
     pasteCards: null,
     selected: [],

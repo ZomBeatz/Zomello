@@ -27,6 +27,7 @@ import { LogoMark } from "./components/Logo";
 import { handleShortcut } from "./shortcuts";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { startReminders } from "./reminders";
+import { installShareIn } from "./shareIn";
 import { applyZoom, installZoomControls } from "./zoom";
 import { startFocusWatcher } from "./focus";
 import { isBoardWindow, isDeviceWindow, isExtraWindow, onOtherWindowData, setWindowTitle } from "./windows";
@@ -93,6 +94,12 @@ export default function App() {
     const a = startReminders();
     const b = startFocusWatcher();
     return () => (a(), b());
+  }, [loaded]);
+
+  // Android: text shared to Zomello from another app opens Quick add (wherever its boards are).
+  useEffect(() => {
+    if (!loaded || isExtraWindow) return;
+    return installShareIn();
   }, [loaded]);
 
   // Zomello Server: other people's changes, your other tabs, sharing changes and invitations.

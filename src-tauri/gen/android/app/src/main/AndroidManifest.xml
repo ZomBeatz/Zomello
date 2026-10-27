@@ -19,6 +19,12 @@
             android:label="@string/main_activity_title"
             android:name=".MainActivity"
             android:exported="true">
+            <!-- Share to Zomello: text or a link from any app becomes a new task (MainActivity.keepShared). -->
+            <intent-filter android:label="@string/share_label">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
             <!-- tauri-file-associations. AUTO-GENERATED. DO NOT REMOVE. -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
