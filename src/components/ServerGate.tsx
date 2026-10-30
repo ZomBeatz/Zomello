@@ -168,7 +168,7 @@ function SetupForm({ onDone, hint }: { onDone: () => void; hint?: ReactNode }) {
       </label>
       <label>
         Username
-        <input autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder="for signing in, e.g. gabe" value={username} onChange={(e) => setUsername(e.target.value)} />
+        <input autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder="for signing in, e.g. sam" value={username} onChange={(e) => setUsername(e.target.value)} />
       </label>
       <label>
         Password
