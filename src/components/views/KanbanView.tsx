@@ -31,7 +31,6 @@ import {
   ArrowDownUp,
   Check,
   ChevronsLeftRight,
-  CircleCheck,
   SlidersHorizontal,
   Sparkles,
   ClipboardCopy,
@@ -43,14 +42,17 @@ import {
   Trash2,
   X,
   ClipboardPaste,
+  ListChecks,
+  Wand2,
 } from "lucide-react";
-import type { BadgeKey, BadgeMode, Board, Card, GroupBy, ID, List, Progress } from "../../types";
+import type { BadgeKey, BadgeMode, Board, Card, GroupBy, ID, List, Priority, Progress } from "../../types";
 import { useStore } from "../../store";
 import { useWhen, withWhen } from "../WhenChip";
-import { buildGroups, SORT_MODES, sortCards, type Group } from "../../utils";
+import { buildGroups, PRIORITIES, PROGRESS, SORT_MODES, sortCards, type Group } from "../../utils";
 import { CardTile } from "../CardTile";
 import { InlineEdit, MenuItem, Modal, Popover } from "../ui";
 import { BADGES } from "../BoardCustomize";
+import { LabelPicker } from "../pickers";
 import { copyText } from "../Markdown";
 import { workOrder } from "../../ai";
 
@@ -343,6 +345,7 @@ function Column({
   const updateList = useStore((s) => s.updateList);
   const list = group.list;
   const [displayOpen, setDisplayOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const sortable = useSortable({
     id: `${COL_PREFIX}${group.id}`,
     data: { type: "column" },
@@ -447,6 +450,15 @@ function Column({
                   Copy work order
                 </MenuItem>
                 <MenuItem
+                  icon={<ListChecks size={14} />}
+                  onClick={() => {
+                    close();
+                    useStore.getState().selectCards(ids);
+                  }}
+                >
+                  Select all cards
+                </MenuItem>
+                <MenuItem
                   icon={<ClipboardPaste size={14} />}
                   onClick={() => {
                     close();
@@ -455,22 +467,9 @@ function Column({
                 >
                   Paste cards here…
                 </MenuItem>
-                <label className="menu-item">
-                  <CircleCheck size={14} />
-                  <span>Cards moved here become</span>
-                  <select
-                    className="auto-progress"
-                    value={list.autoProgress ?? ""}
-                    onChange={(e) => updateList(list.id, { autoProgress: (e.target.value || null) as Progress | null })}
-                  >
-                    <option value="">(unchanged)</option>
-                    <option value="notStarted">Not started</option>
-                    <option value="inProgress">In progress</option>
-                    <option value="waiting">Waiting</option>
-                    <option value="onHold">On hold</option>
-                    <option value="completed">Completed</option>
-                  </select>
-                </label>
+                <MenuItem icon={<Wand2 size={14} />} onClick={() => (setRulesOpen(true), close())}>
+                  Bucket rules{hasRules(list) ? " (on)" : ""}…
+                </MenuItem>
                 <MenuItem icon={<SlidersHorizontal size={14} />} onClick={() => (setDisplayOpen(true), close())}>
                   Card display{list.badges && Object.keys(list.badges).length ? " (custom)" : ""}…
                 </MenuItem>
@@ -524,6 +523,7 @@ function Column({
       </div>
       {group.patch && lists.length > 0 && <AddCard group={group} lists={lists} />}
       {displayOpen && list && <BucketDisplayDialog list={list} board={board} onClose={() => setDisplayOpen(false)} />}
+      {rulesOpen && list && <BucketRulesDialog list={list} board={board} onClose={() => setRulesOpen(false)} />}
       {completed.length > 0 && (
         <CompletedSection
           boardId={board.id}
@@ -792,6 +792,100 @@ function AddList({ boardId }: { boardId: ID }) {
         </button>
       </div>
     </div>
+  );
+}
+
+const hasRules = (l: List) => !!(l.autoProgress || l.newPriority || l.newLabelIds?.length || l.arriveLabelIds?.length);
+
+/** Labels a bucket rule adds, with a picker to change them. */
+function RuleLabels({ board, ids, onChange }: { board: Board; ids: ID[]; onChange: (ids: ID[]) => void }) {
+  const shown = board.labels.filter((l) => ids.includes(l.id));
+  return (
+    <div className="row wrap gap-sm">
+      {shown.map((l) => (
+        <span key={l.id} className="label-pill lg" style={{ background: l.color }}>
+          {l.name || "Unnamed"}
+          <button title="Remove label" onClick={() => onChange(ids.filter((x) => x !== l.id))}>
+            <X size={11} />
+          </button>
+        </span>
+      ))}
+      <Popover
+        trigger={(_, toggle) => (
+          <button className="label-toggle add" onClick={toggle}>
+            <Plus size={13} /> {shown.length ? "" : "Add label"}
+          </button>
+        )}
+      >
+        {() => <LabelPicker board={board} selected={ids} onToggle={(id, on) => onChange(on ? [...new Set([...ids, id])] : ids.filter((x) => x !== id))} />}
+      </Popover>
+    </div>
+  );
+}
+
+/** What happens to cards made in, or moved into, a bucket. */
+function BucketRulesDialog({ list, board, onClose }: { list: List; board: Board; onClose: () => void }) {
+  const updateList = useStore((s) => s.updateList);
+  // Read the live board so labels made in the picker show up straight away.
+  const liveBoard = useStore((s) => s.data.boards[board.id]) ?? board;
+  const ids = (x?: ID[]) => x ?? [];
+  const setIds = (key: "newLabelIds" | "arriveLabelIds") => (v: ID[]) => updateList(list.id, { [key]: v.length ? v : undefined });
+  return (
+    <Modal onClose={onClose} width={520} className="customize">
+      <header className="customize-head">
+        <h2>Rules for “{list.title}”</h2>
+        <button className="icon-btn" title="Close" aria-label="Close" onClick={onClose}>
+          <X size={18} />
+        </button>
+      </header>
+      <div className="customize-body bucket-rules">
+        <section>
+          <h4>When a card is made here</h4>
+          <p className="muted small">Useful for marking where a card started, even after it moves on.</p>
+          <div className="rule-row">
+            <span>Add labels</span>
+            <RuleLabels board={liveBoard} ids={ids(list.newLabelIds)} onChange={setIds("newLabelIds")} />
+          </div>
+          <label className="rule-row">
+            <span>Set priority</span>
+            <select value={list.newPriority ?? ""} onChange={(e) => updateList(list.id, { newPriority: (e.target.value || null) as Priority | null })}>
+              <option value="">(unchanged)</option>
+              {PRIORITIES.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </section>
+        <section>
+          <h4>When a card is moved or made here</h4>
+          <label className="rule-row">
+            <span>Set progress</span>
+            <select value={list.autoProgress ?? ""} onChange={(e) => updateList(list.id, { autoProgress: (e.target.value || null) as Progress | null })}>
+              <option value="">(unchanged)</option>
+              {PROGRESS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="rule-row">
+            <span>Add labels</span>
+            <RuleLabels board={liveBoard} ids={ids(list.arriveLabelIds)} onChange={setIds("arriveLabelIds")} />
+          </div>
+        </section>
+        {hasRules(list) && (
+          <button
+            className="btn sm ghost"
+            onClick={() => updateList(list.id, { autoProgress: null, newPriority: null, newLabelIds: undefined, arriveLabelIds: undefined })}
+          >
+            Turn off all rules
+          </button>
+        )}
+      </div>
+    </Modal>
   );
 }
 

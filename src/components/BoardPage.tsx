@@ -16,7 +16,6 @@ import {
   MoreHorizontal,
   AppWindow,
   Bot,
-  CheckCircle2,
   ClipboardCopy,
   LayoutTemplate,
   Palette,
@@ -28,12 +27,16 @@ import {
   Trash2,
   Users,
   LogOut,
+  ArrowRightLeft,
+  CircleDot,
+  Flag,
   X, FileDown, ClipboardPaste } from "lucide-react";
-import type { Board, DueFilter, Filter, GroupBy, ID, ViewMode } from "../types";
+import type { Board, Card, DueFilter, Filter, GroupBy, ID, ViewMode } from "../types";
 import { useBoardUi, useStore } from "../store";
 import { byOrder, emptyFilter, filterIsActive, matchesFilter, PALETTE, PRIORITIES, PROGRESS, relatedSet, uid } from "../utils";
 import { ask, Avatar, ColorPicker, InlineEdit, MenuItem, Popover } from "./ui";
 import { KanbanView } from "./views/KanbanView";
+import { BucketPicker, LabelPicker } from "./pickers";
 import { ListView } from "./views/ListView";
 import { CalendarView } from "./views/CalendarView";
 import { TimelineView } from "./views/TimelineView";
@@ -122,7 +125,15 @@ export function BoardPage({ boardId }: { boardId: ID }) {
           } as React.CSSProperties}
         />
       )}
-      <div className="board-content">
+      <div
+        className="board-content"
+        onClick={(e) => {
+          // A click on empty board space ends picking cards.
+          const t = e.target as Element;
+          if (useStore.getState().selected.length && !t.closest(".card-tile, button, a, input, select, textarea, label, [contenteditable], .popover, .ctx-menu, .modal"))
+            useStore.getState().clearSelected();
+        }}
+      >
         {ui.view === "board" && <KanbanView board={board} lists={lists} cards={cards} groupBy={ui.groupBy} />}
         {ui.view === "list" && <ListView board={board} lists={lists} cards={cards} />}
         {ui.view === "calendar" && <CalendarView board={board} lists={lists} cards={cards} />}
@@ -556,41 +567,88 @@ function Toolbar({
   );
 }
 
-/** Shown while cards are Ctrl+clicked: bulk actions, mainly handing a list of items to an AI. */
+/** Shown while cards are picked (Ctrl+click, or Select on a card's menu): changes for all of them at once. */
 function SelectionBar({ boardId }: { boardId: ID }) {
   const selected = useStore((s) => s.selected);
   const cards = useStore((s) => s.data.cards);
+  const board = useStore((s) => s.data.boards[boardId]);
   const { setOverlay, clearSelected, updateCard, toast } = useStore.getState();
   const picked = selected.map((id) => cards[id]).filter(Boolean);
-  if (!picked.length) return null;
+  if (!picked.length || !board) return null;
+  const n = picked.length;
+  const plural = `${n} card${n === 1 ? "" : "s"}`;
+  const each = (patch: (c: Card) => Partial<Card> | null, done: string) => {
+    for (const c of picked) {
+      const p = patch(c);
+      if (p) updateCard(c.id, p);
+    }
+    toast(`${done} ${plural}`, { undo: true });
+  };
+  // Labels on every picked card show as ticked; ticking adds to all, unticking removes from all.
+  const shared = board.labels.filter((l) => picked.every((c) => c.labelIds.includes(l.id))).map((l) => l.id);
   return (
     <div className="selection-bar" role="toolbar" aria-label="Selected cards">
-      <span className="sel-count">{picked.length} selected</span>
-      <button
-        className="btn sm primary"
-        title="Copy a numbered work order for these cards, ready to paste into an AI"
-        onClick={() => copyText(workOrder(boardId, picked, `${picked.length} selected cards`))}
-      >
-        <ClipboardCopy size={14} /> Copy work order
-      </button>
-      <button className="btn sm" onClick={() => setOverlay({ aiDialog: { tab: "export", boardId, cardIds: selected } })}>
-        <Bot size={14} /> Hand to AI…
-      </button>
+      <span className="sel-count">{n} selected</span>
+      <Popover trigger={(_, t) => <button className="btn sm" onClick={t}><CircleDot size={14} /> Progress</button>}>
+        {(close) => (
+          <div className="menu">
+            {PROGRESS.map((p) => (
+              <MenuItem key={p.id} icon={<span className="dot" style={{ background: p.color }} />} onClick={() => (each(() => ({ progress: p.id }), `Set to ${p.name}:`), close())}>
+                {p.name}
+              </MenuItem>
+            ))}
+          </div>
+        )}
+      </Popover>
+      <Popover trigger={(_, t) => <button className="btn sm" onClick={t}><Flag size={14} /> Priority</button>}>
+        {(close) => (
+          <div className="menu">
+            {PRIORITIES.map((p) => (
+              <MenuItem key={p.id} icon={<span className="dot" style={{ background: p.color }} />} onClick={() => (each(() => ({ priority: p.id }), `Set to ${p.name}:`), close())}>
+                {p.name}
+              </MenuItem>
+            ))}
+          </div>
+        )}
+      </Popover>
+      <Popover trigger={(_, t) => <button className="btn sm" onClick={t}><Tag size={14} /> Labels</button>}>
+        {() => (
+          <LabelPicker
+            board={board}
+            selected={shared}
+            onToggle={(id, on) =>
+              each(
+                (c) => (on ? (c.labelIds.includes(id) ? null : { labelIds: [...c.labelIds, id] }) : c.labelIds.includes(id) ? { labelIds: c.labelIds.filter((x) => x !== id) } : null),
+                on ? "Labeled" : "Unlabeled",
+              )
+            }
+          />
+        )}
+      </Popover>
+      <Popover trigger={(_, t) => <button className="btn sm" onClick={t}><ArrowRightLeft size={14} /> Move</button>}>
+        {(close) => (
+          <BucketPicker
+            defaultBoardId={boardId}
+            defaultListId={picked[0].listId}
+            action={`Move ${plural}`}
+            onPick={(listId) => {
+              const st = useStore.getState();
+              const to = st.data.lists[listId];
+              for (const c of picked) {
+                if (to.boardId === c.boardId) st.moveCardToList(c.id, listId);
+                else st.moveCardToBoard(c.id, to.boardId, listId);
+              }
+              toast(`Moved ${plural} to ${to.title}`, { undo: true });
+              close();
+              clearSelected();
+            }}
+          />
+        )}
+      </Popover>
       <button
         className="btn sm"
         onClick={() => {
-          for (const c of picked) updateCard(c.id, { progress: "completed" });
-          toast(`Completed ${picked.length} card${picked.length === 1 ? "" : "s"}`, { undo: true });
-          clearSelected();
-        }}
-      >
-        <CheckCircle2 size={14} /> Complete
-      </button>
-      <button
-        className="btn sm"
-        onClick={() => {
-          for (const c of picked) updateCard(c.id, { archived: true });
-          toast(`Archived ${picked.length} card${picked.length === 1 ? "" : "s"}`, { undo: true });
+          each(() => ({ archived: true }), "Archived");
           clearSelected();
         }}
       >
@@ -599,19 +657,30 @@ function SelectionBar({ boardId }: { boardId: ID }) {
       <button
         className="btn sm danger"
         onClick={async () => {
-          const n = picked.length;
-          if (!(await ask(`Delete ${n} card${n === 1 ? "" : "s"}? You can undo this right after.`, { okText: "Delete", danger: true }))) return;
+          if (!(await ask(`Delete ${plural}? You can undo this right after.`, { okText: "Delete", danger: true }))) return;
           for (const c of picked) useStore.getState().deleteCard(c.id);
-          toast(`Deleted ${n} card${n === 1 ? "" : "s"}`, { undo: true });
+          toast(`Deleted ${plural}`, { undo: true });
           clearSelected();
         }}
       >
         <Trash2 size={14} /> Delete
       </button>
-      <button className="icon-btn" title="Clear selection (Esc)" onClick={clearSelected}>
+      <Popover align="right" trigger={(_, t) => <button className="icon-btn" title="More" aria-label="More" onClick={t}><MoreHorizontal size={15} /></button>}>
+        {(close) => (
+          <div className="menu">
+            <MenuItem icon={<ClipboardCopy size={14} />} onClick={() => (copyText(workOrder(boardId, picked, `${n} selected cards`)), close())}>
+              Copy work order
+            </MenuItem>
+            <MenuItem icon={<Bot size={14} />} onClick={() => (setOverlay({ aiDialog: { tab: "export", boardId, cardIds: selected } }), close())}>
+              Hand to AI…
+            </MenuItem>
+          </div>
+        )}
+      </Popover>
+      <button className="icon-btn" title="Clear selection (Esc)" aria-label="Clear selection" onClick={clearSelected}>
         <X size={15} />
       </button>
-      <span className="muted small sel-hint">Ctrl+click cards to add or remove</span>
+      <span className="muted small sel-hint">Click cards to add or remove. Esc or a click on empty space clears.</span>
     </div>
   );
 }

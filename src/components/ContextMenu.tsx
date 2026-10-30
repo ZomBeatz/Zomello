@@ -30,6 +30,7 @@ import {
   Trash2,
   UserPlus,
   ClipboardCopy,
+  ListChecks,
 } from "lucide-react";
 import type { ID } from "../types";
 import { copyCards } from "../cardClipboard";
@@ -208,6 +209,11 @@ function cardMenu(cardId: ID): MenuEntry[] {
 
   return [
     { label: "Open", icon: <ExternalLink size={14} />, onClick: () => st.openCard(cardId) },
+    {
+      label: st.selected.includes(cardId) ? "Unselect" : "Select",
+      icon: <ListChecks size={14} />,
+      onClick: () => st.toggleSelected(cardId),
+    },
     {
       label: done ? "Mark incomplete" : "Mark complete",
       icon: done ? <CircleDashed size={14} /> : <CheckCircle2 size={14} />,

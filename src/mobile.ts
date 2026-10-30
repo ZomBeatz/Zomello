@@ -16,14 +16,40 @@ export function useIsPhone(): boolean {
 }
 
 /**
+ * Menus open from a card or bucket header are drawn elsewhere on the page, but React still passes their
+ * presses up to the header. Without this, holding the mouse on a dropdown in the bucket menu (and moving a
+ * little while picking) picked the whole bucket up. Form fields never start a drag either.
+ */
+const startsInsideControl = (t: EventTarget | null) =>
+  t instanceof Element && !!t.closest(".popover, .ctx-menu, .modal, input, textarea, select, [contenteditable]");
+
+class BoardMouseSensor extends MouseSensor {
+  static activators: typeof MouseSensor.activators = [
+    {
+      eventName: "onMouseDown",
+      handler: (event, opts) => !startsInsideControl(event.target) && MouseSensor.activators[0].handler(event, opts),
+    },
+  ];
+}
+
+class BoardTouchSensor extends TouchSensor {
+  static activators: typeof TouchSensor.activators = [
+    {
+      eventName: "onTouchStart",
+      handler: (event, opts) => !startsInsideControl(event.target) && TouchSensor.activators[0].handler(event, opts),
+    },
+  ];
+}
+
+/**
  * Drag sensors for mouse and touch. On touch a drag starts after holding still briefly, so swiping
  * still scrolls the page and the board.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useDragSensors(distance: number, ...extra: SensorDescriptor<any>[]) {
   return useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+    useSensor(BoardMouseSensor, { activationConstraint: { distance } }),
+    useSensor(BoardTouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
     ...extra,
   );
 }

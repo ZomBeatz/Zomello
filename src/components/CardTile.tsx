@@ -109,8 +109,10 @@ export const CardTile = memo(function CardTile({
       data-card-id={card.id}
       data-rel-label={linkRole ? REL_LABEL[linkRole] : undefined}
       onClick={(e) => {
-        // Ctrl / Shift + click picks cards for bulk actions (e.g. handing a list of them to an AI).
-        if (e.ctrlKey || e.metaKey || e.shiftKey) useStore.getState().toggleSelected(card.id);
+        // Ctrl / Shift + click picks cards for bulk actions. Once any card is picked, a plain click (or tap)
+        // picks more, so phones can do it too; Esc or a click on empty space ends it.
+        const st = useStore.getState();
+        if (e.ctrlKey || e.metaKey || e.shiftKey || st.selected.length) st.toggleSelected(card.id);
         else openCard(card.id);
       }}
       onContextMenu={(e) => openCardMenu(e, card.id)}
