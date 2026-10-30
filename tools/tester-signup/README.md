@@ -4,7 +4,8 @@
 
 - adds their Google Play email to **zomello-testers@zombeatzmedia.com**, the group the Play closed test uses;
 - emails them the links for the devices they picked;
-- fills in **Play added**, **Play link**, **TestFlight**, **Email sent** and **Notes** at the right of the sheet.
+- fills in **Play added**, **Play link**, **TestFlight**, **Email sent** and **Notes** at the right of the sheet;
+- a week later, sends a short "how is it going?" email and fills in **Check-in**.
 
 ## Setup (about 10 minutes, on a computer)
 
@@ -20,7 +21,8 @@
    - event type **On form submit**.
 
    Save, then allow the permissions Google asks for. Do this signed in as info@zombeatzmedia.com, the group's owner.
-6. Test it: send the form once from a second Google account, then check the sheet's new columns and that account's inbox.
+6. Reload the spreadsheet and choose **Testers > Turn on the day-7 check-in emails**, then allow the new permission Google asks for.
+7. Test it: send the form once from a second Google account, then check the sheet's new columns and that account's inbox.
 
 ## Later
 
@@ -29,6 +31,7 @@
 
 ## Good to know
 
+- Every email's subject has **Zomello beta** in it, and replies keep it. A Gmail filter on `subject:("Zomello beta" OR "Zomello feedback")` puts the test's mail, and feedback sent from the app, under one label.
 - Gmail lets the account send about 1,500 emails a day, far more than a beta test needs.
 - The script never stores anything outside the spreadsheet. Keep the spreadsheet private.
 - Testers still tap **Become a tester** on the Play opt-in page themselves. Google requires that step and it can't be automated.

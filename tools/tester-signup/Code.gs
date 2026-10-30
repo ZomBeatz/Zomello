@@ -4,7 +4,8 @@
  * When someone sends the "Help test Zomello" form, this:
  *   1. adds their Google Play email to the testers group (Android closed test access),
  *   2. emails them the links for the devices they picked,
- *   3. fills in the status columns at the right of the sheet.
+ *   3. fills in the status columns at the right of the sheet,
+ *   4. once a day, sends a short check-in to everyone who signed up a week ago.
  *
  * Setup is in README.md next to this file. Nothing here is secret; the links below are public.
  */
@@ -40,7 +41,10 @@ function col_(head, q) {
   return head.findIndex((h) => String(h).toLowerCase().includes(q));
 }
 
-const STATUS = ['Play added', 'Play link', 'TestFlight', 'Email sent', 'Notes'];
+const STATUS = ['Play added', 'Play link', 'TestFlight', 'Email sent', 'Notes', 'Check-in'];
+
+// Every email's subject has "Zomello beta" in it, so one Gmail filter can sort them and the replies.
+const SUBJECT = 'Zomello beta';
 
 /** Installable trigger: From spreadsheet > On form submit. */
 function onFormSubmit(e) {
@@ -60,6 +64,8 @@ function onOpen() {
     .addItem('Run again for the selected row', 'rerunSelectedRow')
     .addItem('Send the Play link to everyone waiting', 'sendWaitingPlay')
     .addItem('Send the TestFlight link to everyone waiting', 'sendWaitingTestFlight')
+    .addSeparator()
+    .addItem('Turn on the day-7 check-in emails', 'turnOnCheckIns')
     .addToUi();
 }
 
@@ -75,14 +81,14 @@ const WAITING = {
     column: 'Play link',
     link: () => CONFIG.PLAY_OPT_IN,
     setting: 'CONFIG.PLAY_OPT_IN',
-    subject: 'Zomello for Android is ready to test',
+    subject: `${SUBJECT}: Android is ready to test`,
     body: (link) => `The Android test for Zomello is open. On your Android phone or tablet, open this link and tap "Become a tester", then use the Google Play link on that page to install Zomello:\n${link}\n\nUse the same Google account as the Play email you gave us.`,
   },
   apple: {
     column: 'TestFlight',
     link: () => CONFIG.TESTFLIGHT,
     setting: 'CONFIG.TESTFLIGHT',
-    subject: 'Zomello for iPhone and iPad is ready to test',
+    subject: `${SUBJECT}: iPhone and iPad are ready to test`,
     body: (link) => `The iPhone and iPad test for Zomello is open. Install the free TestFlight app from the App Store, then open this link on your device:\n${link}`,
   },
 };
@@ -115,6 +121,38 @@ function sendWaiting_(kind) {
     sent++;
   }
   SpreadsheetApp.getUi().alert(`Sent the link to ${sent} tester(s).`);
+}
+
+/** Makes a daily trigger for sendCheckIns (run once, from the Testers menu). */
+function turnOnCheckIns() {
+  if (!ScriptApp.getProjectTriggers().some((t) => t.getHandlerFunction() === 'sendCheckIns')) {
+    ScriptApp.newTrigger('sendCheckIns').timeBased().everyDays(1).atHour(10).create();
+  }
+  SpreadsheetApp.getUi().alert('Check-ins are on. Each morning, everyone whose welcome email went out 7 or more days ago gets one short check-in.');
+}
+
+/** Daily trigger: a "how is it going?" email a week after the welcome email, once per tester. */
+function sendCheckIns() {
+  const sheet = SpreadsheetApp.getActive().getSheets()[0]; // the form's responses
+  const cols = statusColumns_(sheet);
+  const rows = sheet.getDataRange().getValues();
+  const head = rows[0];
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  for (let r = 1; r < rows.length; r++) {
+    const sent = rows[r][cols['Email sent'] - 1];
+    if (!sent || rows[r][cols['Check-in'] - 1]) continue;
+    const start = new Date(sent);
+    if (isNaN(start) || start.getTime() > weekAgo) continue;
+    const get = (q) => { const i = col_(head, q); return i < 0 ? '' : String(rows[r][i] || '').trim(); };
+    const to = get(Q.contact) || get(Q.play) || get(Q.apple);
+    if (!looksLikeEmail_(to)) continue;
+    const end = Utilities.formatDate(new Date(start.getTime() + 14 * 24 * 60 * 60 * 1000), Session.getScriptTimeZone(), 'MMMM d');
+    const text = `Hi ${firstName_(get(Q.name))},\n\nYou've had Zomello for about a week now. How is it going?\n\nIf anything has been confusing, broken or missing, just reply to this email. A sentence is plenty. You can also use Send feedback in Zomello (Settings > About), which adds your version and device for you.\n\nOne more week to go: please keep Zomello installed until ${end} so the test counts.\n\nThanks for helping,\nZomBeatz Media`;
+    GmailApp.sendEmail(to, `${SUBJECT}: how is it going?`, text, {
+      htmlBody: toHtml_(text), name: CONFIG.FROM_NAME, replyTo: CONFIG.REPLY_TO,
+    });
+    sheet.getRange(r + 1, cols['Check-in']).setValue('Sent ' + today_());
+  }
 }
 
 function processRow_(sheet, row) {
@@ -170,7 +208,7 @@ function processRow_(sheet, row) {
     notes.push('No email address to write to');
   } else {
     const text = welcomeText_(firstName_(name), wants);
-    GmailApp.sendEmail(to, 'Welcome to the Zomello beta test', plain_(text), {
+    GmailApp.sendEmail(to, `Welcome to the ${SUBJECT} test`, plain_(text), {
       htmlBody: toHtml_(text), name: CONFIG.FROM_NAME, replyTo: CONFIG.REPLY_TO,
     });
     set('Email sent', today_());
@@ -200,7 +238,7 @@ function welcomeText_(first, wants) {
   }
 
   parts.push(
-    `# What we ask\nPlease keep Zomello installed for 14 days in a row and use it the way you normally would. When something is confusing, broken or missing, just reply to this email. A sentence is plenty.`,
+    `# What we ask\nPlease keep Zomello installed for 14 days in a row and use it the way you normally would. When something is confusing, broken or missing, just reply to this email, or use Send feedback in Zomello (Settings > About). A sentence is plenty.`,
     `The guide is at ${CONFIG.GUIDE} and everything about the test is at ${CONFIG.TEST_PAGE}`,
     'Thanks for helping,\nZomBeatz Media',
   );
