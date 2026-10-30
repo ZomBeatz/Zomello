@@ -12,8 +12,10 @@
 const CONFIG = {
   GROUP: 'zomello-testers@zombeatzmedia.com',
   // Play Console > Zomello > Closed testing > your track > Testers > "Join on Android" link.
-  PLAY_OPT_IN: '',
-  // App Store Connect > TestFlight > your external group > Public link (after the first build passes review).
+  PLAY_OPT_IN: 'https://play.google.com/apps/testing/com.zombeatz.zomello',
+  // App Store Connect > TestFlight > your external group > Public link. Ours is
+  // https://testflight.apple.com/join/WJUtJKEN but only fill it in once a build passes Beta App Review;
+  // before that the link just says the beta isn't accepting testers.
   TESTFLIGHT: '',
   RELEASES: 'https://github.com/ZomBeatz/Zomello/releases/latest',
   SERVER_GUIDE: 'https://docs.zombeatzmedia.com/zomello/server',
@@ -23,14 +25,20 @@ const CONFIG = {
   REPLY_TO: 'info@zombeatzmedia.com',
 };
 
-// The form's question titles, exactly as they appear in the sheet's header row.
+// Words that pick out each form question in the sheet's header row (case doesn't matter), so a
+// small change to a question's wording, or a curly apostrophe typed on a phone, doesn't break anything.
 const Q = {
-  name: 'Your name',
-  devices: 'Which devices will you test on?',
-  play: "Your Google Play email, if you'll test on Android",
-  apple: "Your Apple ID email, if you'll test on iPhone or iPad",
-  contact: 'Email Address', // only present when the form collects email addresses
+  name: 'your name',
+  devices: 'which devices',
+  play: 'google play email',
+  apple: 'apple id email',
+  contact: 'email address', // only present when the form collects email addresses
 };
+
+/** The column index (0-based) whose header contains the words for question q, or -1. */
+function col_(head, q) {
+  return head.findIndex((h) => String(h).toLowerCase().includes(q));
+}
 
 const STATUS = ['Play added', 'Play link', 'TestFlight', 'Email sent', 'Notes'];
 
@@ -96,7 +104,7 @@ function sendWaiting_(kind) {
   let sent = 0;
   for (let r = 1; r < rows.length; r++) {
     if (rows[r][cols[kind.column] - 1] !== 'Waiting for link') continue;
-    const get = (q) => String(rows[r][head.indexOf(q)] || '').trim();
+    const get = (q) => { const i = col_(head, q); return i < 0 ? '' : String(rows[r][i] || '').trim(); };
     const to = get(Q.contact) || get(Q.play) || get(Q.apple);
     if (!looksLikeEmail_(to)) continue;
     const text = `Hi ${firstName_(get(Q.name))},\n\n${kind.body(link)}\n\nPlease keep Zomello installed for 14 days and tell us what you notice by replying to this email.\n\nThanks for helping,\nZomBeatz Media`;
@@ -114,7 +122,7 @@ function processRow_(sheet, row) {
   const head = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   const values = sheet.getRange(row, 1, 1, head.length).getValues()[0];
   const get = (q) => {
-    const i = head.indexOf(q);
+    const i = col_(head, q);
     return i < 0 ? '' : String(values[i] || '').trim();
   };
   const set = (col, value) => sheet.getRange(row, cols[col]).setValue(value);
