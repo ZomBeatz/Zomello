@@ -1,10 +1,14 @@
 import { addDays, addMonths, addWeeks, format, startOfMonth } from "date-fns";
+import type { Recurrence } from "./types";
 import { toISO } from "./utils";
 
 /**
  * Dates and times typed at the end of a new task's title: "Dentist tomorrow 3pm", "Pay rent on the 1st",
  * "Call Sam friday at 2:30", "Report due Oct 28". Only the end of the title is read, so "Plan Friday party"
  * stays as it is. English words only.
+ *
+ * With `repeats` on (Settings > Adding tasks), a repeat is read too: "Water plants every monday", "Rent monthly
+ * on the 1st", "Standup daily at 9:30 until Dec 20". A repeating card needs a due date, so one is always set.
  */
 export interface When {
   /** The title without the date words. */
@@ -13,6 +17,7 @@ export interface When {
   dueTime: string | null;
   /** The words that were read, as typed ("tomorrow 3pm"). */
   words: string;
+  recurrence?: Recurrence;
 }
 
 const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
@@ -107,6 +112,30 @@ const DATE_RULES: Rule[] = [
     } },
 ];
 
+type RepeatRule = { re: string; rule: (m: RegExpMatchArray) => Omit<Recurrence, "until"> | null };
+
+const DAY_LIST = `${DAY_RE}(?:(?:\\s*,\\s*|\\s+and\\s+|\\s*/\\s*|\\s+)${DAY_RE})*`;
+const UNIT: Record<string, Recurrence["freq"]> = { day: "daily", week: "weekly", month: "monthly", year: "yearly" };
+const r = (freq: Recurrence["freq"], interval = 1, weekdays: number[] = []) => ({ freq, interval, weekdays });
+
+const REPEAT_RULES: RepeatRule[] = [
+  { re: "every (?:week ?day|weekday)s?|on weekdays|weekdays", rule: () => r("weekly", 1, [1, 2, 3, 4, 5]) },
+  { re: "every (day|week|month|year)", rule: (m) => r(UNIT[m[1].toLowerCase()]) },
+  { re: "every other (day|week|month|year)", rule: (m) => r(UNIT[m[1].toLowerCase()], 2) },
+  {
+    re: "every (\\d{1,2}) (day|week|month|year)s",
+    rule: (m) => (Number(m[1]) >= 1 ? r(UNIT[m[2].toLowerCase()], Number(m[1])) : null),
+  },
+  {
+    re: `every ${DAY_LIST}`,
+    rule: (m) => {
+      const days = [...m[0].matchAll(new RegExp(DAY_RE, "gi"))].map((d) => dayIndex(d[1])).filter((d) => d >= 0);
+      return r("weekly", 1, [...new Set(days)].sort());
+    },
+  },
+  { re: "(daily|weekly|monthly|yearly|annually)", rule: (m) => r(m[1].toLowerCase() === "annually" ? "yearly" : (m[1].toLowerCase() as Recurrence["freq"])) },
+];
+
 /** Take one rule's match off the end of `text` (with "on", "at", "by" or "due" before it). */
 function peel(text: string, rule: Rule, lead: string) {
   const m = text.match(new RegExp(`(^|\\s)((?:${lead})\\s+)?(?:${rule.re})[.,!]?$`, "i"));
@@ -117,14 +146,48 @@ function peel(text: string, rule: Rule, lead: string) {
   return { rest: text.slice(0, m.index + m[1].length).trimEnd(), words: m[0].trim(), m: sub };
 }
 
-export function readWhen(input: string, now = new Date()): When | null {
+export function readWhen(input: string, now = new Date(), opts: { repeats?: boolean } = {}): When | null {
+  if (opts.repeats) {
+    // "until Dec 20" only counts with a repeat ("Work on it until Friday" is a due date, read below).
+    for (const rule of DATE_RULES) {
+      const p = peel(input.trimEnd(), rule, "until");
+      const d = p && /^until\s/i.test(p.words) ? rule.date!(p.m, now) : null;
+      if (!p || !d) continue;
+      const w = read(p.rest, now, true);
+      if (w?.recurrence) {
+        w.recurrence.until = toISO(d);
+        return { ...w, words: `${w.words} ${p.words}` };
+      }
+      break;
+    }
+  }
+  return read(input, now, !!opts.repeats);
+}
+
+function read(input: string, now: Date, repeats: boolean): When | null {
   let text = input.trimEnd();
+  let repeat: Omit<Recurrence, "until"> | null = null;
   let date: Date | null = null;
   let time: string | null = null;
   const words: string[] = [];
-  // Up to three pieces, from the end: "friday at 3pm", "3pm friday", "tomorrow".
-  for (let round = 0; round < 3; round++) {
+  // Up to four pieces, from the end: "friday at 3pm", "3pm friday", "tomorrow", "monthly on the 1st".
+  for (let round = 0; round < 4; round++) {
     let found = false;
+    if (repeats && !repeat) {
+      for (const rule of REPEAT_RULES) {
+        const p = peel(text, rule as unknown as Rule, "repeats|repeat");
+        const got = p && rule.rule(p.m);
+        // A bare "daily" after "the", "a", "my"... is a name ("Notes from the daily"), not a repeat.
+        if (!p || !got || (/^(?:repeats?\s+)?(daily|weekly|monthly|yearly|annually)$/i.test(p.words) && /\b(the|a|an|my|our|your|this|that)$/i.test(p.rest)))
+          continue;
+        repeat = got;
+        text = p.rest;
+        words.unshift(p.words);
+        found = true;
+        break;
+      }
+      if (found) continue;
+    }
     if (!time) {
       for (const rule of TIME_RULES) {
         const p = peel(text, rule, "at|by|@");
@@ -150,8 +213,9 @@ export function readWhen(input: string, now = new Date()): When | null {
     }
     if (!found && !date) {
       for (const rule of DATE_RULES) {
-        const p = peel(text, rule, "on|by|due|due on|due by");
-        const d = p && rule.date!(p.m, now);
+        const p = peel(text, rule, "on|by|due|due on|due by|until");
+        // "every monday" with repeats off: not a date either (the title would end in "every").
+        const d = p && !/\bevery$/i.test(p.rest) && rule.date!(p.m, now);
         if (p && d) {
           date = d;
           if (/^tonight$/i.test(p.m[0]) && !time) time = "19:00";
@@ -165,7 +229,19 @@ export function readWhen(input: string, now = new Date()): When | null {
     if (!found) break;
   }
   text = text.replace(/\s+(?:on|at|by|due)$/i, "").trimEnd();
-  if ((!date && !time) || !text) return null;
+  if ((!date && !time && !repeat) || !text) return null;
+  if (repeat) {
+    // Without a date, the first one is today, or the next of its weekdays (later today only if the time hasn't passed).
+    if (!date) {
+      const days = repeat.weekdays;
+      const passed = !!time && time <= format(now, "HH:mm");
+      for (let i = passed ? 1 : 0; i < 8 && !date; i++) {
+        const d = addDays(now, i);
+        if (!days.length || days.includes(d.getDay())) date = d;
+      }
+    }
+    return { title: text, dueDate: toISO(date!), dueTime: time, words: words.join(" "), recurrence: { ...repeat, until: null } };
+  }
   // A time alone means today, or tomorrow if that time has passed.
   if (!date) date = time! > format(now, "HH:mm") ? now : addDays(now, 1);
   return { title: text, dueDate: toISO(date), dueTime: time, words: words.join(" ") };

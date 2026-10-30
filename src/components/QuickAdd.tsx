@@ -4,7 +4,7 @@ import type { ID, Priority } from "../types";
 import { useStore } from "../store";
 import { byOrder, PRIORITIES } from "../utils";
 import { Modal } from "./ui";
-import { useWhen } from "./WhenChip";
+import { useWhen, whenFields } from "./WhenChip";
 
 /** Create a task on any board from anywhere (N / Ctrl+N). */
 export function QuickAdd() {
@@ -37,7 +37,7 @@ export function QuickAdd() {
       ...(description ? { description } : {}),
       // Leave the date alone when none was picked (a repeating template sets its own).
       ...(due ? { dueDate: due } : {}),
-      ...(when ? { dueDate: when.dueDate, ...(when.dueTime ? { dueTime: when.dueTime } : {}) } : {}),
+      ...(when ? whenFields(when) : {}),
       priority,
       ...(mine && data.settings.me ? { assignees: [data.settings.me] } : {}),
     };

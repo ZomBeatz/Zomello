@@ -338,6 +338,8 @@ export interface Settings {
   backupToComputer?: boolean;
   /** ...including private boards, locked with a password set on this device. */
   backupPrivate?: boolean;
+  /** Read repeats typed at the end of a new task's title ("every monday"). Default on. */
+  titleRepeats?: boolean;
   /** Party Cat's cat sings now and then (and when clicked). */
   catSings?: boolean;
   /** Desktop app: closing the window keeps Zomello running in the tray. */

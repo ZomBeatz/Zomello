@@ -18,6 +18,7 @@
 
 **Adding tasks**
 - **Type the date in the title:** "Dentist tomorrow 3pm", "Call Sam friday at 2:30", "Report due Oct 28". Zomello sets the date and time and shows what it found; the × keeps the words in the title instead.
+- **Type a repeat in the title too:** "Water plants every monday", "Rent monthly on the 1st", "Standup daily at 9:30 until Dec 20". Turn it off in **Settings > Adding tasks**.
 - **Board templates:** start a board from a weekly plan, moving house, a school term, a trip, a project, household chores, an event or a job search.
 - **Save any board as a template** (its menu > **Save as template**): its buckets, labels and open cards, without dates or people. Your templates show first under **Start from a template**.
 - **Share to Zomello (Android):** share a link or text from any app and pick **Add to Zomello**.

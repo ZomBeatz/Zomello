@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
-import { Accessibility, Bell, CalendarPlus, Download, FileUp, Minus, Plus, Eraser, LayoutTemplate, MessageSquare, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
+import { Accessibility, Bell, CalendarPlus, Download, FileUp, Minus, Plus, Eraser, LayoutTemplate, MessageSquare, Repeat, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
 import { sendFeedback } from "../feedback";
 import { exportCalendarFile } from "../icsExport";
 import type { AppStyle, Settings, ViewMode } from "../types";
@@ -363,6 +363,20 @@ export function SettingsPage() {
         <button className="btn sm" onClick={() => void notify("Zomello", "Notifications are working.")}>
           Send a test notification
         </button>
+      </section>
+
+      <section className="panel" id="set-adding">
+        <h3>
+          <Repeat size={15} /> Adding tasks
+        </h3>
+        <label className="check-row">
+          <input type="checkbox" checked={settings.titleRepeats !== false} onChange={(e) => updateSettings({ titleRepeats: e.target.checked })} />
+          Read repeats in titles
+        </label>
+        <p className="muted small">
+          End a new task's title with a repeat and Zomello sets it: “Water plants every monday”, “Rent monthly on the 1st”, “Standup daily at 9:30 until Dec 20”.
+          Dates and times (“tomorrow 3pm”) are always read. Under the title, × keeps the words as typed.
+        </p>
       </section>
 
       <section className="panel" id="set-templates">
