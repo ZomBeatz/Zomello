@@ -1,15 +1,10 @@
 import type { ImportedBoard } from "./importers";
+import type { AppData, BoardTemplate, ID } from "./types";
+import { byOrder } from "./utils";
+
+export type { BoardTemplate };
 
 /** Ready-made boards to start from (Home > Start from a template). Plain starting points: rename, add, delete freely. */
-export interface BoardTemplate {
-  id: string;
-  name: string;
-  icon: string;
-  color: string;
-  about: string;
-  labels: { name: string; color: string }[];
-  lists: { name: string; cards: { title: string; labels?: string[]; checklist?: string[]; description?: string }[] }[];
-}
 
 const L = { green: "#22c55e", blue: "#0ea5e9", orange: "#ec6a3f", purple: "#a855f7", red: "#ef4444", yellow: "#eab308" };
 
@@ -154,7 +149,41 @@ export function templateBoard(t: BoardTemplate): ImportedBoard {
     warnings: [],
     lists: t.lists.map((l) => ({
       name: l.name,
-      cards: l.cards.map((c) => ({ title: c.title, description: c.description, labels: c.labels, checklist: (c.checklist ?? []).map((text) => ({ text, done: false })) })),
+      cards: l.cards.map((c) => ({ title: c.title, description: c.description, labels: c.labels, priority: c.priority, checklist: (c.checklist ?? []).map((text) => ({ text, done: false })) })),
     })),
+  };
+}
+
+/**
+ * One of your boards as a template: its buckets, labels and open cards (titles, descriptions, labels,
+ * priority and checklist items, unticked). Dates, people, comments, files and finished cards stay behind.
+ */
+export function boardAsTemplate(data: AppData, boardId: ID, name: string): BoardTemplate {
+  const b = data.boards[boardId];
+  const lists = Object.values(data.lists)
+    .filter((l) => l.boardId === boardId && !l.archived)
+    .sort(byOrder);
+  const labelName = (id: ID) => b.labels.find((l) => l.id === id)?.name;
+  return {
+    id: `mine-${Date.now().toString(36)}`,
+    name,
+    icon: b.icon ?? "📋",
+    color: b.color,
+    about: b.description.split("\n")[0].slice(0, 120),
+    labels: b.labels.filter((l) => l.name).map(({ name, color }) => ({ name, color })),
+    lists: lists.map((l) => ({
+      name: l.title,
+      cards: Object.values(data.cards)
+        .filter((c) => c.listId === l.id && !c.archived && c.progress !== "completed")
+        .sort(byOrder)
+        .map((c) => ({
+          title: c.title,
+          ...(c.description ? { description: c.description } : {}),
+          ...(c.labelIds.length ? { labels: c.labelIds.map(labelName).filter((n): n is string => !!n) } : {}),
+          ...(c.checklist.length ? { checklist: c.checklist.map((i) => i.text) } : {}),
+          ...(c.priority !== "medium" ? { priority: c.priority } : {}),
+        })),
+    })),
+    createdAt: Date.now(),
   };
 }

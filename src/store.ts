@@ -7,6 +7,7 @@ import type {
   Activity, AppData, BadgeMode, Board, BoardDisplay, BoardUi, Card, CardTemplate, Filter, FocusTimer, ID, LinkType, List, Route, Settings,
 } from "./types";
 import type { ImportedBoard } from "./importers";
+import { boardAsTemplate } from "./boardTemplates";
 import { broadcastData, isDeviceWindow, isExtraWindow, windowBoardId } from "./windows";
 import { sendDeviceChanges, setDeviceBase } from "./deviceWindow";
 import { isRemote } from "./remote";
@@ -209,6 +210,7 @@ function sampleData(): AppData {
     cards: Object.fromEntries(cards.map((c) => [c.id, c])),
     savedFilters: [],
     templates: [],
+    boardTemplates: [],
     ui: {},
     settings: defaultSettings(),
   };
@@ -260,6 +262,7 @@ export function normalize(raw: unknown): AppData {
     cards,
     savedFilters: d.savedFilters ?? [],
     templates: d.templates ?? [],
+    boardTemplates: d.boardTemplates ?? [],
     ui,
     settings: {
       ...defaultSettings(),
@@ -362,7 +365,7 @@ interface State {
   /** Zomello Server: merge other people's changes. */
   applyServerOps(ops: Ops): void;
   /** Zomello Server: your own settings/view changed in another tab. */
-  applyServerUserDoc(doc: Pick<AppData, "settings" | "ui" | "templates" | "savedFilters">): void;
+  applyServerUserDoc(doc: Pick<AppData, "settings" | "ui" | "templates" | "savedFilters"> & Partial<Pick<AppData, "boardTemplates">>): void;
   /** Zomello Server: load everything again (after sharing changes, or reconnecting). */
   reloadFromServer(json: string): void;
   navigate(route: Route): void;
@@ -432,6 +435,10 @@ interface State {
   saveTemplate(cardId: ID, name: string): void;
   updateTemplate(id: ID, patch: Partial<CardTemplate>): void;
   deleteTemplate(id: ID): void;
+  /** Board menu > Save as template: the board's buckets, labels and open cards, for new boards. */
+  saveBoardTemplate(boardId: ID, name: string): void;
+  renameBoardTemplate(id: string, name: string): void;
+  deleteBoardTemplate(id: string): void;
   createFromTemplate(templateId: ID, listId: ID, extra?: Partial<Card>): ID;
 
   setBoardUi(boardId: ID, patch: Partial<BoardUi>): void;
@@ -585,7 +592,7 @@ const settingsChanged = (a: Settings, b: Settings) =>
   );
 const undoable = (a: AppData, b: AppData) =>
   a.boards !== b.boards || a.lists !== b.lists || a.cards !== b.cards ||
-  a.savedFilters !== b.savedFilters || a.templates !== b.templates || settingsChanged(a.settings, b.settings);
+  a.savedFilters !== b.savedFilters || a.templates !== b.templates || a.boardTemplates !== b.boardTemplates || settingsChanged(a.settings, b.settings);
 
 export const useStore = create<State>((set, get) => {
   /** Apply an immutable update to `data`, recording undo history. */
@@ -1307,6 +1314,16 @@ export const useStore = create<State>((set, get) => {
     },
     deleteTemplate(id) {
       mut((d) => ({ ...d, templates: d.templates.filter((t) => t.id !== id) }));
+    },
+    saveBoardTemplate(boardId, name) {
+      const t = boardAsTemplate(get().data, boardId, name);
+      mut((d) => ({ ...d, boardTemplates: [...d.boardTemplates, t] }));
+    },
+    renameBoardTemplate(id, name) {
+      mut((d) => ({ ...d, boardTemplates: d.boardTemplates.map((t) => (t.id === id ? { ...t, name } : t)) }));
+    },
+    deleteBoardTemplate(id) {
+      mut((d) => ({ ...d, boardTemplates: d.boardTemplates.filter((t) => t.id !== id) }));
     },
     createFromTemplate(templateId, listId, extra) {
       const d = get().data;

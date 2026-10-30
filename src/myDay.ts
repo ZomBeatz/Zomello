@@ -8,6 +8,9 @@ const rank = (c: Card) => PRIORITIES.findIndex((p) => p.id === c.priority);
  * What My Day shows for a day, from every board: what's late, what's due or scheduled that day (timed
  * things in time order), what was added to My Day for it, what got done, and ideas for what's next.
  * Used by the My Day page and the home-screen widget (which keeps today and tomorrow).
+ *
+ * Leftovers: cards added to My Day in the last week and not finished, which left it at midnight. My Day
+ * offers to add them back (cards that are late or due today already show above, so they aren't repeated).
  */
 export function myDayLists(data: AppData, day: Date) {
   const iso = toISO(day);
@@ -36,6 +39,11 @@ export function myDayLists(data: AppData, day: Date) {
   const shown = new Set([...late, ...scheduled].map((c) => c.id));
   const added = open.filter((c) => c.myDay === iso && !shown.has(c.id)).sort((a, b) => rank(a) - rank(b));
   for (const c of added) shown.add(c.id);
+  const weekAgo = toISO(addDays(day, -7));
+  const leftovers = open
+    .filter((c) => !!c.myDay && c.myDay < iso && c.myDay >= weekAgo && !shown.has(c.id))
+    .sort((a, b) => b.myDay!.localeCompare(a.myDay!) || rank(a) - rank(b));
+  for (const c of leftovers) shown.add(c.id);
   const done = cards.filter((c) => c.progress === "completed" && c.completedAt && isSameDay(c.completedAt, day) && (mine(c) || c.myDay === iso));
   const next = toISO(addDays(day, 1));
   const ideas = open
@@ -43,5 +51,5 @@ export function myDayLists(data: AppData, day: Date) {
     .filter((c) => c.dueDate === next || c.startDate === next || c.progress === "inProgress" || (!c.dueDate && (c.priority === "urgent" || c.priority === "important")))
     .sort((a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999") || rank(a) - rank(b))
     .slice(0, 10);
-  return { late, scheduled, added, done, ideas };
+  return { late, scheduled, added, leftovers, done, ideas };
 }

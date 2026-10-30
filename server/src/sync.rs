@@ -103,6 +103,7 @@ pub async fn data(State(app): State<App>, headers: HeaderMap) -> ApiResult {
         "settings": settings,
         "ui": doc.get("ui").cloned().unwrap_or_else(|| json!({})),
         "templates": doc.get("templates").cloned().unwrap_or_else(|| json!([])),
+        "boardTemplates": doc.get("boardTemplates").cloned().unwrap_or_else(|| json!([])),
         "savedFilters": doc.get("savedFilters").cloned().unwrap_or_else(|| json!([])),
     });
     Ok(Json(out).into_response())

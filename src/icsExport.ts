@@ -33,14 +33,17 @@ function fold(line: string): string {
 const local = (d: Date) => format(d, "yyyyMMdd'T'HHmmss");
 const day = (d: Date) => format(d, "yyyyMMdd");
 
-/** Every dated card that isn't done or archived (on one board, or all). */
+/**
+ * Every dated card that isn't done or archived (on one board, or all). All boards leaves out private ones,
+ * since a calendar file ends up in Google Calendar or someone's inbox; a private board's own menu includes it.
+ */
 export function calendarFile(data: AppData, boardId?: ID): string {
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
   let out = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//ZomBeatz Media//Zomello//EN", "CALSCALE:GREGORIAN", `X-WR-CALNAME:${esc(boardId ? data.boards[boardId]?.title ?? "Zomello" : "Zomello")}`].map(fold).join("");
   for (const c of Object.values(data.cards)) {
     const b = data.boards[c.boardId];
     const l = data.lists[c.listId];
-    if (!b || b.archived || c.archived || l?.archived || c.progress === "completed" || (boardId && c.boardId !== boardId)) continue;
+    if (!b || b.archived || c.archived || l?.archived || c.progress === "completed" || (boardId ? c.boardId !== boardId : b.private)) continue;
     const s = cardSpan(c);
     if (!s) continue;
     const where = `${b.title} › ${l?.title ?? ""}`;

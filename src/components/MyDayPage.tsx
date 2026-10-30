@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import { format, isSameDay } from "date-fns";
-import { Lightbulb, Plus, Sun, X } from "lucide-react";
+import { addDays, format, isSameDay } from "date-fns";
+import { History, Lightbulb, Plus, Sun, X } from "lucide-react";
 import type { Card, ID } from "../types";
 import { useStore } from "../store";
-import { byOrder, cardSpan, prettyDate, todayISO } from "../utils";
+import { byOrder, cardSpan, prettyDate, toISO, todayISO } from "../utils";
 import { Empty } from "./ui";
 import { TaskRow } from "./MyTasksPage";
 import { myDayLists } from "../myDay";
@@ -26,7 +26,7 @@ export function MyDayPage() {
   const today = todayISO();
 
   // Recomputed when the data changes, and when the day does (the page stays open past midnight).
-  const { late, scheduled, added, done, ideas } = useMemo(() => myDayLists(data, new Date()), [data, today]);
+  const { late, scheduled, added, leftovers, done, ideas } = useMemo(() => myDayLists(data, new Date()), [data, today]);
 
   const add = () => {
     const t = title.trim();
@@ -73,6 +73,16 @@ export function MyDayPage() {
     </button>
   );
 
+  const yesterday = toISO(addDays(new Date(), -1));
+  const leftoverWhen = (c: Card) => (c.myDay === yesterday ? "yesterday" : format(new Date(`${c.myDay}T12:00`), "EEEE"));
+  const addAllBack = () => {
+    for (const c of leftovers) updateCard(c.id, { myDay: today });
+  };
+  const letGo = () => {
+    for (const c of leftovers) updateCard(c.id, { myDay: null });
+    useStore.getState().toast("Cleared the unfinished tasks from My Day. They're still on their boards.", { undo: true });
+  };
+
   const groups: { key: string; title: string; color?: string; cards: Card[]; row: (c: Card) => React.ReactNode }[] = [
     { key: "late", title: "Late", color: "#ef4444", cards: late, row: (c) => <TaskRow key={c.id} card={c} /> },
     { key: "today", title: "Today", color: "#f97316", cards: scheduled, row: (c) => <TaskRow key={c.id} card={c} time={timeOf(c)} /> },
@@ -111,6 +121,28 @@ export function MyDayPage() {
         </div>
       )}
 
+      {leftovers.length > 0 && (
+        <section className="task-group leftovers">
+          <h3>
+            <History size={15} className="muted" />
+            Not finished from earlier
+            <span className="count">{leftovers.length}</span>
+            <span className="grow" />
+            <button className="btn sm" onClick={addAllBack}>
+              Add all to today
+            </button>
+            <button className="btn ghost sm" onClick={letGo} title="Take them off this list (they stay on their boards)">
+              Clear
+            </button>
+          </h3>
+          <ul className="task-rows">
+            {leftovers.map((c) => (
+              <TaskRow key={c.id} card={c} time={`from ${leftoverWhen(c)}`} extra={addBtn(c)} />
+            ))}
+          </ul>
+        </section>
+      )}
+
       {groups
         .filter((g) => g.cards.length > 0)
         .map((g) => (
@@ -126,7 +158,7 @@ export function MyDayPage() {
 
       {nothing && (
         <Empty icon={<Sun size={32} />} title="Nothing planned for today">
-          Add a task above, pick some from Suggestions, or use <b>Add to My Day</b> in any card's menu.
+          {leftovers.length > 0 ? "Add back what's not finished from earlier, add" : "Add"} a task above, pick some from Suggestions, or use <b>Add to My Day</b> in any card's menu.
         </Empty>
       )}
 

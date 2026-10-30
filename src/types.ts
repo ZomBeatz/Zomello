@@ -364,6 +364,19 @@ export interface CardTemplate {
   estimate: number | null;
 }
 
+/** A board to start new boards from: built in (boardTemplates.ts) or saved from one of yours (board menu > Save as template). */
+export interface BoardTemplate {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  about: string;
+  labels: { name: string; color: string }[];
+  lists: { name: string; cards: { title: string; labels?: string[]; checklist?: string[]; description?: string; priority?: Priority }[] }[];
+  /** Saved by you (can be renamed and deleted). */
+  createdAt?: number;
+}
+
 export interface AppData {
   version: 1;
   boards: Record<ID, Board>;
@@ -371,6 +384,8 @@ export interface AppData {
   cards: Record<ID, Card>;
   savedFilters: SavedFilter[];
   templates: CardTemplate[];
+  /** Your own board templates (the built-in ones aren't stored). */
+  boardTemplates: BoardTemplate[];
   ui: Record<ID, BoardUi>;
   settings: Settings;
 }
