@@ -23,6 +23,13 @@
 - **Save any board as a template** (its menu > **Save as template**): its buckets, labels and open cards, without dates or people. Your templates show first under **Start from a template**.
 - **Share to Zomello (Android):** share a link or text from any app and pick **Add to Zomello**.
 
+**Changing many cards at once**
+- **Select cards, then change them together:** set progress, priority, labels, people or due dates (or push them all a day or a week later), move them to another bucket or board, add them to My Day or duplicate them. Ctrl click a card (or choose **Select** in its menu, which also works on phones), then click or tap more. **Shift click** selects a range, **Ctrl A** selects everything on the board, and a bucket's menu has **Select all cards**.
+- **Click an empty part of the board** to clear the selection.
+
+**Bucket rules**
+- **Bucket rules…** in a bucket's menu: new cards made in a bucket can get labels and a priority, and cards moved in can get a progress (as before) and labels. For example, every card made in "Testing" gets a "From testing" label it keeps after moving on.
+
 **More**
 - **My Day widget (Android)** for your home screen.
 - **Done and Snooze** on reminders on phones and tablets.
@@ -33,6 +40,7 @@
 
 **Also**
 - **Zomello is open source** under the MIT license. Settings > About links to the code.
+- **Fixed:** changing a setting in a bucket's menu could pick the bucket up and drag it until you let go of the mouse.
 - **Reminders on phones and tablets arrive even when Zomello is closed.** The app hands each card's reminder and the daily summary to the phone ahead of time.
 - Choose how many checklist items a card shows on the board (Customize > Show on cards).
 - Plainer wording all over the app, and the Help link opens the guide at docs.zombeatzmedia.com.
