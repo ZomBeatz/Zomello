@@ -1,0 +1,32 @@
+name: Beta test feedback
+description: For beta testers. Anything confusing, broken or missing, big or small.
+labels: [beta feedback]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for testing Zomello! One sentence is plenty. You can also reply to any beta email, or use Send feedback in Zomello (Settings > About).
+  - type: dropdown
+    id: device
+    attributes:
+      label: Which device?
+      multiple: true
+      options:
+        - Android phone or tablet
+        - iPhone or iPad
+        - Windows
+        - Linux
+        - Zomello Server
+    validations:
+      required: true
+  - type: textarea
+    id: feedback
+    attributes:
+      label: What did you notice?
+      description: What was confusing, broken or missing, or what you liked.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Zomello version
+      description: Settings > About.
