@@ -17,6 +17,7 @@
   <a href="https://github.com/ZomBeatz/Zomello/releases/latest"><img alt="Download for Android" src="https://img.shields.io/badge/Android-APK-2580c3?style=for-the-badge&logo=android&logoColor=white"></a>
   <a href="https://docs.zombeatzmedia.com/zomello/"><img alt="Read the guide" src="https://img.shields.io/badge/Read_the-Guide-5b6375?style=for-the-badge&logo=readthedocs&logoColor=white"></a>
   <a href="https://zombeatz.github.io/Zomello/"><img alt="Try the online demo" src="https://img.shields.io/badge/Try_it-Online_demo-22c55e?style=for-the-badge&logo=googlechrome&logoColor=white"></a>
+  <a href="https://docs.zombeatzmedia.com/zomello/help-test"><img alt="Sign up to beta test" src="https://img.shields.io/badge/Beta_test-Sign_up-8b5cf6?style=for-the-badge&logo=googleforms&logoColor=white"></a>
   <a href="#zomello-server"><img alt="Zomello Server with Docker" src="https://img.shields.io/badge/Server-Docker-ec6a3f?style=for-the-badge&logo=docker&logoColor=white"></a>
 </p>
 
@@ -27,6 +28,8 @@
 ## Quick start
 
 **Just want to look around?** Try the [online demo](https://zombeatz.github.io/Zomello/) in your browser. Nothing to install, and your changes only stay in your own browser.
+
+**Want to help test?** [Sign up to beta test](https://docs.zombeatzmedia.com/zomello/help-test) Zomello on Android, iPhone or iPad before it reaches the app stores.
 
 1. **Download** the file for your device from the [latest release](https://github.com/ZomBeatz/Zomello/releases/latest) (under **Assets** at the bottom):
 
