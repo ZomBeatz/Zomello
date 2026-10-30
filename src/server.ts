@@ -167,7 +167,7 @@ export const setBase = (d: AppData) => void (base = d);
 export const getBase = () => base;
 
 /** Your own part: settings, per-board view state, templates, saved filters. */
-const userDoc = (d: AppData) => ({ settings: d.settings, ui: d.ui, templates: d.templates, savedFilters: d.savedFilters });
+const userDoc = (d: AppData) => ({ settings: d.settings, ui: d.ui, templates: d.templates, boardTemplates: d.boardTemplates, savedFilters: d.savedFilters });
 
 /** What changed since the server last heard from us. Data is immutable, so a changed object is a new object. */
 export function diff(prev: AppData, next: AppData) {
@@ -182,7 +182,7 @@ export function diff(prev: AppData, next: AppData) {
     for (const id in a) if (!(id in b)) ((deletes[k] ??= []).push(id), (any = true));
   }
   const userChanged =
-    prev.settings !== next.settings || prev.ui !== next.ui || prev.templates !== next.templates || prev.savedFilters !== next.savedFilters;
+    prev.settings !== next.settings || prev.ui !== next.ui || prev.templates !== next.templates || prev.boardTemplates !== next.boardTemplates || prev.savedFilters !== next.savedFilters;
   return any || userChanged ? { upserts, deletes, user: userChanged ? userDoc(next) : undefined } : null;
 }
 
@@ -196,7 +196,7 @@ export async function pushChanges(next: AppData): Promise<void> {
   const res = await api<{ rejected: unknown[] }>("/api/sync", { method: "POST", json: { client: clientId, ...changes } });
   // Other people's changes may have arrived while this was in flight: put ours on top of them.
   base = rebaseSnapshot(base!, changes);
-  if (changes.user) base = { ...base, settings: next.settings, ui: next.ui, templates: next.templates, savedFilters: next.savedFilters };
+  if (changes.user) base = { ...base, settings: next.settings, ui: next.ui, templates: next.templates, boardTemplates: next.boardTemplates, savedFilters: next.savedFilters };
   if (res.rejected?.length) window.dispatchEvent(new Event(RELOAD_EVENT));
 }
 

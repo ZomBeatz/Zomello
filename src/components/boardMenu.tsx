@@ -114,6 +114,14 @@ export function boardMenu(board: Board, opts: { onRename?: () => void } = {}): M
       onClick: () => void exportBoard(board.id),
     },
     {
+      label: "Save as template",
+      icon: <LayoutTemplate size={14} />,
+      onClick: () => {
+        st.saveBoardTemplate(board.id, board.title);
+        st.toast(`Saved “${board.title}” as a template: + Board > Start from a template. Dates, people and finished cards aren't in it.`, { undo: true });
+      },
+    },
+    {
       label: "Save dates as a calendar file…",
       icon: <CalendarPlus size={14} />,
       onClick: () => void exportCalendarFile(board.id),

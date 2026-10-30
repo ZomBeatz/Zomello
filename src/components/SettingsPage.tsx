@@ -403,7 +403,7 @@ export function SettingsPage() {
           <button className="btn" onClick={doExport}>
             <Download size={14} /> Export JSON
           </button>
-          <button className="btn" onClick={() => void exportCalendarFile()} title="Every dated card, for Google Calendar, Outlook or Apple Calendar">
+          <button className="btn" onClick={() => void exportCalendarFile()} title="Every dated card (not private boards), for Google Calendar, Outlook or Apple Calendar">
             <CalendarPlus size={14} /> Calendar file (.ics)
           </button>
           {/* On a shared server a restore would replace other people's boards too. */}
