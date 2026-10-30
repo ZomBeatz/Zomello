@@ -47,4 +47,25 @@ describe("readWhen", () => {
     expect(r("tomorrow")).toBeNull();
     expect(r("Fix the today page")).toBeNull();
   });
+
+  it("reads repeats when they're on", () => {
+    const rep = (t: string) => readWhen(t, now, { repeats: true });
+    expect(rep("Water plants every monday")).toMatchObject({ title: "Water plants", dueDate: "2026-11-02", recurrence: { freq: "weekly", interval: 1, weekdays: [1], until: null } });
+    expect(rep("Gym every mon wed fri at 6pm")).toMatchObject({ title: "Gym", dueDate: "2026-10-28", dueTime: "18:00", recurrence: { weekdays: [1, 3, 5] } });
+    expect(rep("Rent monthly on the 1st")).toMatchObject({ title: "Rent", dueDate: "2026-11-01", recurrence: { freq: "monthly" } });
+    expect(rep("Recycling every 2 weeks")).toMatchObject({ dueDate: "2026-10-27", recurrence: { freq: "weekly", interval: 2 } });
+    expect(rep("Stretch every day")).toMatchObject({ title: "Stretch", recurrence: { freq: "daily" } });
+    expect(rep("Pay invoices every weekday")?.recurrence?.weekdays).toEqual([1, 2, 3, 4, 5]);
+    expect(rep("Standup daily at 9:30 until Dec 20")).toMatchObject({ title: "Standup", dueDate: "2026-10-28", dueTime: "09:30", recurrence: { freq: "daily", until: "2026-12-20" } });
+    expect(rep("Standup tuesday at 9am")).toMatchObject({ dueDate: "2026-10-27", dueTime: "09:00" });
+    expect(rep("Standup tuesday at 9am")?.recurrence).toBeUndefined();
+    expect(rep("Work on it until friday")).toMatchObject({ title: "Work on it", dueDate: "2026-10-30" });
+    expect(rep("Notes from the daily")).toBeNull();
+    expect(rep("Weekly review")).toBeNull();
+  });
+
+  it("leaves repeats alone when they're off", () => {
+    expect(r("Stretch every day")).toBeNull();
+    expect(r("Water plants every monday")).toBeNull();
+  });
 });
