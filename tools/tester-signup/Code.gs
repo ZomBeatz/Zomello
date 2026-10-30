@@ -32,7 +32,7 @@ const Q = {
   contact: 'Email Address', // only present when the form collects email addresses
 };
 
-const STATUS = ['Play added', 'TestFlight', 'Email sent', 'Notes'];
+const STATUS = ['Play added', 'Play link', 'TestFlight', 'Email sent', 'Notes'];
 
 /** Installable trigger: From spreadsheet > On form submit. */
 function onFormSubmit(e) {
@@ -50,6 +50,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Testers')
     .addItem('Run again for the selected row', 'rerunSelectedRow')
+    .addItem('Send the Play link to everyone waiting', 'sendWaitingPlay')
     .addItem('Send the TestFlight link to everyone waiting', 'sendWaitingTestFlight')
     .addToUi();
 }
@@ -61,10 +62,31 @@ function rerunSelectedRow() {
   processRow_(sheet, row);
 }
 
-/** Once the TestFlight link exists, sends it to everyone who signed up for iPhone or iPad before it did. */
-function sendWaitingTestFlight() {
-  if (!CONFIG.TESTFLIGHT) {
-    SpreadsheetApp.getUi().alert('Put the TestFlight public link in CONFIG.TESTFLIGHT first.');
+const WAITING = {
+  play: {
+    column: 'Play link',
+    link: () => CONFIG.PLAY_OPT_IN,
+    setting: 'CONFIG.PLAY_OPT_IN',
+    subject: 'Zomello for Android is ready to test',
+    body: (link) => `The Android test for Zomello is open. On your Android phone or tablet, open this link and tap "Become a tester", then use the Google Play link on that page to install Zomello:\n${link}\n\nUse the same Google account as the Play email you gave us.`,
+  },
+  apple: {
+    column: 'TestFlight',
+    link: () => CONFIG.TESTFLIGHT,
+    setting: 'CONFIG.TESTFLIGHT',
+    subject: 'Zomello for iPhone and iPad is ready to test',
+    body: (link) => `The iPhone and iPad test for Zomello is open. Install the free TestFlight app from the App Store, then open this link on your device:\n${link}`,
+  },
+};
+
+function sendWaitingPlay() { sendWaiting_(WAITING.play); }
+function sendWaitingTestFlight() { sendWaiting_(WAITING.apple); }
+
+/** Once a link exists, sends it to everyone who signed up before it did (rows marked "Waiting for link"). */
+function sendWaiting_(kind) {
+  const link = kind.link();
+  if (!link) {
+    SpreadsheetApp.getUi().alert(`Put the link in ${kind.setting} first, then save the script.`);
     return;
   }
   const sheet = SpreadsheetApp.getActiveSheet();
@@ -73,19 +95,18 @@ function sendWaitingTestFlight() {
   const head = rows[0];
   let sent = 0;
   for (let r = 1; r < rows.length; r++) {
-    if (rows[r][cols['TestFlight'] - 1] !== 'Waiting for link') continue;
+    if (rows[r][cols[kind.column] - 1] !== 'Waiting for link') continue;
     const get = (q) => String(rows[r][head.indexOf(q)] || '').trim();
-    const to = get(Q.contact) || get(Q.apple) || get(Q.play);
-    if (!to) continue;
-    const first = firstName_(get(Q.name));
-    const text = `Hi ${first},\n\nThe iPhone and iPad test for Zomello is open. Install the free TestFlight app from the App Store, then open this link on your device:\n${CONFIG.TESTFLIGHT}\n\nPlease keep Zomello installed for 14 days and tell us what you notice by replying to this email.\n\nThanks for helping,\nZomBeatz Media`;
-    GmailApp.sendEmail(to, 'Zomello for iPhone and iPad is ready to test', text, {
+    const to = get(Q.contact) || get(Q.play) || get(Q.apple);
+    if (!looksLikeEmail_(to)) continue;
+    const text = `Hi ${firstName_(get(Q.name))},\n\n${kind.body(link)}\n\nPlease keep Zomello installed for 14 days and tell us what you notice by replying to this email.\n\nThanks for helping,\nZomBeatz Media`;
+    GmailApp.sendEmail(to, kind.subject, text, {
       htmlBody: toHtml_(text), name: CONFIG.FROM_NAME, replyTo: CONFIG.REPLY_TO,
     });
-    sheet.getRange(r + 1, cols['TestFlight']).setValue('Link sent ' + today_());
+    sheet.getRange(r + 1, cols[kind.column]).setValue('Link sent ' + today_());
     sent++;
   }
-  SpreadsheetApp.getUi().alert(`Sent the TestFlight link to ${sent} tester(s).`);
+  SpreadsheetApp.getUi().alert(`Sent the link to ${sent} tester(s).`);
 }
 
 function processRow_(sheet, row) {
@@ -130,6 +151,8 @@ function processRow_(sheet, row) {
       }
     }
   }
+
+  if (wants.android) set('Play link', CONFIG.PLAY_OPT_IN ? 'Link sent ' + today_() : 'Waiting for link');
 
   // 2. iPhone and iPad: the public TestFlight link, or a note to send it later.
   if (wants.apple) set('TestFlight', CONFIG.TESTFLIGHT ? 'Link sent ' + today_() : 'Waiting for link');

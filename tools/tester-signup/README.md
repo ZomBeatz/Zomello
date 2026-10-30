@@ -4,7 +4,7 @@
 
 - adds their Google Play email to **zomello-testers@zombeatzmedia.com**, the group the Play closed test uses;
 - emails them the links for the devices they picked;
-- fills in **Play added**, **TestFlight**, **Email sent** and **Notes** at the right of the sheet.
+- fills in **Play added**, **Play link**, **TestFlight**, **Email sent** and **Notes** at the right of the sheet.
 
 ## Setup (about 10 minutes, on a computer)
 
@@ -12,7 +12,7 @@
 2. In that spreadsheet, open **Extensions > Apps Script**. Delete what's there, paste in all of `Code.gs` and click **Save**.
 3. In the script editor, click **+** next to **Services**, choose **Admin SDK API** and click **Add**.
 4. Fill in the two links at the top of `CONFIG`:
-   - `PLAY_OPT_IN`: in Play Console, open the closed test's **Testers** tab. The opt-in link appears after you've added the group under **Google Groups**.
+   - `PLAY_OPT_IN`: in Play Console, open the closed test's **Testers** tab. The opt-in link appears after you've added the group under **Google Groups**. Until then, leave it empty: Android testers are still added to the group and told the link is on its way, and their rows show **Waiting for link**.
    - `TESTFLIGHT`: the public link from your external TestFlight group. This only exists after the first build passes Beta App Review. Until then, leave it empty: iPhone and iPad testers are told the link is on its way, and their rows show **Waiting for link**.
 5. Click the **clock icon** (Triggers), then **Add trigger**:
    - function `onFormSubmit`;
@@ -24,7 +24,7 @@
 
 ## Later
 
-- **The TestFlight link arrives:** paste it into `CONFIG.TESTFLIGHT`, save, reload the spreadsheet, then choose **Testers > Send the TestFlight link to everyone waiting**.
+- **A link arrives:** paste it into `CONFIG.PLAY_OPT_IN` or `CONFIG.TESTFLIGHT`, save, reload the spreadsheet, then choose **Testers > Send the Play link to everyone waiting** or **Send the TestFlight link to everyone waiting**.
 - **A row went wrong** (a mistyped email, for example): fix the cell, select the row, then choose **Testers > Run again for the selected row**.
 
 ## Good to know
