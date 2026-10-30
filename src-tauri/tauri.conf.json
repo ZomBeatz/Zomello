@@ -53,6 +53,7 @@
       }
     ],
     "copyright": "\u00a9 ZomBeatz Media",
+    "license": "MIT",
     "windows": {
       "nsis": {
         "installMode": "currentUser",

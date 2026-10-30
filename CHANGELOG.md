@@ -32,6 +32,7 @@
 - **Send feedback** in Help and Settings > About starts an email with your version and device filled in.
 
 **Also**
+- **Zomello is open source** under the MIT license. Settings > About links to the code.
 - **Reminders on phones and tablets arrive even when Zomello is closed.** The app hands each card's reminder and the daily summary to the phone ahead of time.
 - Choose how many checklist items a card shows on the board (Customize > Show on cards).
 - Plainer wording all over the app, and the Help link opens the guide at docs.zombeatzmedia.com.

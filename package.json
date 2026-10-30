@@ -2,6 +2,7 @@
   "name": "zomello",
   "private": true,
   "version": "0.5.4",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -203,6 +203,10 @@ More in [docs/apps.md](docs/apps.md#building-it-yourself).
 - `server/` - Zomello Server (Rust, SQLite), `deploy/` - compose file for servers
 </details>
 
+## License
+
+[MIT](LICENSE). Icons are [Lucide](https://lucide.dev) (ISC). The names Zomello and ZomBeatz Media and their logos aren't covered by the license.
+
 ## Contact
 
 Made by **ZomBeatz Media** · [info@zombeatzmedia.com](mailto:info@zombeatzmedia.com)
