@@ -30,10 +30,12 @@ import {
   ArrowRightLeft,
   CircleDot,
   Flag,
+  Sun,
   X, FileDown, ClipboardPaste } from "lucide-react";
 import type { Board, Card, DueFilter, Filter, GroupBy, ID, ViewMode } from "../types";
 import { useBoardUi, useStore } from "../store";
-import { byOrder, emptyFilter, filterIsActive, matchesFilter, PALETTE, PRIORITIES, PROGRESS, relatedSet, uid } from "../utils";
+import { addDays, format, nextMonday, parseISO } from "date-fns";
+import { byOrder, emptyFilter, filterIsActive, matchesFilter, PALETTE, PRIORITIES, PROGRESS, relatedSet, toISO, uid } from "../utils";
 import { ask, Avatar, ColorPicker, InlineEdit, MenuItem, Popover } from "./ui";
 import { KanbanView } from "./views/KanbanView";
 import { BucketPicker, LabelPicker } from "./pickers";
@@ -578,14 +580,30 @@ function SelectionBar({ boardId }: { boardId: ID }) {
   const n = picked.length;
   const plural = `${n} card${n === 1 ? "" : "s"}`;
   const each = (patch: (c: Card) => Partial<Card> | null, done: string) => {
+    let changed = 0;
     for (const c of picked) {
       const p = patch(c);
-      if (p) updateCard(c.id, p);
+      if (p) (updateCard(c.id, p), changed++);
     }
-    toast(`${done} ${plural}`, { undo: true });
+    toast(changed ? `${done} ${changed} card${changed === 1 ? "" : "s"}` : "Nothing to change", { undo: changed > 0 });
   };
-  // Labels on every picked card show as ticked; ticking adds to all, unticking removes from all.
+  // Labels (and people) on every picked card show as ticked; ticking adds to all, unticking removes from all.
   const shared = board.labels.filter((l) => picked.every((c) => c.labelIds.includes(l.id))).map((l) => l.id);
+  const people = useStore.getState().data.settings.people;
+  const today = new Date();
+  const due = (d: Date | null) => each(() => ({ dueDate: d ? toISO(d) : null }), d ? `Due ${format(d, "EEE MMM d")}:` : "Removed the due date from");
+  // Pushes every date on a card back (start, due), keeping how long it runs; cards with no dates stay as they are.
+  const later = (days: number) =>
+    each(
+      (c) =>
+        c.dueDate || c.startDate
+          ? {
+              dueDate: c.dueDate && toISO(addDays(parseISO(c.dueDate), days)),
+              startDate: c.startDate && toISO(addDays(parseISO(c.startDate), days)),
+            }
+          : null,
+      `Moved ${days === 1 ? "a day" : "a week"} later:`,
+    );
   return (
     <div className="selection-bar" role="toolbar" aria-label="Selected cards">
       <span className="sel-count">{n} selected</span>
@@ -625,6 +643,51 @@ function SelectionBar({ boardId }: { boardId: ID }) {
           />
         )}
       </Popover>
+      <Popover trigger={(_, t) => <button className="btn sm" onClick={t}><CalendarDays size={14} /> Dates</button>}>
+        {(close) => (
+          <div className="menu">
+            <MenuItem onClick={() => (due(today), close())}>Due today</MenuItem>
+            <MenuItem onClick={() => (due(addDays(today, 1)), close())}>Due tomorrow</MenuItem>
+            <MenuItem onClick={() => (due(nextMonday(today)), close())}>Due next Monday</MenuItem>
+            <label className="menu-item">
+              <span>Due on</span>
+              <input type="date" className="sel-date" onChange={(e) => e.target.value && (due(parseISO(e.target.value)), close())} />
+            </label>
+            <div className="menu-sep" />
+            <MenuItem onClick={() => (later(1), close())}>A day later</MenuItem>
+            <MenuItem onClick={() => (later(7), close())}>A week later</MenuItem>
+            <div className="menu-sep" />
+            <MenuItem onClick={() => (due(null), close())}>Remove due date</MenuItem>
+          </div>
+        )}
+      </Popover>
+      {people.length > 0 && (
+        <Popover trigger={(_, t) => <button className="btn sm" onClick={t}><Users size={14} /> People</button>}>
+          {() => (
+            <div className="menu">
+              {people.map((p) => {
+                const all = picked.every((c) => c.assignees.includes(p));
+                return (
+                  <label key={p} className="menu-item">
+                    <input
+                      type="checkbox"
+                      checked={all}
+                      onChange={() =>
+                        each(
+                          (c) => (all ? { assignees: c.assignees.filter((x) => x !== p) } : c.assignees.includes(p) ? null : { assignees: [...c.assignees, p] }),
+                          all ? `Unassigned ${p} from` : `Assigned ${p} to`,
+                        )
+                      }
+                    />
+                    <Avatar name={p} size={18} />
+                    <span>{p}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </Popover>
+      )}
       <Popover trigger={(_, t) => <button className="btn sm" onClick={t}><ArrowRightLeft size={14} /> Move</button>}>
         {(close) => (
           <BucketPicker
@@ -668,6 +731,24 @@ function SelectionBar({ boardId }: { boardId: ID }) {
       <Popover align="right" trigger={(_, t) => <button className="icon-btn" title="More" aria-label="More" onClick={t}><MoreHorizontal size={15} /></button>}>
         {(close) => (
           <div className="menu">
+            <MenuItem icon={<Sun size={14} />} onClick={() => (each(() => ({ myDay: toISO(today) }), "Added to My Day:"), close())}>
+              Add to My Day
+            </MenuItem>
+            <MenuItem
+              icon={<Copy size={14} />}
+              onClick={() => {
+                const st = useStore.getState();
+                const copies = picked.map((c) => st.duplicateCard(c.id));
+                toast(`Duplicated ${plural}`, { undo: true });
+                close();
+                // The copies are picked now, so they can be moved or changed straight away.
+                clearSelected();
+                st.selectCards(copies);
+              }}
+            >
+              Duplicate
+            </MenuItem>
+            <div className="menu-sep" />
             <MenuItem icon={<ClipboardCopy size={14} />} onClick={() => (copyText(workOrder(boardId, picked, `${n} selected cards`)), close())}>
               Copy work order
             </MenuItem>
@@ -680,7 +761,7 @@ function SelectionBar({ boardId }: { boardId: ID }) {
       <button className="icon-btn" title="Clear selection (Esc)" aria-label="Clear selection" onClick={clearSelected}>
         <X size={15} />
       </button>
-      <span className="muted small sel-hint">Click cards to add or remove. Esc or a click on empty space clears.</span>
+      <span className="muted small sel-hint">Click cards to add or remove, Shift+click for a range. Esc or a click on empty space clears.</span>
     </div>
   );
 }

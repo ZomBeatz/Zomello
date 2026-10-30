@@ -1,7 +1,7 @@
 import { addDays } from "date-fns";
 import { archiveCard } from "./actions";
 import { useStore } from "./store";
-import { hoveredCardId } from "./components/CardTile";
+import { cardsOnScreen, hoveredCardId } from "./components/CardTile";
 import { toISO } from "./utils";
 import type { ViewMode } from "./types";
 
@@ -93,9 +93,13 @@ export function handleShortcut(e: KeyboardEvent) {
     if (ok) st.toast(redo ? "Redone" : "Undone");
     return;
   }
-  if (ctrl || e.altKey) return;
-
   const modalOpen = !!document.querySelector(".modal-backdrop, .ctx-menu, .popover");
+  // Select every card on screen, to change them all at once.
+  if (ctrl && key === "a" && st.route.page === "board" && !modalOpen) {
+    e.preventDefault();
+    return st.selectCards(cardsOnScreen());
+  }
+  if (ctrl || e.altKey) return;
   if (modalOpen) return;
 
   if (e.key === "Escape" && st.selected.length) return st.clearSelected();

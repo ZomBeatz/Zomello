@@ -25,6 +25,12 @@ const REL_LABEL = {
 
 /** The card under the mouse, for hover keyboard shortcuts (see shortcuts.ts). */
 export let hoveredCardId: ID | null = null;
+/** The card last picked by a click, where a Shift+click range starts. */
+let rangeStart: ID | null = null;
+
+/** Cards on screen in reading order (bucket by bucket), so a range follows what you see. */
+export const cardsOnScreen = () =>
+  [...new Set([...document.querySelectorAll<HTMLElement>(".board-content .card-tile[data-card-id]")].map((el) => el.dataset.cardId!))];
 
 function relativeDue(c: Card): string {
   if (!c.dueDate) return "";
@@ -112,8 +118,15 @@ export const CardTile = memo(function CardTile({
         // Ctrl / Shift + click picks cards for bulk actions. Once any card is picked, a plain click (or tap)
         // picks more, so phones can do it too; Esc or a click on empty space ends it.
         const st = useStore.getState();
-        if (e.ctrlKey || e.metaKey || e.shiftKey || st.selected.length) st.toggleSelected(card.id);
-        else openCard(card.id);
+        if (e.shiftKey && rangeStart && st.selected.includes(rangeStart)) {
+          const ids = cardsOnScreen();
+          const [a, b] = [ids.indexOf(rangeStart), ids.indexOf(card.id)].sort((x, y) => x - y);
+          if (a >= 0) return st.selectCards(ids.slice(a, b + 1));
+        }
+        if (e.ctrlKey || e.metaKey || e.shiftKey || st.selected.length) {
+          st.toggleSelected(card.id);
+          rangeStart = card.id;
+        } else openCard(card.id);
       }}
       onContextMenu={(e) => openCardMenu(e, card.id)}
       onMouseEnter={() => {
