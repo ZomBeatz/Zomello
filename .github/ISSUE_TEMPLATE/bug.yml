@@ -1,0 +1,46 @@
+name: Bug report
+description: Something doesn't work the way it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting this. Please use example data in screenshots, not anything private.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, step by step, and what happened.
+      placeholder: |
+        1. Opened a card
+        2. Added a due date
+        3. Pressed Save, and the date disappeared
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+  - type: dropdown
+    id: device
+    attributes:
+      label: Where does it happen?
+      multiple: true
+      options:
+        - Windows
+        - Linux
+        - Android
+        - iPhone or iPad
+        - Zomello Server (Docker or direct install)
+        - The online demo in a browser
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Zomello version
+      description: Settings > About.
+      placeholder: "0.5.3"
+  - type: textarea
+    id: more
+    attributes:
+      label: Screenshots or anything else

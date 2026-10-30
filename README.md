@@ -37,7 +37,7 @@
    |---|---|---|
    | **Windows 10/11** | `Zomello_(version)_x64-setup.exe` | Open it. If Windows says *"Windows protected your PC"*, click **More info > Run anyway**. |
    | **Linux** | `.deb` (Ubuntu, Mint, Debian), `.rpm` (Fedora, openSUSE) or `.AppImage` (any) | Open it with your software installer. For the AppImage: right-click > Properties > allow running, then open it. |
-   | **Android** | `Zomello.apk` | Open it on the phone and allow installing from your browser or Files app when asked. |
+   | **Android** | `Zomello.apk`, or [join the beta](https://docs.zombeatzmedia.com/zomello/help-test) to get it from Google Play with automatic updates | Open the APK on the phone and allow installing from your browser or Files app when asked. |
 
 2. **Open Zomello.** A *Getting started* board walks you through the basics.
 3. No account or sign-up needed. Your boards are saved on your own device.
