@@ -212,4 +212,4 @@ More in [docs/apps.md](docs/apps.md#building-it-yourself).
 
 ## Contact
 
-Made by **ZomBeatz Media** · [info@zombeatzmedia.com](mailto:info@zombeatzmedia.com)
+Made by **ZomBeatz Media** · [info@zombeatzmedia.com](mailto:info@zombeatzmedia.com) · Reddit: [u/ZomBeatzMedia_Dev](https://www.reddit.com/user/ZomBeatzMedia_Dev/)
