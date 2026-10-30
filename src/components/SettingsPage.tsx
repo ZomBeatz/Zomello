@@ -6,7 +6,7 @@ import { exportCalendarFile } from "../icsExport";
 import type { AppStyle, Settings, ViewMode } from "../types";
 import { normalize, useStore } from "../store";
 import {
-  cleanupStoredFiles, dataLocation, deviceWord, exportFile, inTauri, isDesktopApp, isMobileApp, isPhoneOrTablet, listBackups, notify, readBackup, type BackupInfo,
+  cleanupStoredFiles, dataLocation, deviceWord, exportFile, inTauri, isDesktopApp, isMobileApp, isPhoneOrTablet, listBackups, notify, openExternal, readBackup, type BackupInfo,
 } from "../storage";
 import { PALETTE } from "../utils";
 import { SHORTCUTS } from "../shortcuts";
@@ -567,6 +567,12 @@ function AboutPanel() {
             <b>Zomello</b> {__APP_VERSION__}
           </p>
           <p className="muted small">Boards, tasks &amp; planning, kept on your own computer. Made by ZomBeatz Media.</p>
+          <p className="muted small">
+            Free and open source under the MIT license.{" "}
+            <a href="https://github.com/ZomBeatz/Zomello" onClick={(e) => (e.preventDefault(), void openExternal("https://github.com/ZomBeatz/Zomello"))}>
+              See the code
+            </a>
+          </p>
           <button className="btn sm about-feedback" onClick={sendFeedback}>
             <MessageSquare size={14} /> Send feedback
           </button>

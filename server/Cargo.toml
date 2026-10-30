@@ -3,6 +3,7 @@ name = "zomello-server"
 version = "0.5.4"
 edition = "2021"
 description = "Zomello Server: multi-user Zomello for a home server, NAS or VPS"
+license = "MIT"
 
 [dependencies]
 axum = { version = "0.8", features = ["json", "query", "http1", "tokio"], default-features = false }
