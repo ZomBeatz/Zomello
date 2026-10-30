@@ -108,11 +108,23 @@ const defaultBuckets = (boardId: ID): List[] => [
   { ...newList(boardId, "Done", 2), autoProgress: "completed" },
 ];
 
-/** A card arriving in a bucket that sets progress (e.g. "Done") takes on that progress. */
+/** Labels from a bucket rule added to a card's own, skipping any the board no longer has. */
+function withLabels(d: AppData, boardId: ID, own: ID[], add: ID[] | undefined): ID[] {
+  const known = new Set(d.boards[boardId]?.labels.map((l) => l.id));
+  const extra = (add ?? []).filter((l) => known.has(l) && !own.includes(l));
+  return extra.length ? [...own, ...extra] : own;
+}
+
+/** A card arriving in a bucket takes on its rules: a progress (e.g. "Done" completes it) and labels. */
 function arrive(d: AppData, id: ID, patch: Partial<Card>): Partial<Card> {
   const card = d.cards[id];
-  if (!card || !patch.listId || patch.listId === card.listId || patch.progress !== undefined) return patch;
-  const p = d.lists[patch.listId]?.autoProgress;
+  if (!card || !patch.listId || patch.listId === card.listId) return patch;
+  const list = d.lists[patch.listId];
+  const own = patch.labelIds ?? card.labelIds;
+  const labelIds = withLabels(d, patch.boardId ?? card.boardId, own, list?.arriveLabelIds);
+  if (labelIds !== own) patch = { ...patch, labelIds };
+  if (patch.progress !== undefined) return patch;
+  const p = list?.autoProgress;
   if (p) return p !== card.progress ? { ...patch, progress: p } : patch;
   // Dragged back out of a "Done" bucket: it's open again (instead of vanishing under "Show completed").
   if (card.progress === "completed" && d.lists[card.listId]?.autoProgress === "completed") return { ...patch, progress: "notStarted" };
@@ -341,6 +353,8 @@ interface State {
   /** Cards picked with Ctrl+click on the board (for bulk actions like handing them to an AI). */
   selected: ID[];
   toggleSelected(id: ID): void;
+  /** Adds these cards to the selection. */
+  selectCards(ids: ID[]): void;
   clearSelected(): void;
 
   load(): Promise<void>;
@@ -637,6 +651,9 @@ export const useStore = create<State>((set, get) => {
     toggleSelected(id) {
       set((s) => ({ selected: s.selected.includes(id) ? s.selected.filter((x) => x !== id) : [...s.selected, id] }));
     },
+    selectCards(ids) {
+      set((s) => ({ selected: [...new Set([...s.selected, ...ids])] }));
+    },
     clearSelected() {
       if (get().selected.length) set({ selected: [] });
     },
@@ -870,7 +887,8 @@ export const useStore = create<State>((set, get) => {
       const lists = Object.values(d.lists)
         .filter((l) => l.boardId === id && !l.archived)
         .map((l) => {
-          const nl = { ...l, id: uid(), boardId: board.id };
+          const relabel = (ids?: ID[]) => ids?.map((x) => labelMap.get(x)).filter((x): x is ID => !!x);
+          const nl = { ...l, id: uid(), boardId: board.id, arriveLabelIds: relabel(l.arriveLabelIds), newLabelIds: relabel(l.newLabelIds) };
           listMap.set(l.id, nl.id);
           return nl;
         });
@@ -930,8 +948,10 @@ export const useStore = create<State>((set, get) => {
       const card = newCard(list.boardId, listId, title, Math.max(-1, ...siblings.map((c) => c.order)) + 1, {
         activity: [{ at: Date.now(), kind: "created" }],
         ...(list.autoProgress ? { progress: list.autoProgress } : {}),
+        ...(list.newPriority ? { priority: list.newPriority } : {}),
         ...extra,
       });
+      card.labelIds = withLabels(d, list.boardId, card.labelIds, [...(list.newLabelIds ?? []), ...(list.arriveLabelIds ?? [])]);
       if (card.progress === "completed") card.completedAt = Date.now();
       mut((d) => ({ ...d, cards: { ...d.cards, [card.id]: card } }));
       return card.id;

@@ -1208,6 +1208,8 @@ body[data-filedrag="card"] .drop-hint { display: flex; }
 
   .toasts { left: 12px; right: 12px; transform: none; bottom: max(12px, env(safe-area-inset-bottom)); }
   .sel-hint, .hide-phone { display: none !important; }
+  .selection-bar { flex-wrap: wrap; justify-content: center; white-space: normal; left: 12px; right: 12px; transform: none; max-width: none; bottom: max(12px, env(safe-area-inset-bottom)); padding: 8px; }
+  .selection-bar .sel-count { width: 100%; text-align: center; }
 }
 
 /* Touch screens: no hover, so show controls that otherwise appear on hover, and use bigger targets. */
@@ -1271,7 +1273,10 @@ body[data-filedrag="card"] .drop-hint { display: flex; }
 .cert-box .step-title { display: flex; align-items: center; gap: 6px; font-weight: 650; }
 .cert-box p { margin: 0; }
 .cert-box details p { margin: 4px 0; }
-.menu-item select.auto-progress { margin-left: auto; padding: 2px 4px; font-size: 12px; }
+.bucket-rules section { display: flex; flex-direction: column; gap: 10px; }
+.bucket-rules section > p { margin: -4px 0 0; }
+.bucket-rules .rule-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.bucket-rules .rule-row > span:first-child { width: 110px; color: var(--text-2); font-size: 13px; }
 .detail-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
 .complete-btn.on { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
 .quick-empty { margin: 14px 16px 0; padding: 10px 12px; border-radius: 8px; background: var(--accent-soft); font-size: 13px; }

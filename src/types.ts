@@ -154,6 +154,12 @@ export interface List {
    * A bucket that completes cards also shows them, instead of tucking them under "Show completed".
    */
   autoProgress?: Progress | null;
+  /** Labels added to cards moved (or added) into this bucket. */
+  arriveLabelIds?: ID[];
+  /** Labels given to cards made in this bucket, which stay when the card moves on. */
+  newLabelIds?: ID[];
+  /** Priority given to cards made in this bucket. */
+  newPriority?: Priority | null;
   /** Per-bucket override of the board's "hide ticked checklist items on cards". */
   hideChecked?: boolean;
 }
