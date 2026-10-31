@@ -352,6 +352,8 @@ export interface Settings {
   runInBackground: boolean;
   /** Zomello Servers this app can open (Plex style), alongside the boards stored here. */
   servers?: ServerEntry[];
+  /** Feature groups turned on or off in Settings > Features (see features.ts). Missing = on. */
+  features?: Partial<Record<import("./features").Feature, boolean>>;
 }
 
 export type AppStyle = "classic" | "bassdrop" | "partycat";

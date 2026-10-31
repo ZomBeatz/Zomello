@@ -2,6 +2,7 @@ import { addDays } from "date-fns";
 import { archiveCard } from "./actions";
 import { useStore } from "./store";
 import { cardsOnScreen, hoveredCardId } from "./components/CardTile";
+import { featureOn, viewShown } from "./features";
 import { toISO } from "./utils";
 import type { ViewMode } from "./types";
 
@@ -116,9 +117,10 @@ export function handleShortcut(e: KeyboardEvent) {
       case "c":
         return st.updateCard(card.id, { progress: done ? "notStarted" : "completed" });
       case "t":
-        return card.time.some((t) => t.end === null) ? st.stopTimer() : st.startTimer(card.id);
+        if (card.time.some((t) => t.end === null)) return st.stopTimer();
+        return featureOn(st.data.settings, "time") ? st.startTimer(card.id) : undefined;
       case "f":
-        return st.startFocus(st.data.settings.focusMinutes, card.id);
+        return featureOn(st.data.settings, "time") ? st.startFocus(st.data.settings.focusMinutes, card.id) : undefined;
       case "d": {
         const today = toISO(new Date());
         return st.updateCard(card.id, { dueDate: card.dueDate === today ? toISO(addDays(new Date(), 1)) : today });
@@ -151,7 +153,10 @@ export function handleShortcut(e: KeyboardEvent) {
 
   if (st.route.page === "board") {
     const boardId = st.route.boardId;
-    if (e.key >= "1" && e.key <= "5") return st.setBoardUi(boardId, { view: VIEWS[+e.key - 1] });
+    if (e.key >= "1" && e.key <= "5") {
+      const view = VIEWS[+e.key - 1];
+      return viewShown(st.data.settings, view) ? st.setBoardUi(boardId, { view }) : undefined;
+    }
     if (e.key === "/") {
       e.preventDefault();
       return document.querySelector<HTMLInputElement>(".search-box input")?.focus();

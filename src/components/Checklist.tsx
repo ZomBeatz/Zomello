@@ -8,6 +8,7 @@ import { CheckSquare, GripVertical, Link2, MoveRight, Plus, Tag, Unlink, X } fro
 import type { Card, ChecklistItem, ID } from "../types";
 import { useStore } from "../store";
 import { checklistStats, subtaskLoopReason, uid } from "../utils";
+import { useFeature } from "../features";
 import { InlineEdit, Popover } from "./ui";
 import { BucketPicker, CardPicker, LabelPicker } from "./pickers";
 
@@ -158,6 +159,7 @@ function ChecklistRow({ card, item, before }: { card: Card; item: ChecklistItem;
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
 
   const linked = item.cardId ? allCards[item.cardId] : null;
+  const linking = useFeature("linking");
   const lastSpin = useStore((s) => s.data.ui[card.boardId]?.lastSpinOffList);
   const spinList = (lastSpin && lists[lastSpin] && !lists[lastSpin].archived && lists[lastSpin]) || lists[card.listId];
   const spinTarget = { boardId: spinList?.boardId ?? card.boardId, listId: spinList?.id ?? card.listId };
@@ -229,7 +231,7 @@ function ChecklistRow({ card, item, before }: { card: Card; item: ChecklistItem;
             <button className="icon-btn tiny" title="Unlink (keeps the task)" onClick={() => linkChecklistItem(card.id, item.id, null)}>
               <Unlink size={13} />
             </button>
-          ) : (
+          ) : linking ? (
             <>
               <Popover
                 align="right"
@@ -276,7 +278,7 @@ function ChecklistRow({ card, item, before }: { card: Card; item: ChecklistItem;
                 )}
               </Popover>
             </>
-          )}
+          ) : null}
           <button
             className="icon-btn tiny"
             title="Delete item"

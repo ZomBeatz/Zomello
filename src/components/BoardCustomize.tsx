@@ -6,6 +6,7 @@ import { loadFeed } from "../calendarFeeds";
 import { boardCategories, plural, BOARD_EMOJIS, GRADIENTS, isImage, PALETTE, uid } from "../utils";
 import { storedSrc, storeFile, storeFromPath } from "../storage";
 import { registerDropZone } from "../fileDrop";
+import { useFeature } from "../features";
 import { ask, ColorPicker, Modal, Popover, useSaveOnUnmount } from "./ui";
 
 export const BADGES: { key: BadgeKey; name: string; icon: string; full: string }[] = [
@@ -61,6 +62,8 @@ export function boardBackground(b: Board): string | undefined {
 }
 
 export function BoardCustomize({ board }: { board: Board }) {
+  const looks = useFeature("looks");
+  const fields = useFeature("fields");
   const updateBoard = useStore((s) => s.updateBoard);
   const close = () => useStore.getState().setOverlay({ customizeBoardId: null });
   const set = (patch: Partial<Board>) => updateBoard(board.id, patch);
@@ -152,6 +155,7 @@ export function BoardCustomize({ board }: { board: Board }) {
           <ColorPicker value={board.color} onChange={(color) => set({ color: color ?? PALETTE[6] })} />
         </section>
 
+        {(looks || bg.type !== "none") && (
         <section data-file-drop="board-background">
           <h4>Background</h4>
           <p className="muted small">Pick one, upload an image, or drop an image here.</p>
@@ -203,6 +207,7 @@ export function BoardCustomize({ board }: { board: Board }) {
             />
           </div>
         </section>
+        )}
 
         {bg.type !== "none" && (
           <section>
@@ -323,7 +328,7 @@ export function BoardCustomize({ board }: { board: Board }) {
           </label>
         </section>
 
-        <FieldsEditor board={board} />
+        {(fields || board.fields.length > 0) && <FieldsEditor board={board} />}
 
         <section>
           <h4>Card details window</h4>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
-import { Accessibility, Bell, CalendarPlus, Download, FileUp, Minus, Plus, Eraser, LayoutTemplate, MessageSquare, Repeat, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
+import { Accessibility, Bell, Blocks, CalendarPlus, Download, FileUp, Minus, Plus, Eraser, LayoutTemplate, MessageSquare, Repeat, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
 import { sendFeedback } from "../feedback";
 import { exportCalendarFile } from "../icsExport";
 import type { AppStyle, Settings, ViewMode } from "../types";
@@ -21,6 +21,7 @@ import { isServer } from "../server";
 import { LogoMark } from "./Logo";
 import { padPressed, preloadPads, type Vowel } from "../partyCat";
 import { isRemote } from "../remote";
+import { currentPreset, FEATURES, featureOn, PRESETS, presetFeatures, viewShown, type Preset } from "../features";
 
 const A11Y_OPTIONS: { key: keyof A11ySettings; name: string; hint: string }[] = [
   { key: "highContrast", name: "High contrast", hint: "Stronger borders and text; turns off card fading" },
@@ -103,6 +104,7 @@ export function SettingsPage() {
         {[
           ...(isServer ? [["account", "Account"]] : []),
           ["appearance", "Appearance"],
+          ["features", "Features"],
           ["accessibility", "Accessibility"],
           ["people", "People"],
           ["reminders", "Reminders"],
@@ -240,13 +242,15 @@ export function SettingsPage() {
           <label>New boards open in</label>
           <select value={settings.defaultView} onChange={(e) => updateSettings({ defaultView: e.target.value as ViewMode })}>
             <option value="board">Board view</option>
-            <option value="list">List view</option>
+            {viewShown(settings, "list") && <option value="list">List view</option>}
             <option value="calendar">Calendar view</option>
-            <option value="timeline">Timeline view</option>
+            {viewShown(settings, "timeline") && <option value="timeline">Timeline view</option>}
           </select>
         </div>
         <p className="muted small">Each board also has its own look: open a board and press Customize (or B).</p>
       </section>
+
+      <FeaturesPanel />
 
       <section className="panel" id="set-accessibility">
         <h3>
@@ -593,6 +597,48 @@ function AboutPanel() {
             />
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+/** Settings > Features: start simple and turn on more as you need it. Nothing is deleted by turning a group off. */
+function FeaturesPanel() {
+  const settings = useStore((s) => s.data.settings);
+  const { updateSettings } = useStore.getState();
+  const preset = currentPreset(settings);
+  return (
+    <section className="panel" id="set-features">
+      <h3>
+        <Blocks size={15} /> Features
+      </h3>
+      <p className="muted small">
+        Choose how much Zomello shows. Turning something off only hides its buttons and menus: nothing is deleted, and a card that
+        already uses it still shows it.
+      </p>
+      <div className="seg feature-presets" role="group" aria-label="Feature presets">
+        {(Object.keys(PRESETS) as Preset[]).map((p) => (
+          <button key={p} className={preset === p ? "active" : ""} aria-pressed={preset === p} title={PRESETS[p].what} onClick={() => updateSettings({ features: presetFeatures(p) })}>
+            {PRESETS[p].name}
+          </button>
+        ))}
+        {!preset && <span className="muted small feature-custom">Your own mix</span>}
+      </div>
+      <p className="muted small">{preset ? PRESETS[preset].what : "Some groups on, some off."}</p>
+      <div className="feature-list">
+        {FEATURES.map((f) => (
+          <label key={f.id} className="check-row feature-row">
+            <input
+              type="checkbox"
+              checked={featureOn(settings, f.id)}
+              onChange={(e) => updateSettings({ features: { ...settings.features, [f.id]: e.target.checked } })}
+            />
+            <span>
+              <b>{f.name}</b>
+              <small className="muted">{f.what}</small>
+            </span>
+          </label>
+        ))}
       </div>
     </section>
   );

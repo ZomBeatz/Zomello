@@ -53,6 +53,7 @@ import { CardTile } from "../CardTile";
 import { InlineEdit, MenuItem, Modal, Popover } from "../ui";
 import { BADGES } from "../BoardCustomize";
 import { LabelPicker } from "../pickers";
+import { useFeature } from "../../features";
 import { copyText } from "../Markdown";
 import { workOrder } from "../../ai";
 
@@ -346,6 +347,9 @@ function Column({
   const list = group.list;
   const [displayOpen, setDisplayOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const ai = useFeature("ai");
+  const automation = useFeature("automation");
+  const looks = useFeature("looks");
   const sortable = useSortable({
     id: `${COL_PREFIX}${group.id}`,
     data: { type: "column" },
@@ -421,34 +425,38 @@ function Column({
                 <MenuItem icon={<ChevronsLeftRight size={14} />} onClick={() => (updateList(list.id, { collapsed: true }), close())}>
                   Collapse
                 </MenuItem>
-                <MenuItem
-                  icon={<Sparkles size={14} />}
-                  onClick={() => {
-                    close();
-                    useStore.getState().setOverlay({ aiDialog: { tab: "ask", mode: "cards", boardId: board.id, listId: list.id } });
-                  }}
-                >
-                  Ask AI for cards here…
-                </MenuItem>
-                <MenuItem
-                  icon={<Bot size={14} />}
-                  onClick={() => {
-                    close();
-                    useStore.getState().setOverlay({ aiDialog: { tab: "export", boardId: board.id, listId: list.id } });
-                  }}
-                >
-                  Export bucket for AI…
-                </MenuItem>
-                <MenuItem
-                  icon={<ClipboardCopy size={14} />}
-                  onClick={() => {
-                    close();
-                    const cs = Object.values(useStore.getState().data.cards).filter((c) => c.listId === list.id);
-                    copyText(workOrder(board.id, cs, `Bucket: ${list.title}`));
-                  }}
-                >
-                  Copy work order
-                </MenuItem>
+                {ai && (
+                  <>
+                    <MenuItem
+                      icon={<Sparkles size={14} />}
+                      onClick={() => {
+                        close();
+                        useStore.getState().setOverlay({ aiDialog: { tab: "ask", mode: "cards", boardId: board.id, listId: list.id } });
+                      }}
+                    >
+                      Ask AI for cards here…
+                    </MenuItem>
+                    <MenuItem
+                      icon={<Bot size={14} />}
+                      onClick={() => {
+                        close();
+                        useStore.getState().setOverlay({ aiDialog: { tab: "export", boardId: board.id, listId: list.id } });
+                      }}
+                    >
+                      Export bucket for AI…
+                    </MenuItem>
+                    <MenuItem
+                      icon={<ClipboardCopy size={14} />}
+                      onClick={() => {
+                        close();
+                        const cs = Object.values(useStore.getState().data.cards).filter((c) => c.listId === list.id);
+                        copyText(workOrder(board.id, cs, `Bucket: ${list.title}`));
+                      }}
+                    >
+                      Copy work order
+                    </MenuItem>
+                  </>
+                )}
                 <MenuItem
                   icon={<ListChecks size={14} />}
                   onClick={() => {
@@ -467,12 +475,17 @@ function Column({
                 >
                   Paste cards here…
                 </MenuItem>
-                <MenuItem icon={<Wand2 size={14} />} onClick={() => (setRulesOpen(true), close())}>
-                  Bucket rules{hasRules(list) ? " (on)" : ""}…
-                </MenuItem>
-                <MenuItem icon={<SlidersHorizontal size={14} />} onClick={() => (setDisplayOpen(true), close())}>
-                  Card display{list.badges && Object.keys(list.badges).length ? " (custom)" : ""}…
-                </MenuItem>
+                {(automation || hasRules(list)) && (
+                  <MenuItem icon={<Wand2 size={14} />} onClick={() => (setRulesOpen(true), close())}>
+                    Bucket rules{hasRules(list) ? " (on)" : ""}…
+                  </MenuItem>
+                )}
+                {(looks || !!list.badges) && (
+                  <MenuItem icon={<SlidersHorizontal size={14} />} onClick={() => (setDisplayOpen(true), close())}>
+                    Card display{list.badges && Object.keys(list.badges).length ? " (custom)" : ""}…
+                  </MenuItem>
+                )}
+                {(automation || list.wipLimit != null) && (
                 <label className="menu-item">
                   <Gauge size={14} />
                   <span>WIP limit</span>
@@ -488,6 +501,7 @@ function Column({
                     }}
                   />
                 </label>
+                )}
                 <MenuItem icon={<Archive size={14} />} onClick={() => (archiveList(list), close())}>
                   Archive bucket
                 </MenuItem>

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0 (in progress)
+
+**Features: as simple or as full as you like**
+- **Settings > Features** has three starting points, **Simple**, **Standard** and **Everything**, and eight groups you can turn on or off one by one: planning extras, linking tasks, more views, board looks, time tracking, custom fields, bucket automation and AI tools.
+- **Nothing is ever deleted** by turning a group off: its buttons and menus are hidden, and cards that already use it still show it.
+- **The welcome guide asks** how much to show at first. Everyone who used Zomello before keeps everything on.
+
 ## 0.5.4
 
 **Calendar**

@@ -39,6 +39,7 @@ import { byOrder, emptyFilter, filterIsActive, matchesFilter, PALETTE, PRIORITIE
 import { ask, Avatar, ColorPicker, InlineEdit, MenuItem, Popover } from "./ui";
 import { KanbanView } from "./views/KanbanView";
 import { BucketPicker, LabelPicker } from "./pickers";
+import { featureOn, useFeature, viewShown } from "../features";
 import { ListView } from "./views/ListView";
 import { CalendarView } from "./views/CalendarView";
 import { TimelineView } from "./views/TimelineView";
@@ -70,6 +71,7 @@ export function BoardPage({ boardId }: { boardId: ID }) {
   const allLists = useStore((s) => s.data.lists);
   const allCards = useStore((s) => s.data.cards);
   const people = useStore((s) => s.data.settings.people);
+  const features = useStore((s) => s.data.settings.features);
   const ui = useBoardUi(boardId);
 
   // Pasting copied cards anywhere on the board (not into a text box) offers to add them.
@@ -106,14 +108,17 @@ export function BoardPage({ boardId }: { boardId: ID }) {
   }, [allCards, lists, boardId, ui.filter]);
 
   if (!board) return null;
+  // A view whose feature group is off (Settings > Features) falls back to the board.
+  const view = viewShown({ features }, ui.view) ? ui.view : "board";
+  const shownUi = view === ui.view ? ui : { ...ui, view };
 
   return (
     <div
       className={`board-page ${board.background.type !== "none" ? "has-bg" : ""} cols-${board.display.columnWidth}`}
       style={{ "--board": board.color, "--board-bg": boardBackground(board) } as React.CSSProperties}
     >
-      <BoardHeader board={board} view={ui.view} />
-      <Toolbar board={board} ui={ui} people={people} count={cards.length} />
+      <BoardHeader board={board} view={view} />
+      <Toolbar board={board} ui={shownUi} people={people} count={cards.length} />
       <div className="board-stage">
       {board.background.type !== "none" && (
         <div
@@ -136,11 +141,11 @@ export function BoardPage({ boardId }: { boardId: ID }) {
             useStore.getState().clearSelected();
         }}
       >
-        {ui.view === "board" && <KanbanView board={board} lists={lists} cards={cards} groupBy={ui.groupBy} />}
-        {ui.view === "list" && <ListView board={board} lists={lists} cards={cards} />}
-        {ui.view === "calendar" && <CalendarView board={board} lists={lists} cards={cards} />}
-        {ui.view === "timeline" && <TimelineView lists={lists} cards={cards} />}
-        {ui.view === "charts" && <ChartsView lists={lists} cards={cards} people={people} />}
+        {view === "board" && <KanbanView board={board} lists={lists} cards={cards} groupBy={ui.groupBy} />}
+        {view === "list" && <ListView board={board} lists={lists} cards={cards} />}
+        {view === "calendar" && <CalendarView board={board} lists={lists} cards={cards} />}
+        {view === "timeline" && <TimelineView lists={lists} cards={cards} />}
+        {view === "charts" && <ChartsView lists={lists} cards={cards} people={people} />}
       </div>
       </div>
       <SelectionBar boardId={boardId} />
@@ -149,6 +154,8 @@ export function BoardPage({ boardId }: { boardId: ID }) {
 }
 
 function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
+  const features = useStore((s) => s.data.settings.features);
+  const ai = featureOn({ features }, "ai");
   const { updateBoard, duplicateBoard, navigate, setBoardUi } = useStore.getState();
   return (
     <header className="board-header">
@@ -164,7 +171,7 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
         <Star size={17} fill={board.starred ? "currentColor" : "none"} />
       </button>
       <nav className="view-tabs" aria-label="Board views">
-        {VIEWS.map((v, i) => (
+        {VIEWS.map((v, i) => viewShown({ features }, v.id) && (
           <button
             key={v.id}
             className={view === v.id ? "active" : ""}
@@ -227,25 +234,29 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
                 Open in new window
               </MenuItem>
             )}
-            <MenuItem
-              icon={<Bot size={14} />}
-              onClick={() => {
-                close();
-                useStore.getState().setOverlay({ aiDialog: { tab: "ask", mode: "cards", boardId: board.id } });
-              }}
-            >
-              AI tools (prompts & export)…
-            </MenuItem>
-            <MenuItem
-              icon={<ClipboardCopy size={14} />}
-              onClick={() => {
-                close();
-                const all = Object.values(useStore.getState().data.cards).filter((c) => c.boardId === board.id);
-                copyText(workOrder(board.id, all, `${board.title}: open items`));
-              }}
-            >
-              Copy work order (all open cards)
-            </MenuItem>
+            {ai && (
+              <>
+                <MenuItem
+                  icon={<Bot size={14} />}
+                  onClick={() => {
+                    close();
+                    useStore.getState().setOverlay({ aiDialog: { tab: "ask", mode: "cards", boardId: board.id } });
+                  }}
+                >
+                  AI tools (prompts & export)…
+                </MenuItem>
+                <MenuItem
+                  icon={<ClipboardCopy size={14} />}
+                  onClick={() => {
+                    close();
+                    const all = Object.values(useStore.getState().data.cards).filter((c) => c.boardId === board.id);
+                    copyText(workOrder(board.id, all, `${board.title}: open items`));
+                  }}
+                >
+                  Copy work order (all open cards)
+                </MenuItem>
+              </>
+            )}
             <MenuItem
               icon={<ClipboardPaste size={14} />}
               onClick={() => {
@@ -574,6 +585,7 @@ function SelectionBar({ boardId }: { boardId: ID }) {
   const selected = useStore((s) => s.selected);
   const cards = useStore((s) => s.data.cards);
   const board = useStore((s) => s.data.boards[boardId]);
+  const ai = useFeature("ai");
   const { setOverlay, clearSelected, updateCard, toast } = useStore.getState();
   const picked = selected.map((id) => cards[id]).filter(Boolean);
   if (!picked.length || !board) return null;
@@ -748,13 +760,17 @@ function SelectionBar({ boardId }: { boardId: ID }) {
             >
               Duplicate
             </MenuItem>
-            <div className="menu-sep" />
-            <MenuItem icon={<ClipboardCopy size={14} />} onClick={() => (copyText(workOrder(boardId, picked, `${n} selected cards`)), close())}>
-              Copy work order
-            </MenuItem>
-            <MenuItem icon={<Bot size={14} />} onClick={() => (setOverlay({ aiDialog: { tab: "export", boardId, cardIds: selected } }), close())}>
-              Hand to AI…
-            </MenuItem>
+            {ai && (
+              <>
+                <div className="menu-sep" />
+                <MenuItem icon={<ClipboardCopy size={14} />} onClick={() => (copyText(workOrder(boardId, picked, `${n} selected cards`)), close())}>
+                  Copy work order
+                </MenuItem>
+                <MenuItem icon={<Bot size={14} />} onClick={() => (setOverlay({ aiDialog: { tab: "export", boardId, cardIds: selected } }), close())}>
+                  Hand to AI…
+                </MenuItem>
+              </>
+            )}
           </div>
         )}
       </Popover>

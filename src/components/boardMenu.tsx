@@ -49,11 +49,13 @@ export function boardMenu(board: Board, opts: { onRename?: () => void } = {}): M
     {
       label: "AI tools…",
       icon: <Bot size={14} />,
+      feature: "ai",
       onClick: () => st.setOverlay({ aiDialog: { tab: "ask", mode: "cards", boardId: board.id } }),
     },
     {
       label: "Copy work order (all open cards)",
       icon: <ClipboardCopy size={14} />,
+      feature: "ai",
       onClick: () => {
         const all = Object.values(useStore.getState().data.cards).filter((c) => c.boardId === board.id);
         copyText(workOrder(board.id, all, `${board.title}: open items`));

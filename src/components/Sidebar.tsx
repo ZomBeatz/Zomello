@@ -28,6 +28,7 @@ import { PlaceSections } from "./PlaceSections";
 import { sendBoard } from "../transfer";
 import { sendBoardToPhone } from "../phoneTransfer";
 import { deviceWord, isDesktopApp, isMobileApp } from "../storage";
+import { useFeature } from "../features";
 import { Avatar } from "./ui";
 
 export function Sidebar() {
@@ -397,7 +398,10 @@ function FocusWidget({ collapsed }: { collapsed: boolean }) {
   const { startFocus, pauseFocus, resumeFocus, extendFocus, endFocus, openCard } = useStore.getState();
   const [custom, setCustom] = useState("");
   const [label, setLabel] = useState("");
+  const time = useFeature("time");
 
+  // A countdown already running stays visible even with Time tracking turned off.
+  if (!focus && !time) return null;
   if (!focus)
     return (
       <Popover

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { CalendarClock, Repeat, X } from "lucide-react";
 import { readWhen, type When } from "../when";
 import { describeRecurrence, prettyDateTime } from "../utils";
+import { featureOn } from "../features";
 import { useStore } from "../store";
 
 /**
@@ -10,8 +11,8 @@ import { useStore } from "../store";
  */
 export function useWhen(title: string): { when: When | null; chip: React.ReactNode } {
   const [kept, setKept] = useState<string | null>(null);
-  // Repeats ("every monday") are read unless turned off in Settings > Adding tasks.
-  const repeats = useStore((s) => s.data.settings.titleRepeats !== false);
+  // Repeats ("every monday") are read unless turned off in Settings > Adding tasks, or Planning extras is off.
+  const repeats = useStore((s) => s.data.settings.titleRepeats !== false && featureOn(s.data.settings, "planning"));
   const found = useMemo(() => readWhen(title, new Date(), { repeats }), [title, repeats]);
   const when = found && found.words !== kept ? found : null;
   const chip = when ? (
