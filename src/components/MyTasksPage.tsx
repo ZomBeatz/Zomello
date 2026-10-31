@@ -9,6 +9,7 @@ import {
 import { Empty, PriorityBadge, ProgressIcon } from "./ui";
 import { openCardMenu } from "./ContextMenu";
 import { useWhen, withWhen } from "./WhenChip";
+import { toggleDone } from "../blocked";
 
 type GroupMode = "due" | "board" | "progress" | "priority";
 
@@ -159,7 +160,7 @@ export function MyTasksPage() {
 /** One task in My Tasks and My Day: tick it off, open it, or jump to its board. */
 export function TaskRow({ card: c, time, extra }: { card: Card; time?: string; extra?: React.ReactNode }) {
   const data = useStore((s) => s.data);
-  const { openCard, updateCard, navigate } = useStore.getState();
+  const { openCard, navigate } = useStore.getState();
   const b = data.boards[c.boardId];
   const cl = checklistStats(c);
   const tracked = trackedMs(c);
@@ -170,7 +171,7 @@ export function TaskRow({ card: c, time, extra }: { card: Card; time?: string; e
         aria-label={c.progress === "completed" ? "Mark incomplete" : "Mark complete"}
         onClick={(e) => {
           e.stopPropagation();
-          updateCard(c.id, { progress: c.progress === "completed" ? "notStarted" : "completed" });
+          toggleDone(c);
         }}
       >
         <ProgressIcon progress={c.progress} />

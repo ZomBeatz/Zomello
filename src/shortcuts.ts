@@ -5,6 +5,7 @@ import { cardsOnScreen, hoveredCardId } from "./components/CardTile";
 import { featureOn, viewShown } from "./features";
 import { toISO } from "./utils";
 import type { ViewMode } from "./types";
+import { toggleDone } from "./blocked";
 
 export const SHORTCUTS: { group: string; items: [string, string][] }[] = [
   {
@@ -108,14 +109,13 @@ export function handleShortcut(e: KeyboardEvent) {
   // Hover actions on a card.
   const card = hoveredCardId ? st.data.cards[hoveredCardId] : undefined;
   if (card && document.querySelector(".card-tile:hover")) {
-    const done = card.progress === "completed";
     switch (e.key) {
       case "Enter":
       case "e":
         e.preventDefault();
         return st.openCard(card.id);
       case "c":
-        return st.updateCard(card.id, { progress: done ? "notStarted" : "completed" });
+        return void toggleDone(card);
       case "t":
         if (card.time.some((t) => t.end === null)) return st.stopTimer();
         return featureOn(st.data.settings, "time") ? st.startTimer(card.id) : undefined;

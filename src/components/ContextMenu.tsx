@@ -21,6 +21,7 @@ import {
   ExternalLink,
   Flag,
   GitFork,
+  Network,
   Kanban,
   Link2,
   MonitorSmartphone,
@@ -36,9 +37,11 @@ import type { ID } from "../types";
 import { copyCards } from "../cardClipboard";
 import { useStore } from "../store";
 import { featureOn, type Feature } from "../features";
+import { openLinked } from "./LinkedSheet";
 import { byOrder, describeRecurrence, PRIORITIES, PROGRESS, RECURRENCE_PRESETS, relatedSet, toISO, safeArea } from "../utils";
 import { Avatar } from "./ui";
 import { CardPicker, LabelPicker } from "./pickers";
+import { setProgress, toggleDone } from "../blocked";
 
 export interface MenuEntry {
   label?: ReactNode;
@@ -221,7 +224,7 @@ function cardMenu(cardId: ID): MenuEntry[] {
     {
       label: done ? "Mark incomplete" : "Mark complete",
       icon: done ? <CircleDashed size={14} /> : <CheckCircle2 size={14} />,
-      onClick: () => set({ progress: done ? "notStarted" : "completed" }),
+      onClick: () => toggleDone(card),
     },
     {
       label: card.myDay === toISO(today) ? "Remove from My Day" : "Add to My Day",
@@ -232,7 +235,7 @@ function cardMenu(cardId: ID): MenuEntry[] {
     {
       label: "Progress",
       icon: <CircleDashed size={14} />,
-      submenu: PROGRESS.map((p) => ({ label: p.name, checked: card.progress === p.id, onClick: () => set({ progress: p.id }) })),
+      submenu: PROGRESS.map((p) => ({ label: p.name, checked: card.progress === p.id, onClick: () => setProgress(cardId, p.id) })),
     },
     {
       label: "Priority",
@@ -394,6 +397,7 @@ function cardMenu(cardId: ID): MenuEntry[] {
     },
     ...(hasRelations
       ? [
+          { label: "Linked tasks…", icon: <Network size={14} />, onClick: () => openLinked(cardId) },
           {
             label: "Show related tasks",
             icon: <GitFork size={14} />,

@@ -49,6 +49,7 @@ import { Markdown, MarkdownEditor, MarkdownField } from "./Markdown";
 import { ChecklistSection } from "./Checklist";
 import { useNow } from "./useNow";
 import { sectionShown } from "../features";
+import { setProgress, toggleDone } from "../blocked";
 
 export function CardModal({ cardId }: { cardId: ID }) {
   const card = useStore((s) => s.data.cards[cardId]);
@@ -126,7 +127,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
         <div className="detail-meta">
           <button
             className={`btn sm complete-btn ${card.progress === "completed" ? "on" : ""}`}
-            onClick={() => set({ progress: card.progress === "completed" ? "notStarted" : "completed" })}
+            onClick={() => toggleDone(card)}
             title={card.progress === "completed" ? "Mark as not done" : "Mark complete"}
           >
             <CircleCheck size={14} /> {card.progress === "completed" ? "Completed" : "Mark complete"}
@@ -429,7 +430,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
             </select>
           </Field>
           <Field label="Progress" hidden={!show("progress")}>
-            <select value={card.progress} onChange={(e) => set({ progress: e.target.value as Progress })}>
+            <select value={card.progress} onChange={(e) => setProgress(card.id, e.target.value as Progress)}>
               {PROGRESS.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}

@@ -160,6 +160,20 @@ export interface List {
   newLabelIds?: ID[];
   /** Priority given to cards made in this bucket. */
   newPriority?: Priority | null;
+  /** Cards made in this bucket start from this card template (the title typed is kept). */
+  newTemplateId?: ID | null;
+  /** Cards moved (or added) into this bucket without a due date get one this many days ahead. */
+  arriveDueDays?: number | null;
+  /** People assigned to cards moved (or added) into this bucket. */
+  arriveAssignees?: string[];
+  /** Cards moved (or added) into this bucket go on My Day. */
+  arriveMyDay?: boolean;
+  /** When every checklist item on a card in this bucket gets ticked, the card is completed... */
+  checkedComplete?: boolean;
+  /** ...and/or moved to this bucket (same board). */
+  checkedMoveTo?: ID | null;
+  /** Completed cards in this bucket are archived once they've been completed this many days. */
+  archiveAfterDays?: number | null;
   /** Per-bucket override of the board's "hide ticked checklist items on cards". */
   hideChecked?: boolean;
 }
@@ -258,6 +272,17 @@ export interface Filter {
   relatedTo: ID | null;
   /** Follow relations all the way (whole chain), not just direct ones. */
   relatedDeep: boolean;
+  /** Only cards waiting on unfinished tasks, or only cards that aren't. */
+  blocked?: "any" | "blocked" | "notBlocked";
+  /** Cards with no labels count as matching the Labels choices. */
+  noLabels?: boolean;
+  /** Hide cards wearing any of these labels. */
+  notLabelIds?: ID[];
+  /**
+   * Custom field id → values that match (any of them): option ids for choice fields, "yes"/"no" for
+   * checkboxes, "set"/"empty" for the rest.
+   */
+  fields?: Record<ID, string[]>;
 }
 
 export interface SavedFilter {

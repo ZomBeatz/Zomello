@@ -6,6 +6,7 @@ import { checklistStats, dueStatus, prettyDateTime, PRIORITIES, PROGRESS } from 
 import { Avatar, ProgressIcon } from "../ui";
 import { openCardMenu } from "../ContextMenu";
 import { useWhen, withWhen } from "../WhenChip";
+import { setProgress, toggleDone } from "../../blocked";
 
 type SortKey = "title" | "bucket" | "progress" | "priority" | "start" | "due" | "updated";
 const PRI_RANK: Record<Priority, number> = { urgent: 0, important: 1, medium: 2, low: 3 };
@@ -91,7 +92,7 @@ export function ListView({ board, lists, cards }: { board: Board; lists: List[];
                     className="progress-toggle"
                     onClick={(e) => {
                       e.stopPropagation();
-                      updateCard(c.id, { progress: c.progress === "completed" ? "notStarted" : "completed" });
+                      toggleDone(c);
                     }}
                   >
                     <ProgressIcon progress={c.progress} />
@@ -114,7 +115,7 @@ export function ListView({ board, lists, cards }: { board: Board; lists: List[];
                   <select
                     value={c.progress}
                     onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => updateCard(c.id, { progress: e.target.value as Card["progress"] })}
+                    onChange={(e) => setProgress(c.id, e.target.value as Card["progress"])}
                   >
                     {PROGRESS.map((p) => (
                       <option key={p.id} value={p.id}>{p.name}</option>

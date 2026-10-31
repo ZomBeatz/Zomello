@@ -11,11 +11,12 @@ import { boardMenu } from "./boardMenu";
 import { useInvites } from "../invites";
 import { useFeature } from "../features";
 import { answerInvite, isServer, loadData as serverLoadData } from "../server";
+import { toggleDone } from "../blocked";
 
 export function HomePage() {
   const ai = useFeature("ai");
   const data = useStore((s) => s.data);
-  const { navigate, openCard, createBoard, updateCard } = useStore.getState();
+  const { navigate, openCard, createBoard } = useStore.getState();
   const [newTitle, setNewTitle] = useState("");
   const [newColor, setNewColor] = useState<string | null>(PALETTE[6]);
 
@@ -56,7 +57,7 @@ export function HomePage() {
         className="progress-toggle"
         onClick={(e) => {
           e.stopPropagation();
-          updateCard(c.id, { progress: c.progress === "completed" ? "notStarted" : "completed" });
+          toggleDone(c);
         }}
       >
         <ProgressIcon progress={c.progress} />

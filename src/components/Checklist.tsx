@@ -11,6 +11,7 @@ import { checklistStats, subtaskLoopReason, uid } from "../utils";
 import { useFeature } from "../features";
 import { InlineEdit, Popover } from "./ui";
 import { BucketPicker, CardPicker, LabelPicker } from "./pickers";
+import { tickItem } from "../blocked";
 
 /** The checklist in the card window: drag to reorder, insert between items, labels per item. */
 export function ChecklistSection({ card }: { card: Card }) {
@@ -155,7 +156,7 @@ function ChecklistRow({ card, item, before }: { card: Card; item: ChecklistItem;
   const allCards = useStore((s) => s.data.cards);
   const boards = useStore((s) => s.data.boards);
   const lists = useStore((s) => s.data.lists);
-  const { updateCard, openCard, toggleChecklistItem, linkChecklistItem, spinOffChecklistItem } = useStore.getState();
+  const { updateCard, openCard, linkChecklistItem, spinOffChecklistItem } = useStore.getState();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
 
   const linked = item.cardId ? allCards[item.cardId] : null;
@@ -193,7 +194,7 @@ function ChecklistRow({ card, item, before }: { card: Card; item: ChecklistItem;
         <button ref={setActivatorNodeRef} className="cl-grip" title="Drag to reorder" {...attributes} {...listeners}>
           <GripVertical size={14} />
         </button>
-        <input type="checkbox" checked={checked} onChange={() => toggleChecklistItem(card.id, item.id)} />
+        <input type="checkbox" checked={checked} onChange={() => tickItem(card.id, item.id)} />
         {linked ? (
           <button className="linked-item grow" onClick={() => openCard(linked.id, { via: "checklist" })} title="Open linked task">
             <Link2 size={13} />

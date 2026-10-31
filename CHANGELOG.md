@@ -7,6 +7,19 @@
 - **Nothing is ever deleted** by turning a group off: its buttons and menus are hidden, and cards that already use it still show it.
 - **The welcome guide asks** how much to show at first. Everyone who used Zomello before keeps everything on.
 
+**Linked tasks**
+- **Tap a link badge** on a card to see everything it's linked to, grouped (part of, sub-tasks, blocked by, blocks, related), and jump to any of them. Made for phones, where you can't point at a card to see its links. The card menu has **Linked tasks…** too.
+- **Blocked cards** say what they're waiting on ("Blocked by Homepage redesign"), look faded, and ask before you complete them. Completing the last card they wait on tells you which card is free to start.
+
+**Bucket rules**
+- **New cards start from a template**, keeping the title you type.
+- **Cards moved or made here** can get a due date (if they have none), people, or a place on My Day.
+- **When the whole checklist is ticked:** complete the card and/or move it to another bucket.
+- **Tidy up:** archive completed cards after a day, a few days, a week or a month.
+
+**Filters**
+- **Blocked** / **Not blocked**, **No labels**, **Not** a label, and filters for custom fields.
+
 ## 0.5.4
 
 **Calendar**

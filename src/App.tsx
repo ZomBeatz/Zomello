@@ -22,6 +22,7 @@ import { SearchPalette } from "./components/SearchPalette";
 import { QuickAdd } from "./components/QuickAdd";
 import { BoardCustomize } from "./components/BoardCustomize";
 import { ConfirmHost, Modal } from "./components/ui";
+import { LinkedSheetHost } from "./components/LinkedSheet";
 import { ContextMenuHost } from "./components/ContextMenu";
 import { LogoMark } from "./components/Logo";
 import { handleShortcut } from "./shortcuts";
@@ -95,7 +96,11 @@ export default function App() {
     const a = startReminders();
     const w = installWidget();
     const b = startFocusWatcher();
-    return () => (a(), b(), w());
+    // Buckets that archive completed cards after a while: check now, then every hour.
+    const sweep = () => useStore.getState().sweepArchive();
+    sweep();
+    const h = setInterval(sweep, 3_600_000);
+    return () => (a(), b(), w(), clearInterval(h));
   }, [loaded]);
 
   // Android: text shared to Zomello from another app opens Quick add (wherever its boards are).
@@ -313,6 +318,7 @@ export default function App() {
       {isMobileApp && !isRemote && !isServer && <PrivateRestore />}
       <Toasts />
       <ContextMenuHost />
+      <LinkedSheetHost />
       <ConfirmHost />
     </div>
   );

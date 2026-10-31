@@ -13,6 +13,8 @@ import { storedSrc } from "../storage";
 import { Avatar, PriorityBadge, ProgressIcon } from "./ui";
 import { openCardMenu } from "./ContextMenu";
 import { clearHoverLinks, hoverLinks, useLinkHover } from "../linkHover";
+import { openLinked } from "./LinkedSheet";
+import { tickItem, toggleDone } from "../blocked";
 
 /** Tag shown on a card while a connected card is hovered: how it relates to the hovered card. */
 const REL_LABEL = {
@@ -55,9 +57,16 @@ export const CardTile = memo(function CardTile({
   dragging?: boolean;
 }) {
   const openCard = useStore((s) => s.openCard);
-  const updateCard = useStore((s) => s.updateCard);
-  const toggleChecklistItem = useStore((s) => s.toggleChecklistItem);
-  const blocked = useStore((s) => card.progress !== "completed" && isBlocked(card, s.data.cards));
+  // Titles of the unfinished cards this one waits on (newline-joined, so the selector stays cheap to compare).
+  const blockers = useStore((s) =>
+    card.progress !== "completed" && isBlocked(card, s.data.cards)
+      ? card.links
+          .filter((l) => l.type === "blockedBy" && s.data.cards[l.cardId] && s.data.cards[l.cardId].progress !== "completed")
+          .map((l) => s.data.cards[l.cardId].title)
+          .join("\n")
+      : "",
+  );
+  const blocked = !!blockers;
   const linkedTitles = useStore((s) =>
     board.display.badges.links === "full"
       ? card.links
@@ -94,6 +103,16 @@ export const CardTile = memo(function CardTile({
   const age = board.display.aging ? agingLevel(card) : 0;
   const shownFields = board.fields.filter((f) => f.showOnCard && card.fields[f.id] != null && card.fields[f.id] !== "" && card.fields[f.id] !== false);
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+  // Link badges open the Linked sheet (phones can't hover to see what a card is connected to).
+  const linkedProps = {
+    onPointerDown: stop,
+    onClick: (e: React.MouseEvent) => {
+      // While picking cards, a tap anywhere on the card picks it.
+      if (e.ctrlKey || e.metaKey || e.shiftKey || useStore.getState().selected.length) return;
+      e.stopPropagation();
+      openLinked(card.id);
+    },
+  };
 
   return (
     <div
@@ -108,6 +127,7 @@ export const CardTile = memo(function CardTile({
         linkRole && `link-role link-${linkRole}`,
         isLinkSource && "link-source",
         selected && "selected",
+        blocked && "is-blocked",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -168,7 +188,7 @@ export const CardTile = memo(function CardTile({
           onPointerDown={stop}
           onClick={(e) => {
             e.stopPropagation();
-            updateCard(card.id, { progress: done ? "notStarted" : "completed" });
+            toggleDone(card);
           }}
         >
           <ProgressIcon progress={card.progress} />
@@ -201,7 +221,7 @@ export const CardTile = memo(function CardTile({
                 checked={i.done}
                 onPointerDown={stop}
                 onClick={stop}
-                onChange={() => toggleChecklistItem(card.id, i.id)}
+                onChange={() => tickItem(card.id, i.id)}
               />
               <span className="grow">{i.cardId && <CornerDownRight size={10} className="muted" />} {i.text}</span>
               <ItemLabelDots boardId={card.boardId} item={i} />
@@ -212,7 +232,7 @@ export const CardTile = memo(function CardTile({
         </ul>
       )}
       {mode.links === "full" && linkedTitles && (
-        <div className="tile-list">
+        <div className="tile-list tile-links" role="button" {...linkedProps}>
           {linkedTitles.split("\n").map((t, i) => (
             <span key={i}>
               <Link2 size={11} /> {t}
@@ -239,9 +259,10 @@ export const CardTile = memo(function CardTile({
 
       <div className="card-badges">
         {blocked && (
-          <span className="badge blocked" title="Blocked by an unfinished task">
-            <Ban size={12} /> Blocked
-          </span>
+          <button className="badge rel blocked" title={`Waiting on:\n${blockers}`} {...linkedProps}>
+            <Ban size={12} />
+            <span className="rel-text">{blockers.includes("\n") ? `Blocked by ${blockers.split("\n").length}` : `Blocked by ${blockers}`}</span>
+          </button>
         )}
         {mode.priority === "full" && <PriorityBadge priority={card.priority} showLow />}
         {mode.priority === "icon" && card.priority !== "medium" && (
@@ -277,28 +298,28 @@ export const CardTile = memo(function CardTile({
           </span>
         )}
         {mode.links !== "off" && parentTitles && (
-          <span className="badge rel rel-parent" title={`Sub-task of:\n${parentTitles}`}>
+          <button className="badge rel rel-parent" title={`Sub-task of:\n${parentTitles}`} {...linkedProps}>
             <CornerDownRight size={12} />
-            <span className="rel-text">{parentTitles.includes("\n") ? `${parentTitles.split("\n").length} parents` : parentTitles}</span>
-          </span>
+            <span className="rel-text">{parentTitles.includes("\n") ? `Part of ${parentTitles.split("\n").length} tasks` : parentTitles}</span>
+          </button>
         )}
         {mode.links !== "off" && subIds.length > 0 && (
-          <span className="badge rel rel-child" title={`${subIds.length} sub-task${subIds.length === 1 ? "" : "s"}, ${subDone} done`}>
+          <button className="badge rel rel-child" title={`${subIds.length} sub-task${subIds.length === 1 ? "" : "s"}, ${subDone} done`} {...linkedProps}>
             <ListTree size={12} />
             {subDone}/{subIds.length}
-          </span>
+          </button>
         )}
         {mode.links === "icon" && relCount("blocks") > 0 && (
-          <span className="badge rel rel-blocked" title="Blocks other tasks">
+          <button className="badge rel rel-blocked" title="Blocks other tasks" {...linkedProps}>
             <Octagon size={12} />
             Blocks {relCount("blocks")}
-          </span>
+          </button>
         )}
         {mode.links === "icon" && relCount("relates") > 0 && (
-          <span className="badge rel rel-related" title="Related tasks">
+          <button className="badge rel rel-related" title="Related tasks" {...linkedProps}>
             <Link2 size={12} />
             {relCount("relates")}
-          </span>
+          </button>
         )}
         {mode.description === "icon" && card.description && (
           <span className="badge icon-only" title="Has description">

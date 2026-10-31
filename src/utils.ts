@@ -1,5 +1,5 @@
 import { addDays, addMonths, addYears, differenceInCalendarDays, format, parseISO, startOfWeek } from "date-fns";
-import type { Board, Card, DueFilter, Filter, GroupBy, LinkType, List, Priority, Progress, Recurrence } from "./types";
+import type { Board, Card, DueFilter, FieldValue, Filter, GroupBy, LinkType, List, Priority, Progress, Recurrence } from "./types";
 
 /** Random v4 UUID. `crypto.randomUUID` only exists on secure origins, and phones reach the PC over plain http. */
 export const uid = (): string => {
@@ -91,11 +91,19 @@ export const emptyFilter = (): Filter => ({
   due: "any",
   relatedTo: null,
   relatedDeep: false,
+  blocked: "any",
+  noLabels: false,
+  notLabelIds: [],
+  fields: {},
 });
 
-export const filterIsActive = (f: Filter) =>
-  !!f.text || f.labelIds.length > 0 || f.priorities.length > 0 || f.progress.length > 0 ||
-  f.assignees.length > 0 || f.due !== "any" || !!f.relatedTo;
+/** How many choices are on in the Filter menu (words and "related to" not counted). */
+export const filterChoiceCount = (f: Filter) =>
+  f.labelIds.length + f.priorities.length + f.progress.length + f.assignees.length + (f.due !== "any" ? 1 : 0) +
+  (f.blocked && f.blocked !== "any" ? 1 : 0) + (f.noLabels ? 1 : 0) + (f.notLabelIds?.length ?? 0) +
+  Object.values(f.fields ?? {}).reduce((n, v) => n + v.length, 0);
+
+export const filterIsActive = (f: Filter) => !!f.text || !!f.relatedTo || filterChoiceCount(f) > 0;
 
 export type DueStatus = "overdue" | "today" | "soon" | "later" | "done" | null;
 
@@ -133,9 +141,25 @@ export function cardText(card: Card): string {
     .toLowerCase();
 }
 
-export function matchesFilter(card: Card, f: Filter): boolean {
+/** Whether a card's custom field value is one of the filter's choices for that field. */
+function matchesField(v: FieldValue | undefined, want: string[]): boolean {
+  const empty = v == null || v === "" || v === false;
+  return want.some((w) =>
+    w === "set" ? !empty : w === "empty" ? empty : w === "yes" ? v === true : w === "no" ? v !== true : v === w,
+  );
+}
+
+/** `cards` (every card) is needed for the Blocked choice; without it, that choice is ignored. */
+export function matchesFilter(card: Card, f: Filter, cards?: Record<string, Card>): boolean {
   if (f.text && !cardText(card).includes(f.text.toLowerCase())) return false;
-  if (f.labelIds.length && !f.labelIds.some((l) => card.labelIds.includes(l))) return false;
+  if ((f.labelIds.length || f.noLabels) && !(f.labelIds.some((l) => card.labelIds.includes(l)) || (f.noLabels && card.labelIds.length === 0)))
+    return false;
+  if (f.notLabelIds?.some((l) => card.labelIds.includes(l))) return false;
+  if (f.blocked && f.blocked !== "any" && cards) {
+    const b = card.progress !== "completed" && isBlocked(card, cards);
+    if (b !== (f.blocked === "blocked")) return false;
+  }
+  for (const [id, want] of Object.entries(f.fields ?? {})) if (want.length && !matchesField(card.fields[id], want)) return false;
   if (f.priorities.length && !f.priorities.includes(card.priority)) return false;
   if (f.progress.length && !f.progress.includes(card.progress)) return false;
   if (f.assignees.length) {

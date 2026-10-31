@@ -180,7 +180,7 @@ function ExportTab({ init, onNext }: { init: AiDialogState; onNext: () => void }
     const all = Object.values(data.cards).filter((c) => c.boardId === boardId && !c.archived && live.has(c.listId));
     if (scope === "cards") return all.filter((c) => init.cardIds?.includes(c.id));
     if (scope === "list") return all.filter((c) => c.listId === effList);
-    if (scope === "filtered" && filter) return all.filter((c) => matchesFilter(c, filter));
+    if (scope === "filtered" && filter) return all.filter((c) => matchesFilter(c, filter, data.cards));
     return all;
   }, [data, boardId, lists, scope, effList, filter, init.cardIds]);
 
