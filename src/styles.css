@@ -758,6 +758,12 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 .swatch.custom { position: relative; background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); }
 .check-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13.5px; cursor: pointer; }
 .check-row input[type="time"] { padding: 2px 6px; }
+.feature-presets { margin: 4px 0 6px; align-items: center; }
+.feature-custom { margin-left: 10px; }
+.feature-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 18px; margin-top: 6px; }
+.feature-row { align-items: flex-start; }
+.feature-row > span { display: flex; flex-direction: column; gap: 1px; }
+.feature-row small { font-size: 12px; }
 .badge-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 16px; }
 .field-row > label { min-width: 120px; }
 
@@ -1727,3 +1733,5 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 .calendar-link h4 { margin: 0; display: flex; align-items: center; gap: 6px; }
 .calendar-url { overflow-wrap: anywhere; font-size: 12px; padding: 6px 8px; background: var(--surface-2); border-radius: 7px; }
 .calendar-steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+
+.welcome-sub { font-size: 14px; margin: 16px 0 6px; }

@@ -35,6 +35,7 @@ import {
 import type { ID } from "../types";
 import { copyCards } from "../cardClipboard";
 import { useStore } from "../store";
+import { featureOn, type Feature } from "../features";
 import { byOrder, describeRecurrence, PRIORITIES, PROGRESS, RECURRENCE_PRESETS, relatedSet, toISO, safeArea } from "../utils";
 import { Avatar } from "./ui";
 import { CardPicker, LabelPicker } from "./pickers";
@@ -50,6 +51,8 @@ export interface MenuEntry {
   submenu?: MenuEntry[] | ((close: () => void) => ReactNode);
   /** Keep the menu open after clicking (for toggles). */
   keepOpen?: boolean;
+  /** Only shown while this feature group is on (Settings > Features). */
+  feature?: Feature;
 }
 
 // ---- Host: one context menu at a time, opened from anywhere ----
@@ -94,7 +97,8 @@ export function ContextMenuHost() {
     };
   }, [menu]);
   if (!menu) return null;
-  const items = menu.build();
+  // Every menu leaves out items whose feature group is off (Settings > Features).
+  const items = withFeatures(menu.build());
   if (!items.length) return null;
   return createPortal(<MenuPanel items={items} x={menu.x} y={menu.y} onClose={() => setMenu(null)} />, document.body);
 }
@@ -283,6 +287,7 @@ function cardMenu(cardId: ID): MenuEntry[] {
     {
       label: "Repeat",
       icon: <Repeat size={14} />,
+      feature: "planning",
       submenu: [
         ...RECURRENCE_PRESETS.map((p) => ({
           label: p.name,
@@ -307,11 +312,14 @@ function cardMenu(cardId: ID): MenuEntry[] {
     {
       label: running ? "Pause timer" : "Start timer",
       icon: running ? <Pause size={14} /> : <Play size={14} />,
+      // A running timer can always be paused.
+      feature: running ? undefined : "time",
       onClick: () => (running ? st.stopTimer() : st.startTimer(cardId)),
     },
     {
       label: "Focus countdown",
       icon: <Hourglass size={14} />,
+      feature: "time",
       submenu: [10, 15, 25, 30, 45, 60].map((m) => ({ label: `${m} minutes`, onClick: () => st.startFocus(m, cardId) })),
     },
     { separator: true },
@@ -373,6 +381,7 @@ function cardMenu(cardId: ID): MenuEntry[] {
     {
       label: "Link to task…",
       icon: <Link2 size={14} />,
+      feature: "linking",
       submenu: (close) => (
         <CardPicker
           exclude={[cardId, ...card.links.map((l) => l.cardId)]}
@@ -398,6 +407,7 @@ function cardMenu(cardId: ID): MenuEntry[] {
     {
       label: "Hand to AI…",
       icon: <Bot size={14} />,
+      feature: "ai",
       onClick: () => st.setOverlay({ aiDialog: { tab: "export", boardId: card.boardId, cardIds: [cardId] } }),
     },
     { label: "Duplicate", icon: <Copy size={14} />, onClick: () => st.duplicateCard(cardId) },
@@ -422,6 +432,13 @@ function cardMenu(cardId: ID): MenuEntry[] {
       onClick: () => void deleteCard(card),
     },
   ];
+}
+
+/** Leaves out items whose feature group is turned off, and any separator that ends up doubled. */
+function withFeatures(items: MenuEntry[]): MenuEntry[] {
+  const settings = useStore.getState().data.settings;
+  const kept = items.filter((i) => !i.feature || featureOn(settings, i.feature));
+  return kept.filter((i, n) => !i.separator || (n > 0 && n < kept.length - 1 && !kept[n - 1].separator));
 }
 
 function LiveLabelPicker({ cardId }: { cardId: ID }) {

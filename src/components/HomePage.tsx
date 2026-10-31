@@ -9,9 +9,11 @@ import { ColorPicker, Empty, ProgressIcon } from "./ui";
 import { openCardMenu, openContextMenu } from "./ContextMenu";
 import { boardMenu } from "./boardMenu";
 import { useInvites } from "../invites";
+import { useFeature } from "../features";
 import { answerInvite, isServer, loadData as serverLoadData } from "../server";
 
 export function HomePage() {
+  const ai = useFeature("ai");
   const data = useStore((s) => s.data);
   const { navigate, openCard, createBoard, updateCard } = useStore.getState();
   const [newTitle, setNewTitle] = useState("");
@@ -168,9 +170,11 @@ export function HomePage() {
           <button className="btn ghost sm" onClick={() => useStore.getState().setOverlay({ importOpen: true })}>
             <FileUp size={14} /> Import from Trello or Planner
           </button>
-          <button className="btn ghost sm" onClick={() => useStore.getState().setOverlay({ aiDialog: { tab: "ask", mode: "board" } })}>
-            <Sparkles size={14} /> Plan a new board with AI
-          </button>
+          {ai && (
+            <button className="btn ghost sm" onClick={() => useStore.getState().setOverlay({ aiDialog: { tab: "ask", mode: "board" } })}>
+              <Sparkles size={14} /> Plan a new board with AI
+            </button>
+          )}
         </div>
       </div>
 

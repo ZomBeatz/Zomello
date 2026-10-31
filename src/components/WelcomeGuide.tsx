@@ -8,6 +8,7 @@ import { isServer, loadData, updateProfile } from "../server";
 import { LogoMark } from "./Logo";
 import { deviceWord, isDesktopApp, isMobileApp, isPhoneOrTablet } from "../storage";
 import { Modal } from "./ui";
+import { presetFeatures, PRESETS, type Preset } from "../features";
 
 type Start = "explore" | "empty" | "import";
 
@@ -22,6 +23,8 @@ export function WelcomeGuide({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState(settings.me === "Me" ? "" : settings.me);
   const [start, setStart] = useState<Start>("explore");
   const [boardName, setBoardName] = useState("");
+  // New people start with less on screen; phones and tablets with the least.
+  const [level, setLevel] = useState<Preset>(isPhoneOrTablet ? "simple" : "standard");
   const steps = firstRun ? 4 : 3;
 
   const finish = () => {
@@ -34,7 +37,7 @@ export function WelcomeGuide({ onClose }: { onClose: () => void }) {
       if (me) st.renamePerson(me, name.trim());
       else st.updateSettings({ me: name.trim(), people: [...new Set([...st.data.settings.people, name.trim()])] });
     }
-    st.updateSettings({ onboarded: true });
+    st.updateSettings({ onboarded: true, ...(firstRun ? { features: presetFeatures(level) } : {}) });
     onClose();
     if (!firstRun) return;
     if (start === "empty") {
@@ -244,6 +247,15 @@ export function WelcomeGuide({ onClose }: { onClose: () => void }) {
                 </span>
               </label>
             </div>
+            <h3 className="welcome-sub">How much should Zomello show?</h3>
+            <div className="seg" role="group" aria-label="How much Zomello shows">
+              {(Object.keys(PRESETS) as Preset[]).map((p) => (
+                <button key={p} className={level === p ? "active" : ""} aria-pressed={level === p} onClick={() => setLevel(p)}>
+                  {PRESETS[p].name}
+                </button>
+              ))}
+            </div>
+            <p className="muted small">{PRESETS[level].what}. Change it any time in Settings &gt; Features.</p>
             <p className="muted small">
               {isDesktopApp
                 ? "Extras when you want them, in Settings: use it on your phone or tablet, Zomello Servers, backups, AI helpers and more."

@@ -48,6 +48,7 @@ import { CardPicker, LabelPicker } from "./pickers";
 import { Markdown, MarkdownEditor, MarkdownField } from "./Markdown";
 import { ChecklistSection } from "./Checklist";
 import { useNow } from "./useNow";
+import { sectionShown } from "../features";
 
 export function CardModal({ cardId }: { cardId: ID }) {
   const card = useStore((s) => s.data.cards[cardId]);
@@ -70,6 +71,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
   const allLists = useStore((s) => s.data.lists);
   const allBoards = useStore((s) => s.data.boards);
   const people = useStore((s) => s.data.settings.people);
+  const features = useStore((s) => s.data.settings.features);
   const allCards = useStore((s) => s.data.cards);
   const {
     updateCard, duplicateCard, moveCardToBoard, openCard,
@@ -98,7 +100,8 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
   const attachFiles = (files: FileList | File[]) => attachToCard(card.id, { files: Array.from(files), paths: [], links: [] });
 
   const toggleIn = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
-  const show = (s: CardSection) => !board.hiddenSections.includes(s);
+  // Hidden by the board, or by a feature group the card doesn't use yet (Settings > Features).
+  const show = (s: CardSection) => !board.hiddenSections.includes(s) && sectionShown({ features }, card, s);
 
   return (
     <div className="card-detail">
