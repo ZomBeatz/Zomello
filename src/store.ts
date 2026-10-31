@@ -13,7 +13,7 @@ import { sendDeviceChanges, setDeviceBase } from "./deviceWindow";
 import { isRemote } from "./remote";
 import { isServer, mergeOps, pushChanges, rebaseSnapshot, setBase, type Ops } from "./server";
 import {
-  blockLoopReason, byOrder, emptyFilter, fromISO, inverseLink, nextRecurrenceDate, PALETTE, subtaskLoopReason, toISO, todayISO, uid,
+  blockLoopReason, byOrder, emptyFilter, fromISO, inverseLink, isBlocked, nextRecurrenceDate, PALETTE, subtaskLoopReason, toISO, todayISO, uid,
 } from "./utils";
 
 const DEFAULT_LABELS = [
@@ -115,7 +115,18 @@ function withLabels(d: AppData, boardId: ID, own: ID[], add: ID[] | undefined): 
   return extra.length ? [...own, ...extra] : own;
 }
 
-/** A card arriving in a bucket takes on its rules: a progress (e.g. "Done" completes it) and labels. */
+/** A bucket's other arrival rules: a due date (when the card has none), people and My Day. */
+function arrivalRules(list: List | undefined, c: Pick<Card, "dueDate" | "assignees" | "myDay">): Partial<Card> {
+  const out: Partial<Card> = {};
+  if (!list) return out;
+  if (list.arriveDueDays != null && !c.dueDate) out.dueDate = toISO(addDays(new Date(), list.arriveDueDays));
+  const people = (list.arriveAssignees ?? []).filter((a) => !c.assignees.includes(a));
+  if (people.length) out.assignees = [...c.assignees, ...people];
+  if (list.arriveMyDay && c.myDay !== todayISO()) out.myDay = todayISO();
+  return out;
+}
+
+/** A card arriving in a bucket takes on its rules: a progress (e.g. "Done" completes it), labels, dates, people. */
 function arrive(d: AppData, id: ID, patch: Partial<Card>): Partial<Card> {
   const card = d.cards[id];
   if (!card || !patch.listId || patch.listId === card.listId) return patch;
@@ -123,6 +134,8 @@ function arrive(d: AppData, id: ID, patch: Partial<Card>): Partial<Card> {
   const own = patch.labelIds ?? card.labelIds;
   const labelIds = withLabels(d, patch.boardId ?? card.boardId, own, list?.arriveLabelIds);
   if (labelIds !== own) patch = { ...patch, labelIds };
+  const extra = arrivalRules(list, { ...card, ...patch });
+  if (Object.keys(extra).length) patch = { ...patch, ...extra };
   if (patch.progress !== undefined) return patch;
   const p = list?.autoProgress;
   if (p) return p !== card.progress ? { ...patch, progress: p } : patch;
@@ -454,6 +467,8 @@ interface State {
   renameBoardTemplate(id: string, name: string): void;
   deleteBoardTemplate(id: string): void;
   createFromTemplate(templateId: ID, listId: ID, extra?: Partial<Card>): ID;
+  /** Archive completed cards in buckets with an "archive after N days" rule. Returns how many. */
+  sweepArchive(now?: number): number;
 
   setBoardUi(boardId: ID, patch: Partial<BoardUi>): void;
   setFilter(boardId: ID, patch: Partial<Filter>): void;
@@ -512,6 +527,7 @@ function nextOccurrence(c: Card): Card | null {
  * stops recurring so re-toggling it can't spawn duplicates).
  */
 const MAX_ACTIVITY = 200;
+const DAY_MS = 86_400_000;
 
 /** Activity entries describing what changed between two versions of a card. */
 function diffActivity(prev: Card, next: Card): Activity[] {
@@ -527,6 +543,43 @@ function diffActivity(prev: Card, next: Card): Activity[] {
   for (const a of next.assignees) if (!prev.assignees.includes(a)) out.push({ at, kind: "assigned", to: a });
   for (const a of prev.assignees) if (!next.assignees.includes(a)) out.push({ at, kind: "unassigned", from: a });
   return out;
+}
+
+/** Cards that were waiting on `id` and aren't blocked by anything any more. */
+function freedBy(id: ID, before: Record<ID, Card>, after: Record<ID, Card>): Card[] {
+  const waiting = (after[id]?.links ?? []).filter((l) => l.type === "blocks").map((l) => after[l.cardId]);
+  return waiting.filter((c) => c && c.progress !== "completed" && isBlocked(before[c.id] ?? c, before) && !isBlocked(c, after));
+}
+
+const allTicked = (c: Card | undefined) => !!c && c.checklist.length > 0 && c.checklist.every((i) => i.done);
+
+/**
+ * "When every checklist item is ticked" bucket rules: cards whose checklist just became all ticked get
+ * completed and/or moved on. Completing one can tick it off a parent's checklist, so this repeats a few
+ * times to let that settle.
+ */
+function checklistRules(d: AppData, before: Record<ID, Card>, after: Record<ID, Card>): Record<ID, Card> {
+  let prev = before;
+  let cards = after;
+  for (let round = 0; round < 4; round++) {
+    const start = cards;
+    for (const c of Object.values(start)) {
+      if (c === prev[c.id] || c.archived || !allTicked(c) || allTicked(prev[c.id])) continue;
+      const list = d.lists[c.listId];
+      if (!list?.checkedComplete && !list?.checkedMoveTo) continue;
+      const patch: Partial<Card> = {};
+      if (list.checkedComplete && c.progress !== "completed") patch.progress = "completed";
+      const to = list.checkedMoveTo ? d.lists[list.checkedMoveTo] : undefined;
+      if (to && !to.archived && to.boardId === c.boardId && to.id !== c.listId) {
+        patch.listId = to.id;
+        patch.order = Math.max(-1, ...Object.values(cards).filter((x) => x.listId === to.id).map((x) => x.order)) + 1;
+      }
+      if (Object.keys(patch).length) cards = patchCard(cards, c.id, arrive({ ...d, cards }, c.id, patch));
+    }
+    if (cards === start) break;
+    prev = start;
+  }
+  return cards;
 }
 
 function patchCard(cards: Record<ID, Card>, id: ID, patch: Partial<Card>): Record<ID, Card> {
@@ -610,6 +663,33 @@ const undoable = (a: AppData, b: AppData) =>
 
 export const useStore = create<State>((set, get) => {
   /** Apply an immutable update to `data`, recording undo history. */
+  /** True while createFromTemplate runs, so a bucket's "start from a template" rule doesn't apply twice. */
+  let fromTemplate = false;
+  /** A template's contents as a new card's fields. Labels match by name; any the board lacks are added to it. */
+  const templateCard = (t: CardTemplate, boardId: ID): Partial<Card> => {
+    const board = get().data.boards[boardId];
+    const labels = [...board.labels];
+    const labelIds = t.labels.map((tl) => {
+      const found = labels.find((l) => l.name.toLowerCase() === tl.name.toLowerCase());
+      if (found) return found.id;
+      const nl = { id: uid(), ...tl };
+      labels.push(nl);
+      return nl.id;
+    });
+    if (labels.length !== board.labels.length) get().updateBoard(board.id, { labels });
+    return {
+      description: t.description,
+      checklist: t.checklist.map((text) => ({ id: uid(), text, done: false })),
+      labelIds,
+      priority: t.priority,
+      assignees: t.assignees,
+      recurrence: t.recurrence,
+      cover: t.cover,
+      estimate: t.estimate,
+      ...(t.recurrence ? { dueDate: todayISO() } : {}),
+    };
+  };
+
   const mut = (fn: (d: AppData) => AppData) =>
     set((s) => {
       const next = fn(s.data);
@@ -892,6 +972,7 @@ export const useStore = create<State>((set, get) => {
           listMap.set(l.id, nl.id);
           return nl;
         });
+      for (const l of lists) if (l.checkedMoveTo) l.checkedMoveTo = listMap.get(l.checkedMoveTo) ?? null;
       const srcCards = Object.values(d.cards).filter((c) => opts?.withCards !== false && c.boardId === id && listMap.has(c.listId));
       const cardMap = new Map(srcCards.map((c) => [c.id, uid()]));
       // Sub-tasks and links between cards of this board point at the copies; links to other boards stay.
@@ -942,22 +1023,36 @@ export const useStore = create<State>((set, get) => {
     },
 
     createCard(listId, title, extra) {
-      const d = get().data;
+      let d = get().data;
       const list = d.lists[listId];
       const siblings = Object.values(d.cards).filter((c) => c.listId === listId);
-      const card = newCard(list.boardId, listId, title, Math.max(-1, ...siblings.map((c) => c.order)) + 1, {
+      // A bucket rule can start every new card from a template (unless this card already comes from one).
+      const template = !fromTemplate && list.newTemplateId ? d.templates.find((t) => t.id === list.newTemplateId) : undefined;
+      const fromT = template ? templateCard(template, list.boardId) : {};
+      d = get().data;
+      const card = newCard(list.boardId, listId, title.trim() || template?.title || title, Math.max(-1, ...siblings.map((c) => c.order)) + 1, {
         activity: [{ at: Date.now(), kind: "created" }],
+        ...fromT,
         ...(list.autoProgress ? { progress: list.autoProgress } : {}),
         ...(list.newPriority ? { priority: list.newPriority } : {}),
         ...extra,
       });
+      Object.assign(card, arrivalRules(list, card));
       card.labelIds = withLabels(d, list.boardId, card.labelIds, [...(list.newLabelIds ?? []), ...(list.arriveLabelIds ?? [])]);
       if (card.progress === "completed") card.completedAt = Date.now();
       mut((d) => ({ ...d, cards: { ...d.cards, [card.id]: card } }));
       return card.id;
     },
     updateCard(id, patch) {
-      mut((d) => ({ ...d, cards: patchCard(d.cards, id, arrive(d, id, patch)) }));
+      const before = get().data.cards;
+      mut((d) => ({ ...d, cards: checklistRules(d, d.cards, patchCard(d.cards, id, arrive(d, id, patch))) }));
+      // Finishing a card that others wait on: say which ones can start now.
+      const after = get().data.cards;
+      if (before[id]?.progress !== "completed" && after[id]?.progress === "completed") {
+        const freed = freedBy(id, before, after);
+        if (freed.length)
+          get().toast(freed.length === 1 ? `No longer blocked: ${freed[0].title}` : `${freed.length} tasks are no longer blocked`, { key: "unblocked" });
+      }
     },
     deleteCard(id) {
       mut((d) => {
@@ -1345,32 +1440,27 @@ export const useStore = create<State>((set, get) => {
     deleteBoardTemplate(id) {
       mut((d) => ({ ...d, boardTemplates: d.boardTemplates.filter((t) => t.id !== id) }));
     },
-    createFromTemplate(templateId, listId, extra) {
+    sweepArchive(now = Date.now()) {
       const d = get().data;
-      const t = d.templates.find((x) => x.id === templateId)!;
-      const board = d.boards[d.lists[listId].boardId];
-      // Match labels by name; create any the board doesn't have yet.
-      const labels = [...board.labels];
-      const labelIds = t.labels.map((tl) => {
-        const found = labels.find((l) => l.name.toLowerCase() === tl.name.toLowerCase());
-        if (found) return found.id;
-        const nl = { id: uid(), ...tl };
-        labels.push(nl);
-        return nl.id;
+      const due = Object.values(d.cards).filter((c) => {
+        const days = d.lists[c.listId]?.archiveAfterDays;
+        return days != null && !c.archived && c.progress === "completed" && now - (c.completedAt ?? c.updatedAt) >= days * DAY_MS;
       });
-      if (labels.length !== board.labels.length) get().updateBoard(board.id, { labels });
-      return get().createCard(listId, t.title, {
-        description: t.description,
-        checklist: t.checklist.map((text) => ({ id: uid(), text, done: false })),
-        labelIds,
-        priority: t.priority,
-        assignees: t.assignees,
-        recurrence: t.recurrence,
-        cover: t.cover,
-        estimate: t.estimate,
-        ...(t.recurrence ? { dueDate: todayISO() } : {}),
-        ...extra,
-      });
+      if (!due.length) return 0;
+      // Housekeeping, not something you did: saved, but not an Undo step.
+      const cards = { ...d.cards };
+      for (const c of due) cards[c.id] = { ...c, archived: true, updatedAt: now, activity: [...c.activity, { at: now, kind: "archived" as const }].slice(-MAX_ACTIVITY) };
+      set({ data: { ...d, cards } });
+      return due.length;
+    },
+    createFromTemplate(templateId, listId, extra) {
+      const t = get().data.templates.find((x) => x.id === templateId)!;
+      fromTemplate = true;
+      try {
+        return get().createCard(listId, t.title, { ...templateCard(t, get().data.lists[listId].boardId), ...extra });
+      } finally {
+        fromTemplate = false;
+      }
     },
 
     setBoardUi(boardId, patch) {

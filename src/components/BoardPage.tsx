@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { exportBoard } from "../boardFile";
 import { isMobileApp } from "../storage";
 import { archiveBoard, deleteBoard as deleteBoardAction } from "../actions";
@@ -35,7 +35,7 @@ import {
 import type { Board, Card, DueFilter, Filter, GroupBy, ID, ViewMode } from "../types";
 import { useBoardUi, useStore } from "../store";
 import { addDays, format, nextMonday, parseISO } from "date-fns";
-import { byOrder, emptyFilter, filterIsActive, matchesFilter, PALETTE, PRIORITIES, PROGRESS, relatedSet, toISO, uid } from "../utils";
+import { byOrder, emptyFilter, filterChoiceCount, filterIsActive, matchesFilter, PALETTE, PRIORITIES, PROGRESS, relatedSet, toISO, uid } from "../utils";
 import { ask, Avatar, ColorPicker, InlineEdit, MenuItem, Popover } from "./ui";
 import { KanbanView } from "./views/KanbanView";
 import { BucketPicker, LabelPicker } from "./pickers";
@@ -49,6 +49,7 @@ import { workOrder } from "../ai";
 import { parsePastedCards } from "../cardClipboard";
 import { isBoardWindow, openBoardWindow } from "../windows";
 import { boardBackground } from "./BoardCustomize";
+import { okToComplete } from "../blocked";
 
 const VIEWS: { id: ViewMode; name: string; icon: React.ReactNode }[] = [
   { id: "board", name: "Board", icon: <Kanban size={15} /> },
@@ -103,7 +104,7 @@ export function BoardPage({ boardId }: { boardId: ID }) {
     const related = ui.filter.relatedTo ? relatedSet(ui.filter.relatedTo, allCards, ui.filter.relatedDeep) : null;
     return Object.values(allCards).filter(
       (c) =>
-        c.boardId === boardId && !c.archived && live.has(c.listId) && matchesFilter(c, ui.filter) && (!related || related.has(c.id)),
+        c.boardId === boardId && !c.archived && live.has(c.listId) && matchesFilter(c, ui.filter, allCards) && (!related || related.has(c.id)),
     );
   }, [allCards, lists, boardId, ui.filter]);
 
@@ -410,8 +411,19 @@ function Toolbar({
   const f = ui.filter;
   const relatedTitle = useStore((s) => (f.relatedTo ? s.data.cards[f.relatedTo]?.title : undefined));
   const active = filterIsActive(f);
-  const nActive =
-    f.labelIds.length + f.priorities.length + f.progress.length + f.assignees.length + (f.due !== "any" ? 1 : 0);
+  const nActive = filterChoiceCount(f);
+  const linking = useFeature("linking");
+  const fieldsOn = useFeature("fields");
+  const notLabels = f.notLabelIds ?? [];
+  const fieldWant = f.fields ?? {};
+  const toggleField = (id: ID, v: string) => {
+    const cur = fieldWant[id] ?? [];
+    const next = { ...fieldWant, [id]: cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v] };
+    if (!next[id].length) delete next[id];
+    setFilter(board.id, { fields: next });
+  };
+  // Boards that have custom fields, when the group is on (or this filter already uses them).
+  const filterFields = board.fields.filter((fd) => fieldsOn || fieldWant[fd.id]?.length);
   const [saveName, setSaveName] = useState("");
 
   const toggle = <K extends keyof Filter>(key: K, v: Filter[K] extends (infer T)[] ? T : never) => {
@@ -518,15 +530,55 @@ function Toolbar({
                 <span>{p.name}</span>
               </label>
             ))}
+            {(linking || (f.blocked ?? "any") !== "any") && (
+              <>
+                <span className="menu-heading">Blocked</span>
+                <div className="seg wrap">
+                  {(
+                    [
+                      ["any", "Any"],
+                      ["blocked", "Blocked"],
+                      ["notBlocked", "Not blocked"],
+                    ] as const
+                  ).map(([id, name]) => (
+                    <button key={id} className={(f.blocked ?? "any") === id ? "active" : ""} onClick={() => setFilter(board.id, { blocked: id })}>
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
             <span className="menu-heading">Labels</span>
-            {board.labels.map((l) => (
-              <label key={l.id} className="menu-item">
-                <input type="checkbox" checked={f.labelIds.includes(l.id)} onChange={() => toggle("labelIds", l.id)} />
-                <span className="label-pill" style={{ background: l.color }}>
-                  {l.name || "Unnamed"}
-                </span>
-              </label>
-            ))}
+            <label className="menu-item">
+              <input type="checkbox" checked={!!f.noLabels} onChange={(e) => setFilter(board.id, { noLabels: e.target.checked })} />
+              <span>No labels</span>
+            </label>
+            {board.labels.map((l) => {
+              const not = notLabels.includes(l.id);
+              return (
+                <div key={l.id} className="row filter-label-row">
+                  <label className="menu-item grow">
+                    <input type="checkbox" checked={f.labelIds.includes(l.id)} disabled={not} onChange={() => toggle("labelIds", l.id)} />
+                    <span className={`label-pill ${not ? "excluded" : ""}`} style={{ background: l.color }}>
+                      {l.name || "Unnamed"}
+                    </span>
+                  </label>
+                  <button
+                    className={`btn xs ${not ? "accent" : "ghost"}`}
+                    title={not ? "Stop hiding cards with this label" : "Hide cards with this label"}
+                    aria-pressed={not}
+                    onClick={() =>
+                      setFilter(board.id, {
+                        notLabelIds: not ? notLabels.filter((x) => x !== l.id) : [...notLabels, l.id],
+                        labelIds: f.labelIds.filter((x) => x !== l.id),
+                      })
+                    }
+                  >
+                    Not
+                  </button>
+                </div>
+              );
+            })}
             <span className="menu-heading">Assigned to</span>
             <label className="menu-item">
               <input type="checkbox" checked={f.assignees.includes("")} onChange={() => toggle("assignees", "")} />
@@ -539,6 +591,26 @@ function Toolbar({
                 <span>{p}</span>
               </label>
             ))}
+            {filterFields.map((fd) => {
+              const choices: [string, string][] =
+                fd.type === "select"
+                  ? fd.options.map((o) => [o.id, o.label || "Unnamed"])
+                  : fd.type === "checkbox"
+                    ? [["yes", "Ticked"], ["no", "Not ticked"]]
+                    : [["set", "Filled in"], ["empty", "Empty"]];
+              return (
+                <Fragment key={fd.id}>
+                  <span className="menu-heading">{fd.name}</span>
+                  {choices.map(([v, name]) => (
+                    <label key={v} className="menu-item">
+                      <input type="checkbox" checked={!!fieldWant[fd.id]?.includes(v)} onChange={() => toggleField(fd.id, v)} />
+                      {fd.type === "select" && <span className="dot" style={{ background: fd.options.find((o) => o.id === v)?.color }} />}
+                      <span>{name}</span>
+                    </label>
+                  ))}
+                </Fragment>
+              );
+            })}
           </div>
         )}
       </Popover>
@@ -623,7 +695,11 @@ function SelectionBar({ boardId }: { boardId: ID }) {
         {(close) => (
           <div className="menu">
             {PROGRESS.map((p) => (
-              <MenuItem key={p.id} icon={<span className="dot" style={{ background: p.color }} />} onClick={() => (each(() => ({ progress: p.id }), `Set to ${p.name}:`), close())}>
+              <MenuItem key={p.id} icon={<span className="dot" style={{ background: p.color }} />} onClick={async () => {
+                  close();
+                  if (p.id === "completed" && !(await okToComplete(picked.map((c) => c.id)))) return;
+                  each(() => ({ progress: p.id }), `Set to ${p.name}:`);
+                }}>
                 {p.name}
               </MenuItem>
             ))}

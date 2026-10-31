@@ -48,9 +48,9 @@ import {
 import type { BadgeKey, BadgeMode, Board, Card, GroupBy, ID, List, Priority, Progress } from "../../types";
 import { useStore } from "../../store";
 import { useWhen, withWhen } from "../WhenChip";
-import { buildGroups, PRIORITIES, PROGRESS, SORT_MODES, sortCards, type Group } from "../../utils";
+import { buildGroups, byOrder, PRIORITIES, PROGRESS, SORT_MODES, sortCards, type Group } from "../../utils";
 import { CardTile } from "../CardTile";
-import { InlineEdit, MenuItem, Modal, Popover } from "../ui";
+import { Avatar, InlineEdit, MenuItem, Modal, Popover } from "../ui";
 import { BADGES } from "../BoardCustomize";
 import { LabelPicker } from "../pickers";
 import { useFeature } from "../../features";
@@ -809,7 +809,21 @@ function AddList({ boardId }: { boardId: ID }) {
   );
 }
 
-const hasRules = (l: List) => !!(l.autoProgress || l.newPriority || l.newLabelIds?.length || l.arriveLabelIds?.length);
+const hasRules = (l: List) =>
+  !!(
+    l.autoProgress || l.newPriority || l.newLabelIds?.length || l.arriveLabelIds?.length || l.newTemplateId || l.arriveDueDays != null ||
+    l.arriveAssignees?.length || l.arriveMyDay || l.checkedComplete || l.checkedMoveTo || l.archiveAfterDays != null
+  );
+
+/** Every rule switched off (for "Turn off all rules"). */
+const NO_RULES: Partial<List> = {
+  autoProgress: null, newPriority: null, newLabelIds: undefined, arriveLabelIds: undefined, newTemplateId: null, arriveDueDays: null,
+  arriveAssignees: undefined, arriveMyDay: undefined, checkedComplete: undefined, checkedMoveTo: null, archiveAfterDays: null,
+};
+
+const DUE_CHOICES = [0, 1, 2, 3, 7, 14];
+const ARCHIVE_CHOICES = [1, 3, 7, 14, 30];
+const inDays = (n: number) => (n === 0 ? "Today" : n === 1 ? "Tomorrow" : n === 7 ? "In a week" : n === 14 ? "In 2 weeks" : `In ${n} days`);
 
 /** Labels a bucket rule adds, with a picker to change them. */
 function RuleLabels({ board, ids, onChange }: { board: Board; ids: ID[]; onChange: (ids: ID[]) => void }) {
@@ -842,8 +856,14 @@ function BucketRulesDialog({ list, board, onClose }: { list: List; board: Board;
   const updateList = useStore((s) => s.updateList);
   // Read the live board so labels made in the picker show up straight away.
   const liveBoard = useStore((s) => s.data.boards[board.id]) ?? board;
+  const templates = useStore((s) => s.data.templates);
+  const people = useStore((s) => s.data.settings.people);
+  const allLists = useStore((s) => s.data.lists);
+  const otherLists = Object.values(allLists).filter((l) => l.boardId === board.id && !l.archived && l.id !== list.id).sort(byOrder);
   const ids = (x?: ID[]) => x ?? [];
   const setIds = (key: "newLabelIds" | "arriveLabelIds") => (v: ID[]) => updateList(list.id, { [key]: v.length ? v : undefined });
+  const assigned = list.arriveAssignees ?? [];
+  const num = (v: string) => (v === "" ? null : Number(v));
   return (
     <Modal onClose={onClose} width={520} className="customize">
       <header className="customize-head">
@@ -871,6 +891,21 @@ function BucketRulesDialog({ list, board, onClose }: { list: List; board: Board;
               ))}
             </select>
           </label>
+          <label className="rule-row">
+            <span>Start from</span>
+            {templates.length ? (
+              <select value={list.newTemplateId ?? ""} onChange={(e) => updateList(list.id, { newTemplateId: e.target.value || null })}>
+                <option value="">(a blank card)</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    Template: {t.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="muted small">a template, once you have one (a card's menu → Save as template)</span>
+            )}
+          </label>
         </section>
         <section>
           <h4>When a card is moved or made here</h4>
@@ -889,12 +924,78 @@ function BucketRulesDialog({ list, board, onClose }: { list: List; board: Board;
             <span>Add labels</span>
             <RuleLabels board={liveBoard} ids={ids(list.arriveLabelIds)} onChange={setIds("arriveLabelIds")} />
           </div>
+          <label className="rule-row">
+            <span>Due date</span>
+            <select value={list.arriveDueDays ?? ""} onChange={(e) => updateList(list.id, { arriveDueDays: num(e.target.value) })}>
+              <option value="">(unchanged)</option>
+              {DUE_CHOICES.map((n) => (
+                <option key={n} value={n}>
+                  {inDays(n)}, if it has none
+                </option>
+              ))}
+            </select>
+          </label>
+          {people.length > 0 && (
+            <div className="rule-row">
+              <span>Assign</span>
+              <div className="row wrap gap-sm">
+                {people.map((p) => (
+                  <button
+                    key={p}
+                    className={`chip toggle ${assigned.includes(p) ? "on" : ""}`}
+                    aria-pressed={assigned.includes(p)}
+                    onClick={() => {
+                      const next = assigned.includes(p) ? assigned.filter((x) => x !== p) : [...assigned, p];
+                      updateList(list.id, { arriveAssignees: next.length ? next : undefined });
+                    }}
+                  >
+                    <Avatar name={p} size={18} /> {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <label className="rule-row">
+            <span>My Day</span>
+            <input type="checkbox" checked={!!list.arriveMyDay} onChange={(e) => updateList(list.id, { arriveMyDay: e.target.checked || undefined })} />
+            <span className="muted small">Add it to today's My Day</span>
+          </label>
+        </section>
+        <section>
+          <h4>When every checklist item on a card here is ticked</h4>
+          <label className="rule-row">
+            <span>Complete it</span>
+            <input type="checkbox" checked={!!list.checkedComplete} onChange={(e) => updateList(list.id, { checkedComplete: e.target.checked || undefined })} />
+          </label>
+          <label className="rule-row">
+            <span>Move it to</span>
+            <select value={list.checkedMoveTo ?? ""} onChange={(e) => updateList(list.id, { checkedMoveTo: e.target.value || null })}>
+              <option value="">(stays here)</option>
+              {otherLists.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        </section>
+        <section>
+          <h4>Tidy up</h4>
+          <label className="rule-row">
+            <span>Archive</span>
+            <select value={list.archiveAfterDays ?? ""} onChange={(e) => updateList(list.id, { archiveAfterDays: num(e.target.value) })}>
+              <option value="">(never)</option>
+              {ARCHIVE_CHOICES.map((n) => (
+                <option key={n} value={n}>
+                  Completed cards after {n === 1 ? "a day" : `${n} days`}
+                </option>
+              ))}
+            </select>
+          </label>
+          {list.archiveAfterDays != null && <p className="muted small">Archived cards stay in the board's Archive, where you can restore them.</p>}
         </section>
         {hasRules(list) && (
-          <button
-            className="btn sm ghost"
-            onClick={() => updateList(list.id, { autoProgress: null, newPriority: null, newLabelIds: undefined, arriveLabelIds: undefined })}
-          >
+          <button className="btn sm ghost" onClick={() => updateList(list.id, NO_RULES)}>
             Turn off all rules
           </button>
         )}
