@@ -145,13 +145,11 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 }
 .sidebar {
   width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 2px;
-  padding: 14px 4px 14px 10px; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto;
-  /* Room for a thin scrollbar is always kept (out of the right padding), so the menu doesn't shift when one appears. */
-  scrollbar-gutter: stable;
+  padding: 14px 10px; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto;
+  /* Still scrolls (wheel, trackpad, keyboard), just without a bar that would squeeze the menu. */
+  scrollbar-width: none;
 }
-.sidebar::-webkit-scrollbar { width: 6px; }
-.sidebar::-webkit-scrollbar-thumb { background: transparent; border: 0; border-radius: 3px; }
-.sidebar:hover::-webkit-scrollbar-thumb { background: var(--surface-3); }
+.sidebar::-webkit-scrollbar { display: none; }
 .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 17px; padding: 6px 8px 16px; color: var(--accent); }
 .brand span { color: var(--text); }
 .nav-item {
@@ -641,7 +639,7 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 .nav-item kbd { margin-left: auto; }
 .nav-emoji { width: 16px; text-align: center; font-size: 14px; line-height: 1; }
 .sidebar { transition: width .15s; }
-.sidebar.collapsed { width: 60px; padding: 14px 2px 14px 8px; }
+.sidebar.collapsed { width: 60px; padding: 14px 8px; }
 .sidebar.collapsed .label, .sidebar.collapsed .wordmark, .sidebar.collapsed .nav-heading, .sidebar.collapsed .nav-input { display: none; }
 .sidebar.collapsed .brand { flex-direction: column; padding: 4px 0 12px; }
 .sidebar.collapsed .brand .collapse-btn { margin: 0; }
