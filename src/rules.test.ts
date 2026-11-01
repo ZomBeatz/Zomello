@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { addDays } from "date-fns";
 import type { Card, Filter } from "./types";
 
 // The store runs in the browser; give it the few browser pieces it touches when it loads.
@@ -43,7 +44,7 @@ describe("more bucket rules", () => {
     const d = st().createCard(b.todo, "Has a date", { dueDate: "2030-01-01" });
     st().moveCardToList(a, b.doing);
     st().moveCardToList(d, b.doing);
-    expect(card(a).dueDate).toBe(utils.toISO(new Date(Date.now() + 3 * 86_400_000)));
+    expect(card(a).dueDate).toBe(utils.toISO(addDays(new Date(), 3)));
     expect(card(d).dueDate).toBe("2030-01-01");
   });
 
@@ -121,7 +122,7 @@ describe("more bucket rules", () => {
 });
 
 describe("late cards, cards already here, and rule history", () => {
-  const yesterday = () => utils.toISO(new Date(Date.now() - 86_400_000));
+  const yesterday = () => utils.toISO(addDays(new Date(), -1));
 
   it("moves late cards and raises their priority, leaving finished ones alone", () => {
     const b = board();
