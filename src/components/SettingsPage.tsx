@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { openWhatsNew } from "./WhatsNew";
 import { format } from "date-fns";
 import { Accessibility, Bell, Blocks, CalendarPlus, Download, FileUp, Minus, Plus, Eraser, LayoutTemplate, MessageSquare, Repeat, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
 import { sendFeedback } from "../feedback";
@@ -575,7 +576,10 @@ function AboutPanel() {
         </span>
         <div>
           <p>
-            <b>Zomello</b> {__APP_VERSION__}
+            <b>Zomello</b> {__APP_VERSION__}{" "}
+            <button className="btn ghost sm" onClick={openWhatsNew}>
+              What's new
+            </button>
           </p>
           <p className="muted small">Boards, tasks &amp; planning, kept on your own computer. Made by ZomBeatz Media.</p>
           <p className="muted small">

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { WHATS_NEW } from "./WhatsNew";
 import {
   ArrowLeft, ArrowRight, FileUp, Keyboard, LayoutGrid, MousePointerClick, Move, Search, Sparkles, Undo2, Zap,
 } from "lucide-react";
@@ -37,7 +38,8 @@ export function WelcomeGuide({ onClose }: { onClose: () => void }) {
       if (me) st.renamePerson(me, name.trim());
       else st.updateSettings({ me: name.trim(), people: [...new Set([...st.data.settings.people, name.trim()])] });
     }
-    st.updateSettings({ onboarded: true, ...(firstRun ? { features: presetFeatures(level) } : {}) });
+    // Someone new doesn't need to hear what's new.
+    st.updateSettings({ onboarded: true, seenWhatsNew: WHATS_NEW.version, ...(firstRun ? { features: presetFeatures(level) } : {}) });
     onClose();
     if (!firstRun) return;
     if (start === "empty") {
@@ -55,7 +57,7 @@ export function WelcomeGuide({ onClose }: { onClose: () => void }) {
   };
 
   const skip = () => {
-    useStore.getState().updateSettings({ onboarded: true });
+    useStore.getState().updateSettings({ onboarded: true, seenWhatsNew: WHATS_NEW.version });
     onClose();
   };
 
