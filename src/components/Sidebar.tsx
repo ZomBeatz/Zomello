@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useDragSensors, useIsPhone } from "../mobile";
 import {
-  Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Shield, UserCog, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, Sun, UserCheck, Users, X, Zap, ExternalLink, Server as ServerIcon, Smartphone, Monitor, FolderPlus, LayoutTemplate, Lock,
+  Archive, ChevronDown, ChevronRight, ChevronUp, ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Shield, UserCog, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, Sun, UserCheck, Users, X, Zap, ExternalLink, Server as ServerIcon, Smartphone, Monitor, FolderPlus, LayoutTemplate, Lock,
 } from "lucide-react";
 import { runningTimer, useStore } from "../store";
 import type { Board, ID, Route } from "../types";
@@ -88,7 +88,11 @@ export function Sidebar() {
 
   return (
     <aside ref={asideRef} className={`sidebar ${collapsed ? "collapsed" : ""}`}>
-      <div className="sidebar-fade top" aria-hidden="true" />
+      <div className="sidebar-fade top">
+        <button className="sidebar-more" tabIndex={-1} aria-label="Scroll up" title="Scroll up" onClick={() => scrollSidebar(asideRef.current, -1)}>
+          <ChevronUp size={14} />
+        </button>
+      </div>
       <div className="brand">
         <button
           className="logo-btn"
@@ -321,7 +325,12 @@ export function Sidebar() {
       )}
       <NavItem icon={<CircleHelp size={16} />} label="Help" kbd="?" onClick={() => setOverlay({ helpOpen: true })} />
       {isServer && me && <AccountButton collapsed={collapsed} />}
-      <div className="sidebar-fade bottom" aria-hidden="true" />
+      <div className="sidebar-fade bottom">
+        <button className="sidebar-more" tabIndex={-1} aria-label="Scroll down for more" title="More below" onClick={() => scrollSidebar(asideRef.current, 1)}>
+          <ChevronDown size={14} />
+          <span className="label">More</span>
+        </button>
+      </div>
     </aside>
   );
 }
@@ -820,6 +829,11 @@ function AccountButton({ collapsed }: { collapsed: boolean }) {
  * The sidebar has no scrollbar, so a soft fade at its top or bottom edge shows there's more that way.
  * Marks the element "more-above" / "more-below"; checked on scroll, resize, and whenever the sidebar renders.
  */
+/** Scroll the sidebar most of a screen up (-1) or down (1). */
+function scrollSidebar(el: HTMLElement | null, dir: 1 | -1) {
+  el?.scrollBy({ top: dir * el.clientHeight * 0.7, behavior: "smooth" });
+}
+
 function useScrollFades() {
   const ref = useRef<HTMLElement>(null);
   const check = () => {
