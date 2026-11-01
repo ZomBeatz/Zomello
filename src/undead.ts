@@ -34,7 +34,14 @@ function rise(cardId: ID) {
   st.updateSettings({ style: "undead", unlockedStyles: first ? [...s.unlockedStyles, "undead"] : s.unlockedStyles });
   st.toast(first ? "🧟 You found Undead! Switch styles any time in Settings → Appearance." : "🧟 Undead on", { key: "style" });
   if (reduceMotion()) return;
-  // The card shambles into place once it's on screen.
+  // A bat flies past the moon...
+  requestAnimationFrame(() =>
+    document.querySelectorAll<HTMLElement>(".wordmark").forEach((el) => {
+      el.classList.add("bat-once");
+      setTimeout(() => el.classList.remove("bat-once"), 2600);
+    }),
+  );
+  // ...and the card shambles into place once it's on screen.
   requestAnimationFrame(() =>
     document.querySelectorAll<HTMLElement>(`.card-tile[data-card-id="${cardId}"]`).forEach((el) => {
       el.classList.add("shambling");
