@@ -150,6 +150,15 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
   scrollbar-width: none;
 }
 .sidebar::-webkit-scrollbar { display: none; }
+/* Soft fades at the edges when there's more to scroll that way (the sidebar has no scrollbar). */
+.sidebar-fade {
+  position: sticky; z-index: 2; flex: none; height: 36px; pointer-events: none;
+  margin: 0 -10px; opacity: 0; transition: opacity .2s;
+}
+.sidebar-fade.top { top: -14px; margin-top: -14px; margin-bottom: -24px; background: linear-gradient(var(--surface) 30%, transparent); }
+.sidebar-fade.bottom { bottom: -14px; margin-bottom: -14px; margin-top: -24px; background: linear-gradient(transparent, var(--surface) 70%); }
+.sidebar.more-above .sidebar-fade.top, .sidebar.more-below .sidebar-fade.bottom { opacity: 1; }
+.sidebar.collapsed .sidebar-fade { margin-left: -8px; margin-right: -8px; }
 .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 17px; padding: 6px 8px 16px; color: var(--accent); }
 .brand span { color: var(--text); }
 .nav-item {
