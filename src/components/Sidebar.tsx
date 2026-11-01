@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useDragSensors, useIsPhone } from "../mobile";
 import {
   Archive, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, LogOut, Shield, UserCog, Home, Hourglass, Pause, Play, Plus, Search, Settings, Star, Sun, UserCheck, Users, X, Zap, ExternalLink, Server as ServerIcon, Smartphone, Monitor, FolderPlus, LayoutTemplate, Lock,
@@ -76,6 +76,7 @@ export function Sidebar() {
   const style = useStore((s) => s.data.settings.style);
   const homeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const burst = useRef<{ from: Route | null; last: number }>({ from: null, last: 0 });
+  const asideRef = useScrollFades();
 
   const NavItem = ({ icon, label, onClick, on, kbd }: { icon: React.ReactNode; label: string; onClick: () => void; on?: boolean; kbd?: string }) => (
     <button className={`nav-item ${on ? "active" : ""}`} onClick={onClick} title={collapsed ? label : undefined}>
@@ -86,7 +87,8 @@ export function Sidebar() {
   );
 
   return (
-    <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
+    <aside ref={asideRef} className={`sidebar ${collapsed ? "collapsed" : ""}`}>
+      <div className="sidebar-fade top" aria-hidden="true" />
       <div className="brand">
         <button
           className="logo-btn"
@@ -319,6 +321,7 @@ export function Sidebar() {
       )}
       <NavItem icon={<CircleHelp size={16} />} label="Help" kbd="?" onClick={() => setOverlay({ helpOpen: true })} />
       {isServer && me && <AccountButton collapsed={collapsed} />}
+      <div className="sidebar-fade bottom" aria-hidden="true" />
     </aside>
   );
 }
@@ -811,4 +814,29 @@ function AccountButton({ collapsed }: { collapsed: boolean }) {
       )}
     </Popover>
   );
+}
+
+/**
+ * The sidebar has no scrollbar, so a soft fade at its top or bottom edge shows there's more that way.
+ * Marks the element "more-above" / "more-below"; checked on scroll, resize, and whenever the sidebar renders.
+ */
+function useScrollFades() {
+  const ref = useRef<HTMLElement>(null);
+  const check = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.classList.toggle("more-above", el.scrollTop > 2);
+    el.classList.toggle("more-below", el.scrollTop + el.clientHeight < el.scrollHeight - 2);
+  };
+  useLayoutEffect(check);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    for (const child of Array.from(el.children)) ro.observe(child);
+    el.addEventListener("scroll", check, { passive: true });
+    return () => (ro.disconnect(), el.removeEventListener("scroll", check));
+  }, []);
+  return ref;
 }
