@@ -16,6 +16,7 @@
 - **Cards moved or made here** can get a due date (if they have none), people, or a place on My Day.
 - **When the whole checklist is ticked:** complete the card and/or move it to another bucket.
 - **Tidy up:** archive completed cards after a day, a few days, a week or a month.
+- **Skip bucket rules** on a card (its menu, the card itself, or several selected cards at once): moving it, ticking its checklist and Tidy up leave it alone. Handy for a reference card that lives in Done. A small icon on the card shows it's on.
 
 **Filters**
 - **Blocked** / **Not blocked**, **No labels**, **Not** a label, and filters for custom fields.

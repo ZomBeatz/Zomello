@@ -32,6 +32,7 @@ import {
   UserPlus,
   ClipboardCopy,
   ListChecks,
+  ZapOff,
 } from "lucide-react";
 import type { ID } from "../types";
 import { copyCards } from "../cardClipboard";
@@ -408,6 +409,13 @@ function cardMenu(cardId: ID): MenuEntry[] {
           },
         ]
       : []),
+    {
+      label: "Skip bucket rules",
+      icon: <ZapOff size={14} />,
+      checked: !!card.skipRules,
+      feature: "automation",
+      onClick: () => set({ skipRules: !card.skipRules || undefined }),
+    },
     {
       label: "Hand to AI…",
       icon: <Bot size={14} />,

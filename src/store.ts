@@ -129,7 +129,7 @@ function arrivalRules(list: List | undefined, c: Pick<Card, "dueDate" | "assigne
 /** A card arriving in a bucket takes on its rules: a progress (e.g. "Done" completes it), labels, dates, people. */
 function arrive(d: AppData, id: ID, patch: Partial<Card>): Partial<Card> {
   const card = d.cards[id];
-  if (!card || !patch.listId || patch.listId === card.listId) return patch;
+  if (!card || card.skipRules || !patch.listId || patch.listId === card.listId) return patch;
   const list = d.lists[patch.listId];
   const own = patch.labelIds ?? card.labelIds;
   const labelIds = withLabels(d, patch.boardId ?? card.boardId, own, list?.arriveLabelIds);
@@ -564,7 +564,7 @@ function checklistRules(d: AppData, before: Record<ID, Card>, after: Record<ID, 
   for (let round = 0; round < 4; round++) {
     const start = cards;
     for (const c of Object.values(start)) {
-      if (c === prev[c.id] || c.archived || !allTicked(c) || allTicked(prev[c.id])) continue;
+      if (c === prev[c.id] || c.archived || c.skipRules || !allTicked(c) || allTicked(prev[c.id])) continue;
       const list = d.lists[c.listId];
       if (!list?.checkedComplete && !list?.checkedMoveTo) continue;
       const patch: Partial<Card> = {};
@@ -1444,7 +1444,7 @@ export const useStore = create<State>((set, get) => {
       const d = get().data;
       const due = Object.values(d.cards).filter((c) => {
         const days = d.lists[c.listId]?.archiveAfterDays;
-        return days != null && !c.archived && c.progress === "completed" && now - (c.completedAt ?? c.updatedAt) >= days * DAY_MS;
+        return days != null && !c.archived && !c.skipRules && c.progress === "completed" && now - (c.completedAt ?? c.updatedAt) >= days * DAY_MS;
       });
       if (!due.length) return 0;
       // Housekeeping, not something you did: saved, but not an Undo step.

@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { differenceInCalendarDays } from "date-fns";
 import {
-  AlignLeft, Ban, Calendar, CheckSquare, CornerDownRight, Flag, Link2, ListTree, MessageSquare, Octagon, Paperclip, Repeat, Timer,
+  AlignLeft, Ban, Calendar, CheckSquare, CornerDownRight, Flag, Link2, ListTree, MessageSquare, Octagon, Paperclip, Repeat, Timer, ZapOff,
 } from "lucide-react";
 import type { Board, Card, ID } from "../types";
 import { useStore } from "../store";
@@ -271,6 +271,11 @@ export const CardTile = memo(function CardTile({
           </span>
         )}
         {bucketName && <span className="badge subtle">{bucketName}</span>}
+        {card.skipRules && (
+          <span className="badge icon-only" title="Skips bucket rules" aria-label="Skips bucket rules">
+            <ZapOff size={12} />
+          </span>
+        )}
         {mode.dates !== "off" && card.dueDate && (
           <span className={`badge due-${due}`}>
             <Calendar size={12} />
