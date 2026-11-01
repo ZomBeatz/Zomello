@@ -158,6 +158,19 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 .sidebar-fade.top { top: -14px; margin-top: -14px; margin-bottom: -24px; background: linear-gradient(var(--surface) 30%, transparent); }
 .sidebar-fade.bottom { bottom: -14px; margin-bottom: -14px; margin-top: -24px; background: linear-gradient(transparent, var(--surface) 70%); }
 .sidebar.more-above .sidebar-fade.top, .sidebar.more-below .sidebar-fade.bottom { opacity: 1; }
+.sidebar-fade { display: flex; justify-content: center; }
+.sidebar-fade.top { align-items: flex-start; padding-top: 6px; }
+.sidebar-fade.bottom { align-items: flex-end; padding-bottom: 6px; }
+/* A pill you can see (and click) against the sidebar, so it's clear the list goes on. */
+.sidebar-more {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px 2px 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; color: var(--accent); background: var(--surface-3);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); box-shadow: var(--shadow);
+}
+.sidebar-fade.top .sidebar-more { padding: 1px 8px; }
+.sidebar-more:hover { background: var(--accent-soft); }
+.sidebar.more-above .sidebar-fade.top .sidebar-more, .sidebar.more-below .sidebar-fade.bottom .sidebar-more { pointer-events: auto; }
+.sidebar.collapsed .sidebar-more { padding: 2px 6px; }
 .sidebar.collapsed .sidebar-fade { margin-left: -8px; margin-right: -8px; }
 .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 17px; padding: 6px 8px 16px; color: var(--accent); }
 .brand span { color: var(--text); }
