@@ -20,9 +20,13 @@
 - **Late cards:** cards in a bucket that go past their due date can move to another bucket and/or get a new priority, for example "Urgent".
 - **Apply to the cards already here:** rules act on cards as they arrive; one click in the rules window gives the cards already in the bucket the same treatment.
 - **A card's Activity says when a bucket rule made a change**, and which bucket's rule it was.
+- **A small lightning icon on a bucket's header** shows it has rules. Point at it to see what they do, or click it to change them.
 
 **Due today, at a glance**
 - **"2 late" and "3 due today"** show next to the board's Filter button when cards need you. Click one to see only those cards, and again to see everything.
+
+**Finding what's new**
+- **After updating, a short note** shows the main things to try, once. **Settings > About > What's new** brings it back.
 
 **Changing selected cards**
 - **Fields** in the bar sets a custom field on every selected card at once.

@@ -44,6 +44,7 @@ import {
   ClipboardPaste,
   ListChecks,
   Wand2,
+  Zap,
 } from "lucide-react";
 import type { BadgeKey, BadgeMode, Board, Card, GroupBy, ID, List, Priority, Progress } from "../../types";
 import { useStore } from "../../store";
@@ -349,6 +350,8 @@ function Column({
   const [rulesOpen, setRulesOpen] = useState(false);
   const ai = useFeature("ai");
   const automation = useFeature("automation");
+  const allLists = useStore((s) => s.data.lists);
+  const templates = useStore((s) => s.data.templates);
   const looks = useFeature("looks");
   const sortable = useSortable({
     id: `${COL_PREFIX}${group.id}`,
@@ -397,6 +400,17 @@ function Column({
               </button>
             )}
           </SortMenu>
+        )}
+        {list && hasRules(list) && (
+          <button
+            className="rules-chip"
+            aria-label="Bucket rules"
+            title={rulesSummary(list, allLists, templates)}
+            onClick={() => setRulesOpen(true)}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <Zap size={12} />
+          </button>
         )}
         <span className={`count ${over ? "danger" : ""}`}>
           {ids.length}
@@ -820,6 +834,28 @@ const hasRules = (l: List) =>
 const appliesToCardsHere = (l: List) =>
   !!(l.autoProgress || l.arriveLabelIds?.length || l.arriveDueDays != null || l.arriveAssignees?.length || l.arriveMyDay ||
     l.checkedComplete || l.checkedMoveTo || l.lateMoveTo || l.latePriority);
+
+/** What a bucket's rules do, one line each, for the tooltip on its header. */
+function rulesSummary(l: List, lists: Record<ID, List>, templates: { id: ID; name: string }[]): string {
+  const to = (id?: ID | null) => (id && lists[id]?.title) || "another bucket";
+  const n = (x?: unknown[]) => x?.length ?? 0;
+  const lines = [
+    l.newTemplateId && `New cards start from "${templates.find((t) => t.id === l.newTemplateId)?.name ?? "a template"}"`,
+    n(l.newLabelIds) && "New cards get labels",
+    l.newPriority && `New cards get ${PRIORITIES.find((p) => p.id === l.newPriority)?.name ?? ""} priority`,
+    l.autoProgress && `Cards here are set to ${PROGRESS.find((p) => p.id === l.autoProgress)?.name ?? ""}`,
+    n(l.arriveLabelIds) && "Cards here get labels",
+    l.arriveDueDays != null && "Cards here get a due date",
+    n(l.arriveAssignees) && `Cards here are assigned to ${l.arriveAssignees!.join(", ")}`,
+    l.arriveMyDay && "Cards here go on My Day",
+    (l.checkedComplete || l.checkedMoveTo) &&
+      `A finished checklist ${[l.checkedComplete && "completes the card", l.checkedMoveTo && `moves it to ${to(l.checkedMoveTo)}`].filter(Boolean).join(" and ")}`,
+    (l.lateMoveTo || l.latePriority) &&
+      `Late cards ${[l.lateMoveTo && `move to ${to(l.lateMoveTo)}`, l.latePriority && `get ${PRIORITIES.find((p) => p.id === l.latePriority)?.name ?? ""} priority`].filter(Boolean).join(" and ")}`,
+    l.archiveAfterDays != null && `Completed cards are archived after ${l.archiveAfterDays === 1 ? "a day" : `${l.archiveAfterDays} days`}`,
+  ].filter(Boolean);
+  return `Bucket rules (click to change):\n${lines.map((x) => `• ${x}`).join("\n")}`;
+}
 
 /** Every rule switched off (for "Turn off all rules"). */
 const NO_RULES: Partial<List> = {

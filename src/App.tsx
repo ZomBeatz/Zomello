@@ -53,6 +53,7 @@ import { AiDialog } from "./components/AiDialog";
 import { ConnectionBanner, SecureBanner } from "./components/RemoteGate";
 import { WelcomeGuide } from "./components/WelcomeGuide";
 import { watchForBraaains } from "./undead";
+import { useWhatsNew, WhatsNew, whatsNewDue } from "./components/WhatsNew";
 
 const DENSITY = { compact: "13px", normal: "14px", comfortable: "15.5px" };
 
@@ -67,6 +68,7 @@ export default function App() {
   const quickAddOpen = useStore((s) => s.quickAddOpen);
   const helpOpen = useStore((s) => s.helpOpen);
   const welcomeOpen = useStore((s) => s.welcomeOpen);
+  const whatsNewOpen = useWhatsNew((s) => s.open);
   const importOpen = useStore((s) => s.importOpen);
   const templatesOpen = useStore((s) => s.templatesOpen);
   const aiDialog = useStore((s) => s.aiDialog);
@@ -317,6 +319,7 @@ export default function App() {
       {(welcomeOpen || (!settings.onboarded && !isExtraWindow && !isRemote)) && (
         <WelcomeGuide onClose={() => useStore.getState().setOverlay({ welcomeOpen: false })} />
       )}
+      {(whatsNewOpen || (loaded && settings.onboarded && !welcomeOpen && !isExtraWindow && !isRemote && whatsNewDue(settings.seenWhatsNew))) && <WhatsNew />}
       <DropOverlay />
       {isMobileApp && !isRemote && !isServer && <PrivateRestore />}
       <Toasts />

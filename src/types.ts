@@ -362,6 +362,8 @@ export interface Settings {
   style: AppStyle;
   /** Easter-egg styles found so far (they show up in Settings once found). */
   unlockedStyles: AppStyle[];
+  /** The version whose "New in Zomello" note has been seen (e.g. "0.6"). */
+  seenWhatsNew?: string;
   /** The welcome guide has been seen (or skipped). */
   onboarded: boolean;
   /** Board categories folded shut in the sidebar. */
