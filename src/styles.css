@@ -1883,7 +1883,7 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 html[data-reducemotion] .undead-mark .ud-hand { animation: none !important; }
 
 .wordmark .moon-o {
-  width: .62em; height: .62em; margin-left: .04em; vertical-align: -.04em;
+  width: .6em; height: .6em; margin-left: .03em; vertical-align: -.04em;
   filter: drop-shadow(0 0 6px color-mix(in srgb, #e8e4c9 55%, transparent));
 }
 /* Light: a pale moon needs an outline to show on parchment. */
@@ -1894,7 +1894,7 @@ html[data-reducemotion] .undead-mark .ud-hand { animation: none !important; }
   :root[data-style="undead"]:not([data-theme="light"]) .wordmark .moon-o circle:first-child { fill: #e8e4c9; stroke: none; }
 }
 /* Undead: a bat flaps across the wordmark and past the moon, on hover (and once when the style rises). */
-:root[data-style="undead"] .wordmark { position: relative; }
+:root[data-style="undead"] .wordmark { position: relative; white-space: nowrap; letter-spacing: -.025em; }
 .wordmark .bat { position: absolute; left: -14%; top: 62%; width: .7em; opacity: 0; pointer-events: none; }
 .wordmark .bat svg {
   display: block; width: 100%; transform-origin: 50% 40%;
