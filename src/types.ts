@@ -130,7 +130,8 @@ export interface Card {
   createdAt: number;
   updatedAt: number;
   completedAt: number | null;
-
+  /** Bucket rules leave this card alone: moving it, ticking its checklist and "Tidy up" don't change it. */
+  skipRules?: boolean;
 }
 
 /** A column on a board. Planner calls these "buckets". */

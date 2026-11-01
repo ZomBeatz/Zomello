@@ -31,7 +31,7 @@ import {
   CircleDot,
   Flag,
   Sun,
-  X, FileDown, ClipboardPaste } from "lucide-react";
+  X, FileDown, ClipboardPaste, Zap, ZapOff } from "lucide-react";
 import type { Board, Card, DueFilter, Filter, GroupBy, ID, ViewMode } from "../types";
 import { useBoardUi, useStore } from "../store";
 import { addDays, format, nextMonday, parseISO } from "date-fns";
@@ -658,6 +658,7 @@ function SelectionBar({ boardId }: { boardId: ID }) {
   const cards = useStore((s) => s.data.cards);
   const board = useStore((s) => s.data.boards[boardId]);
   const ai = useFeature("ai");
+  const automation = useFeature("automation");
   const { setOverlay, clearSelected, updateCard, toast } = useStore.getState();
   const picked = selected.map((id) => cards[id]).filter(Boolean);
   if (!picked.length || !board) return null;
@@ -822,6 +823,16 @@ function SelectionBar({ boardId }: { boardId: ID }) {
             <MenuItem icon={<Sun size={14} />} onClick={() => (each(() => ({ myDay: toISO(today) }), "Added to My Day:"), close())}>
               Add to My Day
             </MenuItem>
+            {(automation || picked.some((c) => c.skipRules)) &&
+              (picked.every((c) => c.skipRules) ? (
+                <MenuItem icon={<Zap size={14} />} onClick={() => (each(() => ({ skipRules: undefined }), "Bucket rules apply again to"), close())}>
+                  Follow bucket rules
+                </MenuItem>
+              ) : (
+                <MenuItem icon={<ZapOff size={14} />} onClick={() => (each((c) => (c.skipRules ? null : { skipRules: true }), "Bucket rules now skip"), close())}>
+                  Skip bucket rules
+                </MenuItem>
+              ))}
             <MenuItem
               icon={<Copy size={14} />}
               onClick={() => {

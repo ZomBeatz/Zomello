@@ -48,7 +48,7 @@ import { CardPicker, LabelPicker } from "./pickers";
 import { Markdown, MarkdownEditor, MarkdownField } from "./Markdown";
 import { ChecklistSection } from "./Checklist";
 import { useNow } from "./useNow";
-import { sectionShown } from "../features";
+import { featureOn, sectionShown } from "../features";
 import { setProgress, toggleDone } from "../blocked";
 
 export function CardModal({ cardId }: { cardId: ID }) {
@@ -485,6 +485,14 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
           </Field>
           <Field label="Cover" hidden={!show("cover")}>
             <CoverEditor card={card} />
+          </Field>
+          <Field label="Bucket rules" hidden={!featureOn({ features }, "automation") && !card.skipRules}>
+            <div>
+              <label className="check-row" title="Moving this card, ticking its checklist and Tidy up won't change it">
+                <input type="checkbox" checked={!!card.skipRules} onChange={(e) => set({ skipRules: e.target.checked || undefined })} />
+                Skip bucket rules for this card
+              </label>
+            </div>
           </Field>
           <Field label="Move to board" hidden={!show("moveBoard")}>
             <select

@@ -120,6 +120,32 @@ describe("more bucket rules", () => {
   });
 });
 
+describe("skip bucket rules", () => {
+  it("leaves a card alone when it moves, and when its checklist is all ticked", () => {
+    const b = board();
+    st().updateList(b.doing, { arriveAssignees: ["Pat"], arriveLabelIds: [b.red], checkedMoveTo: b.done });
+    const c = st().createCard(b.todo, "Reference", { skipRules: true, checklist: items("Only") });
+    st().moveCardToList(c, b.doing);
+    expect(card(c).progress).toBe("notStarted");
+    expect(card(c).assignees).toEqual([]);
+    expect(card(c).labelIds).toEqual([]);
+    st().toggleChecklistItem(c, card(c).checklist[0].id);
+    expect(card(c).listId).toBe(b.doing);
+    st().moveCardToList(c, b.done);
+    expect(card(c).progress).toBe("notStarted");
+  });
+
+  it("keeps a completed card out of Tidy up, and stays completed when dragged out of Done", () => {
+    const b = board();
+    st().updateList(b.done, { archiveAfterDays: 1 });
+    const c = st().createCard(b.done, "Brand colors", { skipRules: true, progress: "completed" });
+    useStore.setState((s) => ({ data: { ...s.data, cards: { ...s.data.cards, [c]: { ...s.data.cards[c], completedAt: Date.now() - 5 * 86_400_000 } } } }));
+    expect(st().sweepArchive()).toBe(0);
+    st().moveCardToList(c, b.todo);
+    expect(card(c).progress).toBe("completed");
+  });
+});
+
 describe("blocked cards", () => {
   it("says which card is no longer blocked when its blocker is completed", () => {
     const b = board();
