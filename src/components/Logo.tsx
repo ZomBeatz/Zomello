@@ -198,6 +198,12 @@ export function Wordmark() {
             <circle cx="10" cy="16" r="1.1" fill="#cfcab0" />
           </svg>
         </span>
+        {/* a bat that flaps past the moon on hover */}
+        <span className="bat" aria-hidden="true">
+          <svg viewBox="0 0 32 14">
+            <path d="M16 4.6 L15 2 L14.4 4.3 C11.5 1.6 6 .8 0 3.6 C2.8 4.6 3.9 6.6 4 8.8 C5.8 7.2 8 7.6 9 9.6 C10 8 12 8 13 9.8 C14 8.8 15 9 16 11 C17 9 18 8.8 19 9.8 C20 8 22 8 23 9.6 C24 7.6 26.2 7.2 28 8.8 C28.1 6.6 29.2 4.6 32 3.6 C26 .8 20.5 1.6 17.6 4.3 L17 2 Z" />
+          </svg>
+        </span>
       </span>
     );
   return (

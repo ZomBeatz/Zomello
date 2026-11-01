@@ -1891,4 +1891,24 @@ html[data-reducemotion] .undead-mark .ud-hand { animation: none !important; }
   :root[data-style="undead"]:not([data-theme="light"]) .wordmark .moon-o { filter: drop-shadow(0 0 6px color-mix(in srgb, #e8e4c9 55%, transparent)); }
   :root[data-style="undead"]:not([data-theme="light"]) .wordmark .moon-o circle:first-child { fill: #e8e4c9; stroke: none; }
 }
+/* Undead: a bat flaps across the wordmark and past the moon, on hover (and once when the style rises). */
+:root[data-style="undead"] .wordmark { position: relative; }
+.wordmark .bat { position: absolute; left: -14%; top: 62%; width: .7em; opacity: 0; pointer-events: none; }
+.wordmark .bat svg {
+  display: block; width: 100%; transform-origin: 50% 40%;
+  /* A silhouette, so it shows against the moon; the edge keeps it visible on a dark sky. */
+  fill: #0b100c; stroke: color-mix(in srgb, var(--text) 70%, transparent); stroke-width: .9; stroke-linejoin: round;
+}
+.brand:hover .wordmark .bat, .wordmark.bat-once .bat { animation: bat-fly 2.4s ease-in-out; }
+.brand:hover .wordmark .bat svg, .wordmark.bat-once .bat svg { animation: bat-flap .16s ease-in-out infinite alternate; }
+@keyframes bat-fly {
+  0% { left: -14%; top: 62%; opacity: 0; transform: rotate(8deg); }
+  12% { opacity: 1; }
+  40% { left: 38%; top: -18%; transform: rotate(-6deg); }
+  70% { left: 84%; top: 48%; transform: rotate(10deg); }
+  100% { left: 120%; top: -45%; opacity: 0; transform: rotate(-12deg); }
+}
+@keyframes bat-flap { from { transform: scaleY(1); } to { transform: scaleY(.35); } }
+@media (prefers-reduced-motion: reduce) { .wordmark .bat { display: none; } }
+html[data-reducemotion] .wordmark .bat { display: none; }
 .halloween-hint { display: block; margin-top: 10px; font-style: italic; color: var(--muted); }
