@@ -31,11 +31,11 @@ import {
   CircleDot,
   Flag,
   Sun,
-  X, FileDown, ClipboardPaste, Zap, ZapOff } from "lucide-react";
-import type { Board, Card, DueFilter, Filter, GroupBy, ID, ViewMode } from "../types";
+  X, FileDown, ClipboardPaste, Zap, ZapOff, SlidersHorizontal, AlertTriangle, CalendarClock } from "lucide-react";
+import type { Board, Card, DueFilter, FieldDef, FieldValue, Filter, GroupBy, ID, ViewMode } from "../types";
 import { useBoardUi, useStore } from "../store";
 import { addDays, format, nextMonday, parseISO } from "date-fns";
-import { byOrder, emptyFilter, filterChoiceCount, filterIsActive, matchesFilter, PALETTE, PRIORITIES, PROGRESS, relatedSet, toISO, uid } from "../utils";
+import { byOrder, emptyFilter, filterChoiceCount, filterIsActive, isLate, matchesFilter, todayISO, PALETTE, PRIORITIES, PROGRESS, relatedSet, toISO, uid } from "../utils";
 import { ask, Avatar, ColorPicker, InlineEdit, MenuItem, Popover } from "./ui";
 import { KanbanView } from "./views/KanbanView";
 import { BucketPicker, LabelPicker } from "./pickers";
@@ -447,6 +447,8 @@ function Toolbar({
         )}
       </div>
 
+      <DueChips board={board} due={f.due} />
+
       <Popover
         trigger={(_, t) => (
           <button className={`btn sm ${nActive ? "accent" : "ghost"}`} onClick={t}>
@@ -653,12 +655,91 @@ function Toolbar({
 }
 
 /** Shown while cards are picked (Ctrl+click, or Select on a card's menu): changes for all of them at once. */
+/** "2 late" and "3 due today" next to the filter: what needs doing now, a click away from showing only those cards. */
+function DueChips({ board, due }: { board: Board; due: DueFilter }) {
+  const cards = useStore((s) => s.data.cards);
+  const lists = useStore((s) => s.data.lists);
+  const { late, today } = useMemo(() => {
+    const t = todayISO();
+    let late = 0;
+    let today = 0;
+    for (const c of Object.values(cards)) {
+      if (c.boardId !== board.id || c.archived || c.progress === "completed" || !lists[c.listId] || lists[c.listId].archived) continue;
+      if (isLate(c)) late++;
+      else if (c.dueDate === t) today++;
+    }
+    return { late, today };
+  }, [cards, lists, board.id]);
+  const chip = (kind: "overdue" | "today", n: number, text: string) =>
+    (n > 0 || due === kind) && (
+      <button
+        className={`btn sm due-chip ${kind} ${due === kind ? "on" : ""}`}
+        aria-pressed={due === kind}
+        title={due === kind ? "Show all cards again" : `Show only the cards ${kind === "today" ? "due today" : "past their due date"}`}
+        onClick={() => useStore.getState().setFilter(board.id, { due: due === kind ? "any" : kind })}
+      >
+        {kind === "overdue" ? <AlertTriangle size={13} /> : <CalendarClock size={13} />} {n} {text}
+      </button>
+    );
+  return (
+    <>
+      {chip("overdue", late, "late")}
+      {chip("today", today, "due today")}
+    </>
+  );
+}
+
+/** One custom field in the selection bar: shows the value the picked cards share (if they do), and sets it on all of them. */
+function SelectionField({ field: f, cards, onSet }: { field: FieldDef; cards: Card[]; onSet: (v: FieldValue) => void }) {
+  const values = new Set(cards.map((c) => c.fields[f.id] ?? null));
+  const shared = values.size === 1 ? [...values][0] : undefined;
+  const [text, setText] = useState(shared == null ? "" : String(shared));
+  const commit = () => {
+    const raw = text.trim();
+    onSet(raw === "" ? null : f.type === "number" ? Number(raw) : raw);
+  };
+  return (
+    <label className="menu-item sel-field">
+      <span className="grow">{f.name}</span>
+      {f.type === "checkbox" ? (
+        <select value={shared === undefined ? "" : shared ? "yes" : "no"} onChange={(e) => e.target.value && onSet(e.target.value === "yes")}>
+          {shared === undefined && <option value="">(mixed)</option>}
+          <option value="yes">Ticked</option>
+          <option value="no">Not ticked</option>
+        </select>
+      ) : f.type === "select" ? (
+        <select value={shared === undefined ? "" : (shared ?? "none") as string} onChange={(e) => e.target.value && onSet(e.target.value === "none" ? null : e.target.value)}>
+          {shared === undefined && <option value="">(mixed)</option>}
+          <option value="none">None</option>
+          {f.options.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      ) : f.type === "date" ? (
+        <input type="date" value={typeof shared === "string" ? shared : ""} onChange={(e) => onSet(e.target.value || null)} />
+      ) : (
+        <input
+          type={f.type === "number" ? "number" : "text"}
+          value={text}
+          placeholder={shared === undefined ? "(mixed)" : "Enter to set"}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && commit()}
+          onBlur={() => text !== (shared == null ? "" : String(shared)) && commit()}
+        />
+      )}
+    </label>
+  );
+}
+
 function SelectionBar({ boardId }: { boardId: ID }) {
   const selected = useStore((s) => s.selected);
   const cards = useStore((s) => s.data.cards);
   const board = useStore((s) => s.data.boards[boardId]);
   const ai = useFeature("ai");
   const automation = useFeature("automation");
+  const fieldsOn = useFeature("fields");
   const { setOverlay, clearSelected, updateCard, toast } = useStore.getState();
   const picked = selected.map((id) => cards[id]).filter(Boolean);
   if (!picked.length || !board) return null;
@@ -773,6 +854,22 @@ function SelectionBar({ boardId }: { boardId: ID }) {
                   </label>
                 );
               })}
+            </div>
+          )}
+        </Popover>
+      )}
+      {(fieldsOn || board.fields.some((f) => picked.some((c) => c.fields[f.id] != null))) && board.fields.length > 0 && (
+        <Popover trigger={(_, t) => <button className="btn sm" onClick={t}><SlidersHorizontal size={14} /> Fields</button>}>
+          {() => (
+            <div className="menu sel-fields">
+              {board.fields.map((f) => (
+                <SelectionField
+                  key={f.id}
+                  field={f}
+                  cards={picked}
+                  onSet={(v) => each((c) => ((c.fields[f.id] ?? null) === v ? null : { fields: { ...c.fields, [f.id]: v } }), `Set ${f.name} on`)}
+                />
+              ))}
             </div>
           )}
         </Popover>

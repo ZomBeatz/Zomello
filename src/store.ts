@@ -4,7 +4,7 @@ import { addDays, differenceInCalendarDays } from "date-fns";
 import { isPhoneOrTablet, loadRaw, saveRaw } from "./storage";
 import { loadDeviceLook, noteLookPatch, withDeviceLook, withPlaceLook } from "./deviceLook";
 import type {
-  Activity, AppData, BadgeMode, Board, BoardDisplay, BoardUi, Card, CardTemplate, Filter, FocusTimer, ID, LinkType, List, Route, Settings,
+  Activity, ActivityKind, AppData, BadgeMode, Board, BoardDisplay, BoardUi, Card, CardTemplate, Filter, FocusTimer, ID, LinkType, List, Route, Settings,
 } from "./types";
 import type { ImportedBoard } from "./importers";
 import { boardAsTemplate } from "./boardTemplates";
@@ -13,7 +13,7 @@ import { sendDeviceChanges, setDeviceBase } from "./deviceWindow";
 import { isRemote } from "./remote";
 import { isServer, mergeOps, pushChanges, rebaseSnapshot, setBase, type Ops } from "./server";
 import {
-  blockLoopReason, byOrder, emptyFilter, fromISO, inverseLink, isBlocked, nextRecurrenceDate, PALETTE, subtaskLoopReason, toISO, todayISO, uid,
+  blockLoopReason, byOrder, emptyFilter, fromISO, inverseLink, isBlocked, isLate, nextRecurrenceDate, PALETTE, subtaskLoopReason, toISO, todayISO, uid,
 } from "./utils";
 
 const DEFAULT_LABELS = [
@@ -126,21 +126,86 @@ function arrivalRules(list: List | undefined, c: Pick<Card, "dueDate" | "assigne
   return out;
 }
 
-/** A card arriving in a bucket takes on its rules: a progress (e.g. "Done" completes it), labels, dates, people. */
-function arrive(d: AppData, id: ID, patch: Partial<Card>): Partial<Card> {
-  const card = d.cards[id];
-  if (!card || card.skipRules || !patch.listId || patch.listId === card.listId) return patch;
-  const list = d.lists[patch.listId];
+/**
+ * Which bucket's rule made each kind of change about to be saved, so the card's history can say so. The rules
+ * below fill it in and the next patchCard of that card uses it up.
+ */
+let ruleTag: { id: ID; kinds: Partial<Record<ActivityKind, ID>> } | null = null;
+function tagRule(id: ID, listId: ID, ...kinds: ActivityKind[]) {
+  if (ruleTag?.id !== id) ruleTag = { id, kinds: {} };
+  for (const k of kinds) ruleTag.kinds[k] ??= listId;
+}
+
+/**
+ * A bucket's "moved or made here" rules for a card: arriving in it (`moving`), or already in it when the
+ * rules are applied to the cards there.
+ */
+function bucketRules(d: AppData, card: Card, list: List | undefined, patch: Partial<Card>, moving: boolean): Partial<Card> {
   const own = patch.labelIds ?? card.labelIds;
   const labelIds = withLabels(d, patch.boardId ?? card.boardId, own, list?.arriveLabelIds);
   if (labelIds !== own) patch = { ...patch, labelIds };
   const extra = arrivalRules(list, { ...card, ...patch });
   if (Object.keys(extra).length) patch = { ...patch, ...extra };
+  if (list && extra.dueDate) tagRule(card.id, list.id, "due");
+  if (list && extra.assignees) tagRule(card.id, list.id, "assigned");
   if (patch.progress !== undefined) return patch;
   const p = list?.autoProgress;
-  if (p) return p !== card.progress ? { ...patch, progress: p } : patch;
+  // Applying a bucket's rules to the cards already there doesn't reopen finished ones.
+  if (p && (moving || card.progress !== "completed" || p === "completed")) {
+    if (p === card.progress) return patch;
+    tagRule(card.id, list!.id, "progress");
+    return { ...patch, progress: p };
+  }
   // Dragged back out of a "Done" bucket: it's open again (instead of vanishing under "Show completed").
-  if (card.progress === "completed" && d.lists[card.listId]?.autoProgress === "completed") return { ...patch, progress: "notStarted" };
+  if (moving && card.progress === "completed" && d.lists[card.listId]?.autoProgress === "completed") return { ...patch, progress: "notStarted" };
+  return patch;
+}
+
+/** A card arriving in a bucket takes on its rules: a progress (e.g. "Done" completes it), labels, dates, people. */
+function arrive(d: AppData, id: ID, patch: Partial<Card>): Partial<Card> {
+  const card = d.cards[id];
+  if (!card || card.skipRules || !patch.listId || patch.listId === card.listId) return patch;
+  return bucketRules(d, card, d.lists[patch.listId], patch, true);
+}
+
+/** Moving a card to the end of another bucket on its board, if that bucket is still there. */
+function moveInto(d: AppData, cards: Record<ID, Card>, c: Card, toId: ID | null | undefined): Partial<Card> {
+  const to = toId ? d.lists[toId] : undefined;
+  if (!to || to.archived || to.boardId !== c.boardId || to.id === c.listId) return {};
+  return { listId: to.id, order: Math.max(-1, ...Object.values(cards).filter((x) => x.listId === to.id).map((x) => x.order)) + 1 };
+}
+
+/** A bucket's "every checklist item ticked" rule for a card whose checklist is all ticked: complete it and/or move it on. */
+function checklistPatch(d: AppData, cards: Record<ID, Card>, c: Card): Partial<Card> {
+  const list = d.lists[c.listId];
+  if (!list || c.skipRules || !allTicked(c)) return {};
+  const patch: Partial<Card> = {};
+  if (list.checkedComplete && c.progress !== "completed") {
+    patch.progress = "completed";
+    tagRule(c.id, list.id, "progress");
+  }
+  const move = moveInto(d, cards, c, list.checkedMoveTo);
+  if (move.listId) {
+    Object.assign(patch, move);
+    tagRule(c.id, list.id, "moved");
+  }
+  return patch;
+}
+
+/** A bucket's "past its due date" rule for an open, late card: move it on and/or change its priority. */
+function latePatch(d: AppData, cards: Record<ID, Card>, c: Card): Partial<Card> {
+  const list = d.lists[c.listId];
+  if (!list || c.skipRules || c.archived || c.progress === "completed" || !isLate(c)) return {};
+  const patch: Partial<Card> = {};
+  if (list.latePriority && c.priority !== list.latePriority) {
+    patch.priority = list.latePriority;
+    tagRule(c.id, list.id, "priority");
+  }
+  const move = moveInto(d, cards, c, list.lateMoveTo);
+  if (move.listId) {
+    Object.assign(patch, move);
+    tagRule(c.id, list.id, "moved");
+  }
   return patch;
 }
 
@@ -467,8 +532,13 @@ interface State {
   renameBoardTemplate(id: string, name: string): void;
   deleteBoardTemplate(id: string): void;
   createFromTemplate(templateId: ID, listId: ID, extra?: Partial<Card>): ID;
-  /** Archive completed cards in buckets with an "archive after N days" rule. Returns how many. */
-  sweepArchive(now?: number): number;
+  /**
+   * The bucket rules that run on a clock: archive completed cards after N days, and move or reprioritize
+   * late cards. Returns how many cards changed.
+   */
+  sweepRules(now?: number): number;
+  /** Apply a bucket's "moved or made here", checklist and late rules to the cards already in it. Returns how many changed. */
+  applyBucketRules(listId: ID): number;
 
   setBoardUi(boardId: ID, patch: Partial<BoardUi>): void;
   setFilter(boardId: ID, patch: Partial<Filter>): void;
@@ -564,16 +634,8 @@ function checklistRules(d: AppData, before: Record<ID, Card>, after: Record<ID, 
   for (let round = 0; round < 4; round++) {
     const start = cards;
     for (const c of Object.values(start)) {
-      if (c === prev[c.id] || c.archived || c.skipRules || !allTicked(c) || allTicked(prev[c.id])) continue;
-      const list = d.lists[c.listId];
-      if (!list?.checkedComplete && !list?.checkedMoveTo) continue;
-      const patch: Partial<Card> = {};
-      if (list.checkedComplete && c.progress !== "completed") patch.progress = "completed";
-      const to = list.checkedMoveTo ? d.lists[list.checkedMoveTo] : undefined;
-      if (to && !to.archived && to.boardId === c.boardId && to.id !== c.listId) {
-        patch.listId = to.id;
-        patch.order = Math.max(-1, ...Object.values(cards).filter((x) => x.listId === to.id).map((x) => x.order)) + 1;
-      }
+      if (c === prev[c.id] || c.archived || allTicked(prev[c.id])) continue;
+      const patch = checklistPatch(d, cards, c);
       if (Object.keys(patch).length) cards = patchCard(cards, c.id, arrive({ ...d, cards }, c.id, patch));
     }
     if (cards === start) break;
@@ -584,9 +646,11 @@ function checklistRules(d: AppData, before: Record<ID, Card>, after: Record<ID, 
 
 function patchCard(cards: Record<ID, Card>, id: ID, patch: Partial<Card>): Record<ID, Card> {
   const prev = cards[id];
+  const tag = ruleTag?.id === id ? ruleTag.kinds : undefined;
+  ruleTag = null;
   if (!prev) return cards;
   let next: Card = { ...prev, ...progressPatch(prev, patch), updatedAt: Date.now() };
-  const changes = diffActivity(prev, next);
+  const changes = diffActivity(prev, next).map((a) => (tag?.[a.kind] ? { ...a, rule: tag[a.kind] } : a));
   if (changes.length) next.activity = [...next.activity, ...changes].slice(-MAX_ACTIVITY);
   const out = { ...cards };
   // Linked checklist items keep a copy of the task's title — keep it current when the task is renamed.
@@ -972,7 +1036,10 @@ export const useStore = create<State>((set, get) => {
           listMap.set(l.id, nl.id);
           return nl;
         });
-      for (const l of lists) if (l.checkedMoveTo) l.checkedMoveTo = listMap.get(l.checkedMoveTo) ?? null;
+      for (const l of lists) {
+        if (l.checkedMoveTo) l.checkedMoveTo = listMap.get(l.checkedMoveTo) ?? null;
+        if (l.lateMoveTo) l.lateMoveTo = listMap.get(l.lateMoveTo) ?? null;
+      }
       const srcCards = Object.values(d.cards).filter((c) => opts?.withCards !== false && c.boardId === id && listMap.has(c.listId));
       const cardMap = new Map(srcCards.map((c) => [c.id, uid()]));
       // Sub-tasks and links between cards of this board point at the copies; links to other boards stay.
@@ -1440,18 +1507,48 @@ export const useStore = create<State>((set, get) => {
     deleteBoardTemplate(id) {
       mut((d) => ({ ...d, boardTemplates: d.boardTemplates.filter((t) => t.id !== id) }));
     },
-    sweepArchive(now = Date.now()) {
+    sweepRules(now = Date.now()) {
       const d = get().data;
-      const due = Object.values(d.cards).filter((c) => {
-        const days = d.lists[c.listId]?.archiveAfterDays;
-        return days != null && !c.archived && !c.skipRules && c.progress === "completed" && now - (c.completedAt ?? c.updatedAt) >= days * DAY_MS;
-      });
-      if (!due.length) return 0;
+      let cards = d.cards;
+      let n = 0;
+      for (const c of Object.values(d.cards)) {
+        if (c.archived || c.skipRules) continue;
+        const list = d.lists[c.listId];
+        const days = list?.archiveAfterDays;
+        if (list && days != null && c.progress === "completed" && now - (c.completedAt ?? c.updatedAt) >= days * DAY_MS) {
+          tagRule(c.id, list.id, "archived");
+          cards = patchCard(cards, c.id, { archived: true });
+          n++;
+          continue;
+        }
+        const late = latePatch(d, cards, c);
+        if (Object.keys(late).length) {
+          cards = patchCard(cards, c.id, arrive({ ...d, cards }, c.id, late));
+          n++;
+        }
+      }
       // Housekeeping, not something you did: saved, but not an Undo step.
-      const cards = { ...d.cards };
-      for (const c of due) cards[c.id] = { ...c, archived: true, updatedAt: now, activity: [...c.activity, { at: now, kind: "archived" as const }].slice(-MAX_ACTIVITY) };
-      set({ data: { ...d, cards } });
-      return due.length;
+      if (n) set({ data: { ...d, cards } });
+      return n;
+    },
+    applyBucketRules(listId) {
+      let n = 0;
+      mut((d) => {
+        const list = d.lists[listId];
+        if (!list) return d;
+        let cards = d.cards;
+        for (const c of Object.values(d.cards)) {
+          if (c.listId !== listId || c.archived || c.skipRules) continue;
+          let patch = bucketRules({ ...d, cards }, c, list, {}, false);
+          patch = { ...patch, ...checklistPatch(d, cards, { ...c, ...patch }) };
+          if (!patch.listId) patch = { ...patch, ...latePatch(d, cards, { ...c, ...patch }) };
+          if (!Object.keys(patch).length) continue;
+          cards = patchCard(cards, c.id, arrive({ ...d, cards }, c.id, patch));
+          n++;
+        }
+        return n ? { ...d, cards: checklistRules(d, d.cards, cards) } : d;
+      });
+      return n;
     },
     createFromTemplate(templateId, listId, extra) {
       const t = get().data.templates.find((x) => x.id === templateId)!;

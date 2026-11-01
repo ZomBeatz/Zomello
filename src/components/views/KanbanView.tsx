@@ -812,13 +812,20 @@ function AddList({ boardId }: { boardId: ID }) {
 const hasRules = (l: List) =>
   !!(
     l.autoProgress || l.newPriority || l.newLabelIds?.length || l.arriveLabelIds?.length || l.newTemplateId || l.arriveDueDays != null ||
-    l.arriveAssignees?.length || l.arriveMyDay || l.checkedComplete || l.checkedMoveTo || l.archiveAfterDays != null
+    l.arriveAssignees?.length || l.arriveMyDay || l.checkedComplete || l.checkedMoveTo || l.archiveAfterDays != null ||
+    l.lateMoveTo || l.latePriority
   );
+
+/** Rules that can act on cards already in a bucket ("Apply to the cards already here"). */
+const appliesToCardsHere = (l: List) =>
+  !!(l.autoProgress || l.arriveLabelIds?.length || l.arriveDueDays != null || l.arriveAssignees?.length || l.arriveMyDay ||
+    l.checkedComplete || l.checkedMoveTo || l.lateMoveTo || l.latePriority);
 
 /** Every rule switched off (for "Turn off all rules"). */
 const NO_RULES: Partial<List> = {
   autoProgress: null, newPriority: null, newLabelIds: undefined, arriveLabelIds: undefined, newTemplateId: null, arriveDueDays: null,
   arriveAssignees: undefined, arriveMyDay: undefined, checkedComplete: undefined, checkedMoveTo: null, archiveAfterDays: null,
+  lateMoveTo: null, latePriority: null,
 };
 
 const DUE_CHOICES = [0, 1, 2, 3, 7, 14];
@@ -864,6 +871,13 @@ function BucketRulesDialog({ list, board, onClose }: { list: List; board: Board;
   const setIds = (key: "newLabelIds" | "arriveLabelIds") => (v: ID[]) => updateList(list.id, { [key]: v.length ? v : undefined });
   const assigned = list.arriveAssignees ?? [];
   const num = (v: string) => (v === "" ? null : Number(v));
+  const cardsHere = useStore((s) => s.data.cards);
+  const here = Object.values(cardsHere).filter((c) => c.listId === list.id && !c.archived && !c.skipRules).length;
+  const applyHere = () => {
+    const { applyBucketRules, toast } = useStore.getState();
+    const n = applyBucketRules(list.id);
+    toast(n ? `Bucket rules changed ${n} card${n === 1 ? "" : "s"}` : "Those cards already follow these rules", { undo: n > 0 });
+  };
   return (
     <Modal onClose={onClose} width={520} className="customize">
       <header className="customize-head">
@@ -980,6 +994,32 @@ function BucketRulesDialog({ list, board, onClose }: { list: List; board: Board;
           </label>
         </section>
         <section>
+          <h4>When a card here is past its due date</h4>
+          <p className="muted small">Checked when Zomello opens and then every hour. Completed cards are left alone.</p>
+          <label className="rule-row">
+            <span>Move it to</span>
+            <select value={list.lateMoveTo ?? ""} onChange={(e) => updateList(list.id, { lateMoveTo: e.target.value || null })}>
+              <option value="">(stays here)</option>
+              {otherLists.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="rule-row">
+            <span>Set priority</span>
+            <select value={list.latePriority ?? ""} onChange={(e) => updateList(list.id, { latePriority: (e.target.value || null) as Priority | null })}>
+              <option value="">(unchanged)</option>
+              {PRIORITIES.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </section>
+        <section>
           <h4>Tidy up</h4>
           <label className="rule-row">
             <span>Archive</span>
@@ -994,6 +1034,17 @@ function BucketRulesDialog({ list, board, onClose }: { list: List; board: Board;
           </label>
           {list.archiveAfterDays != null && <p className="muted small">Archived cards stay in the board's Archive, where you can restore them.</p>}
         </section>
+        {appliesToCardsHere(list) && here > 0 && (
+          <section>
+            <h4>Cards already here</h4>
+            <p className="muted small">
+              Rules act on cards as they arrive. To give the {here === 1 ? "card" : `${here} cards`} already in “{list.title}” the same treatment, apply them now.
+            </p>
+            <button className="btn sm" onClick={applyHere}>
+              Apply to the {here === 1 ? "card" : `${here} cards`} already here
+            </button>
+          </section>
+        )}
         {hasRules(list) && (
           <button className="btn sm ghost" onClick={() => updateList(list.id, NO_RULES)}>
             Turn off all rules

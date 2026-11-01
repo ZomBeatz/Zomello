@@ -566,6 +566,13 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 .ctx-sep { height: 1px; background: var(--border); margin: 4px 6px; }
 .menu-sep { height: 1px; background: var(--border); margin: 4px 6px; }
 .menu-item input.sel-date { margin-left: auto; font-size: 12px; padding: 2px 4px; }
+.sel-fields { min-width: 280px; }
+.due-chip { border: 1px solid transparent; }
+.due-chip.overdue { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.due-chip.today { color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.due-chip.on { border-color: currentColor; }
+.sel-field { gap: 10px; }
+.sel-field select, .sel-field input { width: 140px; font-size: 12.5px; padding: 3px 6px; }
 
 /* ---------- pickers ---------- */
 .picker { width: 320px; display: flex; flex-direction: column; }
@@ -1771,3 +1778,106 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 .welcome-sub { font-size: 14px; margin: 16px 0 6px; }
 
 @keyframes sheet-up { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* ---------- Undead: an Easter-egg style (make a card called "Braaains") ---------- */
+/* Night: bone white and slime green on graveyard green-black (light: an old faded horror poster). */
+:root[data-style="undead"] {
+  --bg: #f3eedc;
+  --surface: #fbf8ee;
+  --surface-2: #ece5cf;
+  --surface-3: #e2d9bb;
+  --column: #ece5cf;
+  --border: #d6cba8;
+  --text: #1f2419;
+  --text-2: #464c3a;
+  --muted: #5f604b;
+  --accent: #376a1c;
+  --brand-orange: #9e1f1a;
+  --danger: #a8231b;
+  --warn: #8a5a00;
+  --ok: #2a7444;
+  --neon: #9e1f1a;
+  --on-accent: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-style="undead"]:not([data-theme="light"]) {
+    --bg: #0c130e;
+    --surface: #131d16;
+    --surface-2: #1a271e;
+    --surface-3: #223328;
+    --column: #101914;
+    --border: #2a3d30;
+    --text: #e8e4d0;
+    --text-2: #c2bea6;
+    --muted: #8f9781;
+    --accent: #8fd14f;
+    --brand-orange: #e05a4a;
+    --danger: #ff6a5c;
+    --warn: #e8c547;
+    --ok: #5fd39a;
+    --neon: #e05a4a;
+    --on-accent: #0c1a05;
+    --shadow: 0 1px 2px #00000080;
+    --shadow-lg: 0 10px 40px #000000b3, 0 0 0 1px #8fd14f1f;
+  }
+}
+:root[data-style="undead"][data-theme="dark"] {
+  --bg: #0c130e;
+  --surface: #131d16;
+  --surface-2: #1a271e;
+  --surface-3: #223328;
+  --column: #101914;
+  --border: #2a3d30;
+  --text: #e8e4d0;
+  --text-2: #c2bea6;
+  --muted: #8f9781;
+  --accent: #8fd14f;
+  --brand-orange: #e05a4a;
+  --danger: #ff6a5c;
+  --warn: #e8c547;
+  --ok: #5fd39a;
+  --neon: #e05a4a;
+  --on-accent: #0c1a05;
+  --shadow: 0 1px 2px #00000080;
+  --shadow-lg: 0 10px 40px #000000b3, 0 0 0 1px #8fd14f1f;
+}
+/* Moonlight from the top corner, fog along the bottom, a green-to-bone wordmark. */
+:root[data-style="undead"] body {
+  background:
+    radial-gradient(520px 360px at 92% -8%, color-mix(in srgb, var(--text) 9%, transparent), transparent 70%),
+    radial-gradient(1400px 260px at 50% 112%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
+    var(--bg);
+}
+:root[data-style="undead"] .wordmark,
+:root[data-style="undead"] .wordmark span {
+  background: linear-gradient(90deg, var(--accent), var(--text));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+:root[data-style="undead"] .nav-item.active,
+:root[data-style="undead"] .view-tabs button.active {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent), 0 0 14px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* The hand claws its way up on hover and when the style rises. */
+.undead-mark { display: block; }
+.undead-mark .ud-hand { transform-box: view-box; transform-origin: 512px 780px; }
+.brand:hover .undead-mark .ud-hand, .undead-mark.rising .ud-hand { animation: ud-rise 1.4s ease-out infinite alternate; }
+@keyframes ud-rise { 0% { transform: translateY(120px) rotate(-4deg); } 60% { transform: translateY(0) rotate(3deg); } 100% { transform: translateY(8px) rotate(-2deg); } }
+
+/* A card called Braaains shambles in; archived cards sink into the ground. */
+.card-tile.shambling { animation: ud-shamble 1.2s ease-in-out; }
+@keyframes ud-shamble {
+  0% { transform: translateY(40px) rotate(-3deg); opacity: 0; }
+  30% { transform: translateY(6px) rotate(2deg); opacity: 1; }
+  50% { transform: translateX(-6px) rotate(-2deg); }
+  70% { transform: translateX(5px) rotate(1.5deg); }
+  100% { transform: none; }
+}
+.card-tile.sinking { animation: ud-sink .42s ease-in forwards; pointer-events: none; }
+@keyframes ud-sink { to { transform: translateY(28px) rotate(2deg); opacity: 0; clip-path: inset(0 0 100% 0); } }
+@media (prefers-reduced-motion: reduce) { .undead-mark .ud-hand, .card-tile.shambling, .card-tile.sinking { animation: none !important; } }
+html[data-reducemotion] .undead-mark .ud-hand { animation: none !important; }
+
+.halloween-hint { display: block; margin-top: 10px; font-style: italic; color: var(--muted); }

@@ -1,4 +1,5 @@
 import type { Board, Card, List } from "./types";
+import { sinkCard } from "./undead";
 import { useStore } from "./store";
 import { ask } from "./components/ui";
 
@@ -51,7 +52,8 @@ export async function deleteCard(card: Card) {
   st.toast(`Deleted “${card.title}”`, { undo: true });
 }
 
-export function archiveCard(card: Card) {
+export async function archiveCard(card: Card) {
+  await sinkCard(card.id);
   const st = useStore.getState();
   st.updateCard(card.id, { archived: true });
   st.toast(`Archived “${card.title}”`, { undo: true });

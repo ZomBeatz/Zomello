@@ -52,6 +52,7 @@ import { DropOverlay } from "./components/DropOverlay";
 import { AiDialog } from "./components/AiDialog";
 import { ConnectionBanner, SecureBanner } from "./components/RemoteGate";
 import { WelcomeGuide } from "./components/WelcomeGuide";
+import { watchForBraaains } from "./undead";
 
 const DENSITY = { compact: "13px", normal: "14px", comfortable: "15.5px" };
 
@@ -96,12 +97,14 @@ export default function App() {
     const a = startReminders();
     const w = installWidget();
     const b = startFocusWatcher();
-    // Buckets that archive completed cards after a while: check now, then every hour.
-    const sweep = () => useStore.getState().sweepArchive();
+    // Bucket rules that run on a clock (Tidy up, late cards): check now, then every hour.
+    const sweep = () => useStore.getState().sweepRules();
     sweep();
     const h = setInterval(sweep, 3_600_000);
     return () => (a(), b(), w(), clearInterval(h));
   }, [loaded]);
+  // Easter egg: a card called "Braaains" (watched in one window only, so it toasts once).
+  useEffect(() => (loaded && !isExtraWindow ? watchForBraaains() : undefined), [loaded]);
 
   // Android: text shared to Zomello from another app opens Quick add (wherever its boards are).
   useEffect(() => {
