@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Check, CheckCircle2, CircleDashed, CircleDot, CirclePause, Hourglass, X } from "lucide-react";
 import type { Priority, Progress } from "../types";
 import { colorFor, initials, PALETTE, priorityMeta, safeArea } from "../utils";
+import { useStore } from "../store";
 
 export function Modal({
   onClose,
@@ -133,11 +134,24 @@ export function Avatar({ name, size = 24 }: { name: string; size?: number }) {
 }
 
 export function ProgressIcon({ progress, size = 16 }: { progress: Progress; size?: number }) {
+  const undead = useStore((s) => s.data.settings.style === "undead");
+  if (progress === "completed" && undead) return <Tombstone size={size} />;
   if (progress === "completed") return <CheckCircle2 size={size} className="prog-done" />;
   if (progress === "inProgress") return <CircleDot size={size} className="prog-doing" />;
   if (progress === "waiting") return <Hourglass size={size} className="prog-waiting" />;
   if (progress === "onHold") return <CirclePause size={size} className="prog-hold" />;
   return <CircleDashed size={size} className="prog-todo" />;
+}
+
+/** Undead style: finished tasks are laid to rest. */
+function Tombstone({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="prog-done tombstone" aria-hidden="true">
+      <path d="M6 21V10a6 6 0 0 1 12 0v11" />
+      <path d="M3 21h18" />
+      <path d="M12 9v6M9.5 11.5h5" />
+    </svg>
+  );
 }
 
 export function PriorityBadge({ priority, showLow = false }: { priority: Priority; showLow?: boolean }) {

@@ -105,7 +105,7 @@ describe("more bucket rules", () => {
     const fresh = st().createCard(b.done, "Fresh");
     const open = st().createCard(b.done, "Reopened", { progress: "inProgress" });
     useStore.setState((s) => ({ data: { ...s.data, cards: { ...s.data.cards, [old]: { ...s.data.cards[old], completedAt: Date.now() - 8 * 86_400_000 } } } }));
-    expect(st().sweepArchive()).toBe(1);
+    expect(st().sweepRules()).toBe(1);
     expect(card(old).archived).toBe(true);
     expect(card(fresh).archived).toBe(false);
     expect(card(open).archived).toBe(false);
@@ -117,6 +117,64 @@ describe("more bucket rules", () => {
     const copy = st().duplicateBoard(b.id);
     const lists = Object.values(st().data.lists).filter((l) => l.boardId === copy).sort((x, y) => x.order - y.order);
     expect(lists[1].checkedMoveTo).toBe(lists[2].id);
+  });
+});
+
+describe("late cards, cards already here, and rule history", () => {
+  const yesterday = () => utils.toISO(new Date(Date.now() - 86_400_000));
+
+  it("moves late cards and raises their priority, leaving finished ones alone", () => {
+    const b = board();
+    st().updateList(b.todo, { lateMoveTo: b.doing, latePriority: "urgent" });
+    const late = st().createCard(b.todo, "Late", { dueDate: yesterday() });
+    const done = st().createCard(b.todo, "Done late", { dueDate: yesterday(), progress: "completed" });
+    const fine = st().createCard(b.todo, "Not due", { dueDate: "2099-01-01" });
+    expect(st().sweepRules()).toBe(1);
+    expect(card(late).listId).toBe(b.doing);
+    expect(card(late).priority).toBe("urgent");
+    // The bucket it lands in has its own rules too (In progress).
+    expect(card(late).progress).toBe("inProgress");
+    expect(card(done).listId).toBe(b.todo);
+    expect(card(fine).listId).toBe(b.todo);
+  });
+
+  it("says in the card's history which bucket's rule changed it", () => {
+    const b = board();
+    st().updateList(b.doing, { arriveAssignees: ["Pat"] });
+    const c = st().createCard(b.todo, "Card");
+    st().moveCardToList(c, b.doing);
+    const act = card(c).activity;
+    expect(act.find((a) => a.kind === "moved")?.rule).toBeUndefined();
+    expect(act.find((a) => a.kind === "assigned")?.rule).toBe(b.doing);
+    expect(act.find((a) => a.kind === "progress")?.rule).toBe(b.doing);
+    // A change you make yourself afterwards isn't tagged.
+    st().updateCard(c, { priority: "urgent" });
+    expect(card(c).activity.find((a) => a.kind === "priority")?.rule).toBeUndefined();
+  });
+
+  it("applies a bucket's rules to the cards already in it", () => {
+    const b = board();
+    const a = st().createCard(b.doing, "A", { progress: "notStarted" });
+    const finished = st().createCard(b.doing, "Finished", { progress: "completed" });
+    const skip = st().createCard(b.doing, "Skip", { skipRules: true });
+    st().updateList(b.doing, { arriveAssignees: ["Sam"], checkedMoveTo: b.done });
+    const ticked = st().createCard(b.todo, "Ticked", { checklist: [{ id: "x", text: "x", done: true }] });
+    st().moveCardToList(ticked, b.doing);
+    expect(st().applyBucketRules(b.doing)).toBe(3);
+    expect(card(a).assignees).toEqual(["Sam"]);
+    expect(card(a).progress).toBe("inProgress");
+    // Not reopened by "Set progress: In progress".
+    expect(card(finished).progress).toBe("completed");
+    expect(card(skip).assignees).toEqual([]);
+    expect(card(ticked).listId).toBe(b.done);
+  });
+});
+
+describe("the Undead Easter egg", () => {
+  it("knows its braaains", async () => {
+    const { isBraaains } = await import("./undead");
+    for (const t of ["Braaains", "braaaaaaains!", " BRAAAINS ", "Braaain"]) expect(isBraaains(t)).toBe(true);
+    for (const t of ["Brains", "Braaains for dinner", "Rain"]) expect(isBraaains(t)).toBe(false);
   });
 });
 
@@ -140,7 +198,7 @@ describe("skip bucket rules", () => {
     st().updateList(b.done, { archiveAfterDays: 1 });
     const c = st().createCard(b.done, "Brand colors", { skipRules: true, progress: "completed" });
     useStore.setState((s) => ({ data: { ...s.data, cards: { ...s.data.cards, [c]: { ...s.data.cards[c], completedAt: Date.now() - 5 * 86_400_000 } } } }));
-    expect(st().sweepArchive()).toBe(0);
+    expect(st().sweepRules()).toBe(0);
     st().moveCardToList(c, b.todo);
     expect(card(c).progress).toBe("completed");
   });

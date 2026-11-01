@@ -71,6 +71,8 @@ export interface Activity {
   kind: ActivityKind;
   from?: string | null;
   to?: string | null;
+  /** Made by a bucket rule: the bucket whose rule it was. */
+  rule?: ID;
 }
 
 export interface TimeEntry {
@@ -175,6 +177,10 @@ export interface List {
   checkedMoveTo?: ID | null;
   /** Completed cards in this bucket are archived once they've been completed this many days. */
   archiveAfterDays?: number | null;
+  /** Open cards here that are past their due date move to this bucket (same board)... */
+  lateMoveTo?: ID | null;
+  /** ...and/or get this priority. */
+  latePriority?: Priority | null;
   /** Per-bucket override of the board's "hide ticked checklist items on cards". */
   hideChecked?: boolean;
 }
@@ -382,7 +388,7 @@ export interface Settings {
   features?: Partial<Record<import("./features").Feature, boolean>>;
 }
 
-export type AppStyle = "classic" | "bassdrop" | "partycat";
+export type AppStyle = "classic" | "bassdrop" | "partycat" | "undead";
 
 /** A reusable card blueprint. Labels are stored by name so templates work on any board. */
 export interface CardTemplate {

@@ -153,6 +153,11 @@ export function SettingsPage() {
                   🐱 Party Cat
                 </button>
               )}
+              {settings.unlockedStyles.includes("undead") && (
+                <button className={settings.style === "undead" ? "active" : ""} onClick={() => updateSettings({ style: "undead" })}>
+                  🧟 Undead
+                </button>
+              )}
             </div>
             <button
               className="btn ghost sm"
@@ -168,11 +173,12 @@ export function SettingsPage() {
             </button>
           </div>
         )}
-        {settings.unlockedStyles.length > 0 && inTauri && (
+        {settings.unlockedStyles.some((s) => s !== "undead") && inTauri && (
           <div className="field-row">
             <label>App icon</label>
             <div className="seg">
-              {(["classic", ...settings.unlockedStyles] as AppStyle[]).map((s) => (
+              {/* Undead has no app icon (yet). */}
+              {(["classic", ...settings.unlockedStyles.filter((s) => s !== "undead")] as AppStyle[]).map((s) => (
                 <button key={s} className={(settings.appIcon ?? "classic") === s ? "active" : ""} onClick={() => updateSettings({ appIcon: s })}>
                   {s === "classic" ? "Classic" : s === "bassdrop" ? "Bass Drop" : "Party Cat"}
                 </button>
@@ -194,12 +200,13 @@ export function SettingsPage() {
           <div className="swatches">
             <button
               className={`swatch none ${settings.accent === null ? "sel" : ""}`}
-              title={{ classic: "Zomello blue", bassdrop: "Bass Drop pink", partycat: "Party Cat teal" }[settings.style] + " (default)"}
+              title={{ classic: "Zomello blue", bassdrop: "Bass Drop pink", partycat: "Party Cat teal", undead: "Undead slime green" }[settings.style] + " (default)"}
               style={{
                 background: {
                   classic: "linear-gradient(135deg, #2580c3, #4fb0ec)",
                   bassdrop: "linear-gradient(135deg, #ff3fa4, #22e1ff)",
                   partycat: "linear-gradient(135deg, #3dd6d0, #ff5e7e)",
+                  undead: "linear-gradient(135deg, #8fd14f, #b3261e)",
                 }[settings.style],
               }}
               onClick={() => updateSettings({ accent: null })}

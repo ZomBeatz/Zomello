@@ -6,6 +6,7 @@ import { useStore } from "../store";
 import { byOrder, cardSpan, prettyDate, toISO, todayISO } from "../utils";
 import { Empty } from "./ui";
 import { TaskRow } from "./MyTasksPage";
+import { isHalloween } from "../undead";
 import { myDayLists } from "../myDay";
 import { useWhen, withWhen } from "./WhenChip";
 
@@ -159,6 +160,7 @@ export function MyDayPage() {
       {nothing && (
         <Empty icon={<Sun size={32} />} title="Nothing planned for today">
           {leftovers.length > 0 ? "Add back what's not finished from earlier, add" : "Add"} a task above, pick some from Suggestions, or use <b>Add to My Day</b> in any card's menu.
+          {isHalloween() && <span className="halloween-hint">Nothing here... yet. Something is stirring. It wants braaains.</span>}
         </Empty>
       )}
 

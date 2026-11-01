@@ -8,6 +8,7 @@ export function LogoMark({ size = 28, animate = false }: { size?: number; animat
   const style = useStore((s) => s.data.settings.style);
   if (style === "bassdrop") return <BassDropMark size={size} animate={animate} />;
   if (style === "partycat") return <PartyCatMark size={size} animate={animate} />;
+  if (style === "undead") return <UndeadMark size={size} animate={animate} />;
   return (
     <svg width={size} height={size} viewBox="48 48 928 928" aria-hidden="true">
       <defs>
@@ -116,6 +117,60 @@ function PartyCatMark({ size, animate }: { size: number; animate: boolean }) {
       <path d="M 830 752 C 912 752 936 668 900 604 C 880 566 896 520 936 528" fill="none" stroke="#0a0c10" strokeWidth="56" strokeLinecap="round" />
       <path d="M 830 752 C 912 752 936 668 900 604 C 880 566 896 520 936 528" fill="none" stroke="#8a847b" strokeWidth="34" strokeLinecap="round" />
       <path d="M 884 734 L 896 712 M 910 676 L 888 664 M 888 618 L 910 600" stroke="#5c574f" strokeWidth="11" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/**
+ * Undead: the headphones in slime green over a graveyard at night: the columns are tombstones, and a
+ * zombie hand claws up out of the ground in the middle. The hand rises on hover.
+ */
+function UndeadMark({ size, animate }: { size: number; animate: boolean }) {
+  const stone = (x: number, y: number) => `M ${x} 764 V ${y + 48} A 48 48 0 0 1 ${x + 96} ${y + 48} V 764 Z`;
+  return (
+    <svg width={size} height={size} viewBox="48 48 928 928" aria-hidden="true" className={`undead-mark ${animate ? "rising" : ""}`}>
+      <defs>
+        <linearGradient id="ud-bg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#1b2a20" />
+          <stop offset="1" stopColor="#0a110c" />
+        </linearGradient>
+        <linearGradient id="ud-stone" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#a7ae9c" />
+          <stop offset="1" stopColor="#6b7366" />
+        </linearGradient>
+        <clipPath id="ud-ground">
+          <rect x="48" y="48" width="928" height="716" />
+        </clipPath>
+      </defs>
+      <rect x="48" y="48" width="928" height="928" rx="208" fill="url(#ud-bg)" />
+      {/* full moon */}
+      <circle cx="786" cy="226" r="92" fill="#e8e4c9" opacity=".9" />
+      <circle cx="756" cy="204" r="16" fill="#cfcab0" opacity=".7" />
+      <circle cx="812" cy="262" r="11" fill="#cfcab0" opacity=".6" />
+      <path d="M 214 600 A 298 298 0 0 1 810 600" fill="none" stroke="#050806" strokeWidth="64" strokeLinecap="round" />
+      <path d="M 214 600 A 298 298 0 0 1 810 600" fill="none" stroke="#8fd14f" strokeWidth="30" strokeLinecap="round" />
+      <rect x="196" y="500" width="84" height="264" rx="30" fill="#8fd14f" />
+      <rect x="150" y="522" width="86" height="220" rx="30" fill="#050806" />
+      <rect x="744" y="500" width="84" height="264" rx="30" fill="#8fd14f" />
+      <rect x="788" y="522" width="86" height="220" rx="30" fill="#050806" />
+      {/* tombstones for columns */}
+      <path d={stone(334, 440)} fill="url(#ud-stone)" />
+      <path d="M 382 520 V 600 M 356 552 H 408" stroke="#4b5246" strokeWidth="14" strokeLinecap="round" />
+      <path d={stone(594, 590)} fill="url(#ud-stone)" opacity=".85" />
+      {/* the hand, clawing up from the ground */}
+      <g clipPath="url(#ud-ground)">
+        <g className="ud-hand" fill="#8fbf6a" stroke="#050806" strokeWidth="12" strokeLinejoin="round">
+          <path d="M 488 780 L 492 640 L 540 640 L 546 780 Z" />
+          <path d="M 470 650 Q 466 590 480 556 L 556 556 Q 566 600 560 650 Z" />
+          <rect x="474" y="478" width="22" height="92" rx="11" transform="rotate(-8 485 524)" />
+          <rect x="500" y="452" width="22" height="112" rx="11" />
+          <rect x="526" y="466" width="22" height="100" rx="11" transform="rotate(6 537 516)" />
+          <rect x="548" y="500" width="20" height="74" rx="10" transform="rotate(16 558 537)" />
+          <rect x="430" y="574" width="62" height="22" rx="11" transform="rotate(-28 461 585)" />
+        </g>
+      </g>
+      {/* fresh earth */}
+      <path d="M 300 772 Q 512 712 724 772 Z" fill="#2c3a25" />
     </svg>
   );
 }

@@ -912,7 +912,10 @@ function ActivitySection({ card }: { card: Card }) {
           {shown.map((a, i) => (
             <li key={i}>
               <span className="activity-dot" />
-              <span className="grow">{describe(a)}</span>
+              <span className="grow">
+                {describe(a)}
+                {a.rule && <span className="muted"> · bucket rule in {listName(a.rule)}</span>}
+              </span>
               <span className="muted small" title={format(a.at, "PPpp")}>
                 {timeAgo(a.at)}
               </span>

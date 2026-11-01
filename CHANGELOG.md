@@ -17,6 +17,15 @@
 - **When the whole checklist is ticked:** complete the card and/or move it to another bucket.
 - **Tidy up:** archive completed cards after a day, a few days, a week or a month.
 - **Skip bucket rules** on a card (its menu, the card itself, or several selected cards at once): moving it, ticking its checklist and Tidy up leave it alone. Handy for a reference card that lives in Done. A small icon on the card shows it's on.
+- **Late cards:** cards in a bucket that go past their due date can move to another bucket and/or get a new priority, for example "Urgent".
+- **Apply to the cards already here:** rules act on cards as they arrive; one click in the rules window gives the cards already in the bucket the same treatment.
+- **A card's Activity says when a bucket rule made a change**, and which bucket's rule it was.
+
+**Due today, at a glance**
+- **"2 late" and "3 due today"** show next to the board's Filter button when cards need you. Click one to see only those cards, and again to see everything.
+
+**Changing selected cards**
+- **Fields** in the bar sets a custom field on every selected card at once.
 
 **Filters**
 - **Blocked** / **Not blocked**, **No labels**, **Not** a label, and filters for custom fields.
