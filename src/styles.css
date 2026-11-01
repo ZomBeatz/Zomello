@@ -1880,4 +1880,15 @@ html[data-reducemotion] .partycat-mark { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .undead-mark .ud-hand, .card-tile.shambling, .card-tile.sinking { animation: none !important; } }
 html[data-reducemotion] .undead-mark .ud-hand { animation: none !important; }
 
+.wordmark .moon-o {
+  width: .62em; height: .62em; margin-left: .04em; vertical-align: -.04em;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, #e8e4c9 55%, transparent));
+}
+/* Light: a pale moon needs an outline to show on parchment. */
+:root[data-style="undead"]:not([data-theme="dark"]) .wordmark .moon-o { filter: none; }
+:root[data-style="undead"]:not([data-theme="dark"]) .wordmark .moon-o circle:first-child { fill: #ebe3bf; stroke: #5f604b; stroke-width: 1.6; }
+@media (prefers-color-scheme: dark) {
+  :root[data-style="undead"]:not([data-theme="light"]) .wordmark .moon-o { filter: drop-shadow(0 0 6px color-mix(in srgb, #e8e4c9 55%, transparent)); }
+  :root[data-style="undead"]:not([data-theme="light"]) .wordmark .moon-o circle:first-child { fill: #e8e4c9; stroke: none; }
+}
 .halloween-hint { display: block; margin-top: 10px; font-style: italic; color: var(--muted); }

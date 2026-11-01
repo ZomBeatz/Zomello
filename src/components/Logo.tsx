@@ -157,16 +157,23 @@ function UndeadMark({ size, animate }: { size: number; animate: boolean }) {
       <path d={stone(334, 440)} fill="url(#ud-stone)" />
       <path d="M 382 520 V 600 M 356 552 H 408" stroke="#4b5246" strokeWidth="14" strokeLinecap="round" />
       <path d={stone(594, 590)} fill="url(#ud-stone)" opacity=".85" />
-      {/* the hand, clawing up from the ground */}
+      {/* the hand, clawing up from the ground: drawn twice, dark then green, so it has one outline */}
       <g clipPath="url(#ud-ground)">
-        <g className="ud-hand" fill="#8fbf6a" stroke="#050806" strokeWidth="12" strokeLinejoin="round">
-          <path d="M 488 780 L 492 640 L 540 640 L 546 780 Z" />
-          <path d="M 470 650 Q 466 590 480 556 L 556 556 Q 566 600 560 650 Z" />
-          <rect x="474" y="478" width="22" height="92" rx="11" transform="rotate(-8 485 524)" />
-          <rect x="500" y="452" width="22" height="112" rx="11" />
-          <rect x="526" y="466" width="22" height="100" rx="11" transform="rotate(6 537 516)" />
-          <rect x="548" y="500" width="20" height="74" rx="10" transform="rotate(16 558 537)" />
-          <rect x="430" y="574" width="62" height="22" rx="11" transform="rotate(-28 461 585)" />
+        <g className="ud-hand">
+          {(["#050806", "#8fbf6a"] as const).map((color, i) => (
+            <g key={color} fill="none" stroke={color} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M 515 800 V 640" strokeWidth={56 + (1 - i) * 24} />
+              <path d="M 515 628 V 588" strokeWidth={82 + (1 - i) * 24} />
+              <path d="M 485 576 L 474 522 L 484 492" strokeWidth={22 + (1 - i) * 24} />
+              <path d="M 507 570 L 504 506 L 513 468" strokeWidth={22 + (1 - i) * 24} />
+              <path d="M 529 572 L 536 514 L 548 486" strokeWidth={22 + (1 - i) * 24} />
+              <path d="M 548 592 L 563 550 L 577 532" strokeWidth={19 + (1 - i) * 24} />
+              <path d="M 482 626 L 452 600 L 446 572" strokeWidth={26 + (1 - i) * 24} />
+            </g>
+          ))}
+          {/* knuckles and a torn sleeve */}
+          <path d="M 490 596 Q 497 590 504 596 M 512 594 Q 519 588 526 594 M 533 598 Q 540 592 547 598" fill="none" stroke="#5f8a45" strokeWidth="6" strokeLinecap="round" />
+          <path d="M 472 690 H 558 L 562 742 L 546 728 L 532 746 L 516 730 L 500 748 L 486 730 L 468 744 Z" fill="#4b4560" stroke="#050806" strokeWidth="12" strokeLinejoin="round" />
         </g>
       </g>
       {/* fresh earth */}
@@ -176,6 +183,23 @@ function UndeadMark({ size, animate }: { size: number; animate: boolean }) {
 }
 
 export function Wordmark() {
+  const style = useStore((s) => s.data.settings.style);
+  // Undead: the last "o" is a full moon.
+  if (style === "undead")
+    return (
+      <span className="wordmark" aria-label="Zomello">
+        <span aria-hidden="true">Zom</span>
+        <span aria-hidden="true">
+          ell
+          <svg className="moon-o" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" fill="#e8e4c9" />
+            <circle cx="8.5" cy="9" r="2.4" fill="#cfcab0" />
+            <circle cx="15" cy="14.5" r="1.7" fill="#cfcab0" />
+            <circle cx="10" cy="16" r="1.1" fill="#cfcab0" />
+          </svg>
+        </span>
+      </span>
+    );
   return (
     <span className="wordmark">
       Zom<span>ello</span>
