@@ -14,10 +14,9 @@ const CONFIG = {
   GROUP: 'zomello-testers@zombeatzmedia.com',
   // Play Console > Zomello > Closed testing > your track > Testers > "Join on Android" link.
   PLAY_OPT_IN: 'https://play.google.com/apps/testing/com.zombeatz.zomello',
-  // App Store Connect > TestFlight > your external group > Public link. Ours is
-  // https://testflight.apple.com/join/WJUtJKEN but only fill it in once a build passes Beta App Review;
-  // before that the link just says the beta isn't accepting testers.
-  TESTFLIGHT: '',
+  // App Store Connect > TestFlight > your external group > Public link. Fill it in once a build
+  // passes Beta App Review; before that the link just says the beta isn't accepting testers.
+  TESTFLIGHT: 'https://testflight.apple.com/join/WJUtJKEN',
   RELEASES: 'https://github.com/ZomBeatz/Zomello/releases/latest',
   SERVER_GUIDE: 'https://docs.zombeatzmedia.com/zomello/server',
   GUIDE: 'https://docs.zombeatzmedia.com/zomello/',
