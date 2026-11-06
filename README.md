@@ -8,10 +8,11 @@
 <p align="center">
   <b>A planner for any occasion.</b><br>
   A free kanban board and task planner, similar to Trello and Microsoft Planner.<br>
-  Use it on Windows, Linux and Android, or self-host it on your own server with Docker.
+  Use it on Windows, Linux, Android, iPhone and iPad, or self-host it on your own server with Docker.
 </p>
 
 <p align="center">
+  <a href="https://apps.apple.com/app/zomello/id6826080954"><img alt="Download on the App Store" src="https://img.shields.io/badge/iPhone_%26_iPad-App_Store-2580c3?style=for-the-badge&logo=apple&logoColor=white"></a>
   <a href="https://github.com/ZomBeatz/Zomello/releases/latest"><img alt="Download for Windows" src="https://img.shields.io/badge/Windows-Download-2580c3?style=for-the-badge&logo=windows&logoColor=white"></a>
   <a href="https://github.com/ZomBeatz/Zomello/releases/latest"><img alt="Download for Linux" src="https://img.shields.io/badge/Linux-Download-2580c3?style=for-the-badge&logo=linux&logoColor=white"></a>
   <a href="https://github.com/ZomBeatz/Zomello/releases/latest"><img alt="Download for Android" src="https://img.shields.io/badge/Android-APK-2580c3?style=for-the-badge&logo=android&logoColor=white"></a>
@@ -29,7 +30,7 @@
 
 **Just want to look around?** Try the [online demo](https://zombeatz.github.io/Zomello/) in your browser. Nothing to install, and your changes only stay in your own browser.
 
-**Want to help test?** [Join the Zomello beta](https://docs.zombeatzmedia.com/zomello/help-test) and test it on Android, iPhone or iPad before it reaches the app stores.
+**Want to help test?** [Join the Zomello beta](https://docs.zombeatzmedia.com/zomello/help-test) and try new versions on Android, iPhone or iPad before everyone else.
 
 1. **Download** the file for your device from the [latest release](https://github.com/ZomBeatz/Zomello/releases/latest) (under **Assets** at the bottom):
 
@@ -37,6 +38,7 @@
    |---|---|---|
    | **Windows 10/11** | `Zomello_(version)_x64-setup.exe` | Open it. If Windows says *"Windows protected your PC"*, click **More info > Run anyway**. |
    | **Linux** | `.deb` (Ubuntu, Mint, Debian), `.rpm` (Fedora, openSUSE) or `.AppImage` (any) | Open it with your software installer. For the AppImage: right-click > Properties > allow running, then open it. |
+   | **iPhone or iPad** | Nothing here: get it from the [App Store](https://apps.apple.com/app/zomello/id6826080954) | Updates come through the App Store. |
    | **Android** | `Zomello.apk`, or [join the beta](https://docs.zombeatzmedia.com/zomello/help-test) to get it from Google Play with automatic updates | Open the APK on the phone and allow installing from your browser or Files app when asked. |
 
 2. **Open Zomello.** A *Getting started* board walks you through the basics.
