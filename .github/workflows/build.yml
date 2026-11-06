@@ -1,9 +1,13 @@
-# Builds the Zomello apps on GitHub's machines: Windows, Linux and Android.
+# Builds the Zomello apps on GitHub's machines: Windows, Linux, Mac and Android.
 # Run it from the Actions tab ("Run workflow"), or push a tag like v0.2.0.
 # Every run keeps the files under the run's "Artifacts"; a tag also makes a draft release with them.
 #
 # Optional secrets (Settings → Secrets and variables → Actions):
 #   Android signing: ANDROID_KEYSTORE (base64), ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS
+#   Mac signing (Developer ID, so the .dmg opens without a warning): APPLE_CERTIFICATE (the .p12,
+#     base64), APPLE_CERTIFICATE_PASSWORD, and for notarizing APPLE_ID, APPLE_PASSWORD (an
+#     app-specific password from account.apple.com) and APPLE_TEAM_ID. Without them the Mac build
+#     is unsigned: it still works, but the Mac asks people to allow it in System Settings first.
 name: Build apps
 
 on:
@@ -25,6 +29,10 @@ jobs:
           - platform: ubuntu-22.04
             name: linux
             args: ""
+          # One .dmg for both Apple silicon and Intel Macs.
+          - platform: macos-latest
+            name: mac
+            args: "--target universal-apple-darwin --bundles app,dmg"
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
@@ -41,12 +49,40 @@ jobs:
           cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.name == 'mac' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
 
       - run: npm ci
+
+      # Only pass the Apple secrets on when they're set: an empty one would make the build try to
+      # sign with nothing and fail.
+      - name: Mac signing
+        if: matrix.name == 'mac'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE" ]; then
+            echo "::warning::No APPLE_CERTIFICATE secret: the Mac build is unsigned. See the top of this file."
+            exit 0
+          fi
+          {
+            echo "APPLE_CERTIFICATE=$APPLE_CERTIFICATE"
+            echo "APPLE_CERTIFICATE_PASSWORD=$APPLE_CERTIFICATE_PASSWORD"
+            echo "KEYCHAIN_PASSWORD=$(openssl rand -hex 16)"
+          } >> "$GITHUB_ENV"
+          if [ -n "$APPLE_ID" ] && [ -n "$APPLE_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            { echo "APPLE_ID=$APPLE_ID"; echo "APPLE_PASSWORD=$APPLE_PASSWORD"; echo "APPLE_TEAM_ID=$APPLE_TEAM_ID"; } >> "$GITHUB_ENV"
+          else
+            echo "::warning::APPLE_ID, APPLE_PASSWORD or APPLE_TEAM_ID missing: the Mac build is signed but not notarized."
+          fi
 
       - uses: tauri-apps/tauri-action@v0
         env:
@@ -66,6 +102,7 @@ jobs:
             src-tauri/target/release/bundle/appimage/*.AppImage
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/rpm/*.rpm
+            src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: error
 
   # Microsoft Store package (.msix). Upload it in Partner Center; the Store signs it, no certificate needed.
