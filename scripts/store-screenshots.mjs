@@ -4,8 +4,8 @@
 //   1. Here:  VITE_DEMO=1 npx vite --port 1420
 //   2. Here:  node scripts/store-screenshots.mjs [output folder]
 //
-// Needs Chromium (or set CHROME=/path/to/chrome). Writes iphone/*.png at 1320 × 2868 (6.9" iPhone)
-// and ipad/*.png at 2064 × 2752 (13" iPad), the sizes App Store Connect asks for.
+// Needs Chromium (or set CHROME=/path/to/chrome). Writes iphone/*.png at 1320 × 2868 (6.9" iPhone),
+// ipad/*.png at 2064 × 2752 (13" iPad) and mac/*.png at 2880 × 1800, sizes App Store Connect takes.
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir, homedir } from "node:os";
@@ -33,9 +33,9 @@ const ev = async (expr) => {
   if (r.result?.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description ?? r.result.exceptionDetails.text);
   return r.result?.result?.value;
 };
-const size = (w, h, scale) =>
+const size = (w, h, scale, mobile = true) =>
   Promise.all([
-    cdp("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: scale, mobile: true }),
+    cdp("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: scale, mobile }),
     cdp("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: "dark" }] }),
   ]);
 const capture = async () => (await cdp("Page.captureScreenshot", { format: "png" })).result.data;
@@ -75,19 +75,20 @@ async function screen(hash, prep = "") {
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 function framePage({ w, h, title, text, png, device }) {
   const phone = device === "iphone";
+  const mac = device === "mac";
   const pad = phone ? 110 : 150;
-  const frameW = phone ? w * 0.8 : w * 0.8;
-  const radius = phone ? 96 : 56;
+  const frameW = mac ? w * 0.72 : w * 0.8;
+  const radius = phone ? 96 : mac ? 30 : 56;
   return `<!doctype html><html><head><meta charset="utf-8"><style>
   html,body{margin:0;width:${w}px;height:${h}px;overflow:hidden}
   body{background:radial-gradient(120% 70% at 50% 0%,#24489c 0%,#152a63 45%,#0b1020 100%);font-family:Inter,"Noto Sans",sans-serif;color:#fff;display:flex;flex-direction:column;align-items:center}
-  .text{padding:${phone ? 150 : 130}px ${pad}px 0;text-align:center}
+  .text{padding:${phone ? 150 : mac ? 100 : 130}px ${pad}px 0;text-align:center}
   h1{font-family:"Open Sans",Inter,sans-serif;font-weight:700;font-size:${phone ? 104 : 112}px;line-height:1.08;letter-spacing:-.02em;margin:0}
   h1 em{font-style:normal;color:#4fb0ec}
-  p{font-size:${phone ? 50 : 52}px;line-height:1.35;color:#c9d3ea;margin:${phone ? 40 : 34}px auto 0;max-width:${phone ? 1080 : 1500}px}
-  .frame{margin-top:${phone ? 96 : 90}px;width:${frameW}px;border-radius:${radius}px;padding:${phone ? 18 : 16}px;background:#05070c;
+  p{font-size:${phone ? 50 : 52}px;line-height:1.35;color:#c9d3ea;margin:${phone ? 40 : mac ? 24 : 34}px auto 0;max-width:${phone ? 1080 : 1500}px}
+  .frame{margin-top:${phone ? 96 : mac ? 70 : 90}px;width:${frameW}px;border-radius:${radius}px;padding:${phone ? 18 : mac ? 0 : 16}px;background:#05070c;
     box-shadow:0 0 0 3px #2a3550,0 60px 140px #00000080}
-  .frame img{display:block;width:100%;border-radius:${radius - (phone ? 18 : 16)}px}
+  .frame img{display:block;width:100%;border-radius:${radius - (phone ? 18 : mac ? 0 : 16)}px}
   </style></head><body><div class="text"><h1>${title}</h1><p>${esc(text)}</p></div>
   <div class="frame"><img src="data:image/png;base64,${png}"></div></body></html>`;
 }
@@ -129,16 +130,29 @@ const ipad = [
   ["5-home", "#/home", "", "Nothing <em>slips</em>", "Home gathers what's late, due today and coming up, from every board."],
 ];
 
-const only = process.env.ONLY; // e.g. ONLY=ipad/4-rules to redo one picture
+// ---- Mac: a 1280 × 800 window at 2x ----
+const MAC_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15";
+const mac = [
+  ["1-board", `#/board/${WEB}`, "", "Plan <em>anything</em>", "Boards, buckets and cards for work, home and everything in between."],
+  ["2-card", `#/board/${WEB}`, `${store} st.openCard(${JSON.stringify(cardId("Homepage redesign"))});`, "Every detail, <em>one card</em>", "Dates, checklists, notes, files and reminders."],
+  ["3-calendar", `#/board/${WEB}`, `${click(".view-tabs button", "Calendar")} ${pause(400)} ${click(".cal-views button", "Week")}`, "See your <em>week</em>", "Day, week and month views, with times."],
+  ["4-rules", `#/board/${WEB}`, openBucketRules, "Let buckets <em>do the busywork</em>", "Cards dropped in a bucket can get a date, label or checklist on their own."],
+  ["5-home", "#/home", "", "Nothing <em>slips</em>", "Home gathers what's late, due today and coming up, from every board."],
+];
+
+const only = process.env.ONLY; // e.g. ONLY=mac, or ONLY=ipad/4-rules to redo one picture
 for (const [device, ua, list, sw, sh, scale, w, h] of [
   ["iphone", IPHONE_UA, iphone, 440, 956, 3, 1320, 2868],
   ["ipad", IPAD_UA, ipad, 1032, 1376, 2, 2064, 2752],
+  ["mac", MAC_UA, mac, 1280, 800, 2, 2880, 1800],
 ]) {
+  if (only && !only.startsWith(`${device}/`) && only !== device) continue;
   mkdirSync(join(OUT, device), { recursive: true });
   for (const [name, hash, prep, title, text] of list) {
-    if (only && only !== `${device}/${name}`) continue;
+    if (only && only !== device && only !== `${device}/${name}`) continue;
     await cdp("Emulation.setUserAgentOverride", { userAgent: ua });
-    await size(sw, sh, scale);
+    await cdp("Emulation.setTouchEmulationEnabled", { enabled: device !== "mac", maxTouchPoints: 5 });
+    await size(sw, sh, scale, device !== "mac");
     const png = await screen(hash, prep);
     await compose(join(OUT, device, `${name}.png`), { w, h, title, text, png, device });
   }
