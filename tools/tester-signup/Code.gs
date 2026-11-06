@@ -90,8 +90,8 @@ const WAITING = {
     column: 'TestFlight',
     link: () => CONFIG.TESTFLIGHT,
     setting: 'CONFIG.TESTFLIGHT',
-    subject: `${SUBJECT}: iPhone and iPad are ready to test`,
-    body: (link) => `The iPhone and iPad test for Zomello is open. Install the free TestFlight app from the App Store, then open this link on your device:\n${link}`,
+    subject: `${SUBJECT}: iPhone, iPad and Mac are ready to test`,
+    body: (link) => `The iPhone, iPad and Mac test for Zomello is open. Install the free TestFlight app from the App Store, then open this link on your iPhone, iPad or Mac:\n${link}`,
   },
 };
 
@@ -174,7 +174,7 @@ function processRow_(sheet, row) {
   const to = get(Q.contact) || play || apple;
   const wants = {
     android: /android/i.test(devices),
-    apple: /iphone|ipad/i.test(devices),
+    apple: /iphone|ipad|mac/i.test(devices),
     computer: /computer/i.test(devices),
     server: /server/i.test(devices),
   };
@@ -202,7 +202,7 @@ function processRow_(sheet, row) {
 
   if (wants.android) set('Play link', CONFIG.PLAY_OPT_IN ? 'Link sent ' + today_() : 'Waiting for link');
 
-  // 2. iPhone and iPad: the public TestFlight link, or a note to send it later.
+  // 2. iPhone, iPad and Mac: the public TestFlight link, or a note to send it later.
   if (wants.apple) set('TestFlight', CONFIG.TESTFLIGHT ? 'Link sent ' + today_() : 'Waiting for link');
 
   // 3. The welcome email.
@@ -229,8 +229,8 @@ function welcomeText_(first, wants) {
   }
   if (wants.apple) {
     parts.push(CONFIG.TESTFLIGHT
-      ? `# iPhone or iPad\n1. Install the free TestFlight app from the App Store.\n2. Open this link on your iPhone or iPad:\n${CONFIG.TESTFLIGHT}`
-      : '# iPhone or iPad\nWe will email your TestFlight link as soon as the iPhone and iPad test opens. Installing the free TestFlight app from the App Store now saves a step.');
+      ? `# iPhone, iPad or Mac\n1. Install the free TestFlight app from the App Store.\n2. Open this link on your iPhone, iPad or Mac:\n${CONFIG.TESTFLIGHT}`
+      : '# iPhone, iPad or Mac\nWe will email your TestFlight link as soon as the Apple test opens. Installing the free TestFlight app from the App Store now saves a step.');
   }
   if (wants.computer) {
     parts.push(`# Computer\nDownload the file for Windows or Linux from:\n${CONFIG.RELEASES}`);
