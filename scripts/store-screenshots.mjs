@@ -63,7 +63,7 @@ async function screen(hash, prep = "") {
   await ev(`localStorage.setItem("zomello-data", ${JSON.stringify(JSON.stringify(data))}); location.reload();`).catch(() => {});
   await sleep(2200);
   // The demo's "Live demo" bar and toasts don't belong in a store picture.
-  await ev(`const s = document.createElement("style"); s.textContent = ".demo-banner,.toast-stack,.toasts{display:none!important}"; document.head.append(s);`);
+  await ev(`const s = document.createElement("style"); s.textContent = ".demo-banner,.toast-stack,.toasts,.sidebar-fade{display:none!important}"; document.head.append(s);`);
   if (prep) {
     await ev(prep);
     await sleep(900);
@@ -156,6 +156,37 @@ for (const [device, ua, list, sw, sh, scale, w, h] of [
     const png = await screen(hash, prep);
     await compose(join(OUT, device, `${name}.png`), { w, h, title, text, png, device });
   }
+}
+
+// ---- Product page header (3840 × 1646): the Mac and an iPhone on the gradient, no text (the App
+// Store puts the name and icon over it, and crops the edges on smaller screens). ----
+if (!only || only === "header") {
+  await cdp("Emulation.setUserAgentOverride", { userAgent: MAC_UA });
+  await cdp("Emulation.setTouchEmulationEnabled", { enabled: false });
+  await size(1440, 900, 2, false);
+  const macPng = await screen(`#/board/${WEB}`);
+  await cdp("Emulation.setUserAgentOverride", { userAgent: IPHONE_UA });
+  await cdp("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+  await size(440, 956, 3);
+  const phonePng = await screen("#/myday");
+  const [w, h] = [3840, 1646];
+  const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+  html,body{margin:0;width:${w}px;height:${h}px;overflow:hidden}
+  body{background:radial-gradient(90% 120% at 50% 0%,#24489c 0%,#152a63 50%,#0b1020 100%);position:relative}
+  .mac{position:absolute;left:50%;top:230px;width:2240px;transform:translateX(-58%);border-radius:28px;overflow:hidden;box-shadow:0 0 0 3px #2a3550,0 70px 160px #000000a0}
+  .mac img,.phone img{display:block;width:100%}
+  .phone{position:absolute;left:50%;top:420px;width:620px;transform:translateX(118%);border-radius:84px;padding:16px;background:#05070c;box-shadow:0 0 0 3px #2a3550,0 70px 160px #000000b0}
+  .phone img{border-radius:68px}
+  </style></head><body>
+  <div class="mac"><img src="data:image/png;base64,${macPng}"></div>
+  <div class="phone"><img src="data:image/png;base64,${phonePng}"></div></body></html>`;
+  await cdp("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile: false });
+  await cdp("Page.navigate", { url: "about:blank" });
+  await sleep(300);
+  await ev(`document.open(); document.write(${JSON.stringify(html)}); document.close(); ${pause(400)}`);
+  const file = join(OUT, "header-3840x1646.png");
+  writeFileSync(file, Buffer.from(await capture(), "base64"));
+  console.log("saved", file);
 }
 
 ws.close();
