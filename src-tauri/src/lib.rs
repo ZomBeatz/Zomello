@@ -14,6 +14,7 @@ mod link;
 #[cfg(desktop)]
 mod remote;
 mod link_client;
+mod logs;
 mod places;
 mod private;
 mod servers;
@@ -470,6 +471,7 @@ pub fn run() {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     }
 
+    logs::catch_panics();
     let builder = tauri::Builder::default();
     // Phones and tablets: scan the QR code your computer shows to connect to it.
     #[cfg(mobile)]
@@ -559,7 +561,10 @@ pub fn run() {
         backup::device_backups,
         backup::device_backup_read,
         backup::device_backup_delete,
-        backup::device_backup_file
+        backup::device_backup_file,
+        logs::log_write,
+        logs::log_read,
+        logs::log_clear
     ]);
     // Phones and tablets: the same app with its own boards, minus windows, tray and the phone server.
     #[cfg(mobile)]
@@ -594,7 +599,10 @@ pub fn run() {
         backup::backup_has_password,
         backup::backup_open,
         backup::backup_pending,
-        app_icon::set_app_icon
+        app_icon::set_app_icon,
+        logs::log_write,
+        logs::log_read,
+        logs::log_clear
     ]);
 
     builder
@@ -622,6 +630,7 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .invoke_handler(handlers)
         .setup(|app| {
+            logs::init(app.handle());
             #[cfg(desktop)]
             {
                 if let Some(window) = app.get_webview_window("main") {

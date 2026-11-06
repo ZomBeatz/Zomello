@@ -7,7 +7,11 @@ import { isRemote } from "./remote";
 import { isServer } from "./server";
 import { placeStartup } from "./places";
 import { isPhoneOrTablet } from "./storage";
+import { catchPageErrors } from "./logs";
 import "./styles.css";
+
+// Errors go to this device's log (Settings > About), for bug reports.
+catchPageErrors();
 
 // Touch screens get bigger targets in the stylesheet. iPads don't always say so in their media queries
 // (they can report a fine pointer), so mark them here too.

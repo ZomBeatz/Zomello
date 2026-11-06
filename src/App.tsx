@@ -393,7 +393,7 @@ function HelpWindow() {
             <b>Found a problem, or have an idea?</b>
             <p className="muted small">Send us an email. Your Zomello version and device are filled in for you.</p>
           </div>
-          <button className="btn" onClick={sendFeedback}>
+          <button className="btn" onClick={() => void sendFeedback()}>
             <MessageSquare size={14} /> Send feedback
           </button>
         </div>

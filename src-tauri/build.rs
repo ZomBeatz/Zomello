@@ -4,6 +4,9 @@ fn main() {
     // shown in the phone app gets only the few it needs (capabilities/places.json).
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(tauri_build::AppManifest::new().commands(&[
                 "load_data",
+                "log_write",
+                "log_read",
+                "log_clear",
                 "save_data",
                 "export_data",
                 "export_bytes",

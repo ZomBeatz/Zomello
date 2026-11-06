@@ -3,6 +3,8 @@ import { openWhatsNew } from "./WhatsNew";
 import { format } from "date-fns";
 import { Accessibility, Bell, Blocks, CalendarPlus, Download, FileUp, Minus, Plus, Eraser, LayoutTemplate, MessageSquare, Repeat, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
 import { sendFeedback } from "../feedback";
+import { clearLog, readLog } from "../logs";
+import { copyText } from "./Markdown";
 import { exportCalendarFile } from "../icsExport";
 import type { AppStyle, Settings, ViewMode } from "../types";
 import { normalize, useStore } from "../store";
@@ -557,6 +559,49 @@ function ZoomSlider({ zoom, onPreview }: { zoom: number; onPreview: (z: number |
 }
 
 /** Version and credits, plus three little beat pads (they sing; there may be a song in them). */
+/** About > Problem log: errors and crashes this device noted, to copy or save for a bug report. */
+function LogRow() {
+  const [lines, setLines] = useState<number | null>(null);
+  useEffect(() => void readLog().then((t) => setLines(t.split("\n").filter(Boolean).length)), []);
+  const { toast } = useStore.getState();
+  const withLog = async (use: (text: string) => Promise<unknown>) => {
+    const text = await readLog();
+    if (!text) return toast("The log is empty: nothing has gone wrong on this device.");
+    await use(`Zomello ${__APP_VERSION__} log\n\n${text}`);
+  };
+  return (
+    <p className="muted small about-log">
+      Problem log{lines !== null && `: ${lines} ${lines === 1 ? "line" : "lines"}`}, kept on this device only.{" "}
+      <button className="btn ghost sm" onClick={() => void withLog((t) => copyText(t, "Log copied"))}>
+        Copy
+      </button>
+      <button
+        className="btn ghost sm"
+        onClick={() =>
+          void withLog(async (t) => {
+            const saved = await exportFile(t, `zomello-log-${format(new Date(), "yyyy-MM-dd")}.txt`);
+            if (saved) toast(`Saved ${saved}`);
+          }).catch(() => toast("Couldn't save the log."))
+        }
+      >
+        Save
+      </button>
+      {!!lines && (
+        <button
+          className="btn ghost sm"
+          onClick={async () => {
+            if (!(await ask("Clear the problem log?", { okText: "Clear", danger: true }))) return;
+            await clearLog();
+            setLines(0);
+          }}
+        >
+          Clear
+        </button>
+      )}
+    </p>
+  );
+}
+
 function AboutPanel() {
   const [hit, setHit] = useState<Vowel | null>(null);
   const [bop, setBop] = useState(0);
@@ -588,9 +633,10 @@ function AboutPanel() {
               See the code
             </a>
           </p>
-          <button className="btn sm about-feedback" onClick={sendFeedback}>
+          <button className="btn sm about-feedback" onClick={() => void sendFeedback()}>
             <MessageSquare size={14} /> Send feedback
           </button>
+          <LogRow />
         </div>
         <div className="beat-pads" aria-label="Beat pads">
           {pads.map((p) => (

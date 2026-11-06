@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
+import { logViewCrash } from "../logs";
 
 /**
  * Keeps one broken view from blanking the whole app: shows the error with ways out.
@@ -21,6 +22,7 @@ export class ErrorBoundary extends Component<
 
   componentDidCatch(error: Error, info: { componentStack?: string | null }) {
     console.error("Zomello view crashed:", error, info.componentStack);
+    logViewCrash(error, info.componentStack);
   }
 
   render() {

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.1 (in progress)
+
+**Reporting problems**
+- **A problem log on each device:** errors and crashes are noted in a small file that never leaves the device. **Settings > About** shows how many lines it has and can **Copy**, **Save** or **Clear** it.
+- **Send feedback** adds the last few problems from the log to the email, so a bug report says what went wrong.
+- **Android crash reports in Play Console** are readable now: the app bundle carries the debug symbols Google asks for.
+
+**Behind the scenes**
+- Tauri and its plugins updated to their latest fixes. DOMPurify updated for a security fix.
+
 ## 0.6.0
 
 **Features: as simple or as full as you like**

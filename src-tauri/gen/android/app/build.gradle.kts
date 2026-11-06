@@ -24,6 +24,15 @@ val keystore = Properties().apply {
 
 android {
     compileSdk = 37
+    // The NDK the Rust build used (scripts/android-env.sh, or GitHub's). Gradle needs it to strip the
+    // app's native code and to save its debug symbols for Play Console.
+    System.getenv("NDK_HOME")?.let { home ->
+        ndkPath = home
+        val props = file("$home/source.properties")
+        if (props.exists()) {
+            ndkVersion = Properties().apply { props.inputStream().use { load(it) } }.getProperty("Pkg.Revision")
+        }
+    }
     signingConfigs {
         if (keystore.getProperty("storeFile") != null) {
             create("release") {
@@ -49,15 +58,22 @@ android {
             isDebuggable = true
             isJniDebuggable = true
             isMinifyEnabled = false
-            packaging {
-                jniLibs.keepDebugSymbols.add("*/arm64-v8a/*.so")
-                jniLibs.keepDebugSymbols.add("*/armeabi-v7a/*.so")
-                jniLibs.keepDebugSymbols.add("*/x86/*.so")
-                jniLibs.keepDebugSymbols.add("*/x86_64/*.so")
+            // `packaging` applies to every build type, so only keep the symbols when building a debug
+            // app; a release must be stripped (its symbols go to Play Console instead, see below).
+            if (gradle.startParameter.taskNames.any { it.contains("Debug", ignoreCase = true) }) {
+                packaging {
+                    jniLibs.keepDebugSymbols.add("*/arm64-v8a/*.so")
+                    jniLibs.keepDebugSymbols.add("*/armeabi-v7a/*.so")
+                    jniLibs.keepDebugSymbols.add("*/x86/*.so")
+                    jniLibs.keepDebugSymbols.add("*/x86_64/*.so")
+                }
             }
         }
         getByName("release") {
             signingConfigs.findByName("release")?.let { signingConfig = it }
+            // Puts the Rust code's symbols in the .aab (BUNDLE-METADATA/.../native-debug-symbols), so
+            // Play Console can show readable crash reports. The app itself still ships stripped.
+            ndk.debugSymbolLevel = "FULL"
             optimization {
                enable = true
             }
