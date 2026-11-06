@@ -45,6 +45,9 @@ const STATUS = ['Play added', 'Play link', 'TestFlight', 'Email sent', 'Notes', 
 // Every email's subject has "Zomello beta" in it, so one Gmail filter can sort them and the replies.
 const SUBJECT = 'Zomello beta';
 
+// The last line of every email. toHtml_ shows it smaller and grey.
+const OPT_OUT = 'Want to stop testing? Reply "stop" and we will take you off the list. You can also leave on your own: in the TestFlight app (Zomello > Stop Testing) or on the Google Play testing page (Leave the program).';
+
 /** Installable trigger: From spreadsheet > On form submit. */
 function onFormSubmit(e) {
   const lock = LockService.getScriptLock();
@@ -112,7 +115,7 @@ function sendWaiting_(kind) {
     const get = (q) => { const i = col_(head, q); return i < 0 ? '' : String(rows[r][i] || '').trim(); };
     const to = get(Q.contact) || get(Q.play) || get(Q.apple);
     if (!looksLikeEmail_(to)) continue;
-    const text = `Hi ${firstName_(get(Q.name))},\n\n${kind.body(link)}\n\nPlease keep Zomello installed for 14 days and tell us what you notice by replying to this email.\n\nThanks for helping,\nZomBeatz Media`;
+    const text = `Hi ${firstName_(get(Q.name))},\n\n${kind.body(link)}\n\nPlease keep Zomello installed for 14 days and tell us what you notice by replying to this email.\n\nThanks for helping,\nZomBeatz Media\n\n${OPT_OUT}`;
     GmailApp.sendEmail(to, kind.subject, text, {
       htmlBody: toHtml_(text), name: CONFIG.FROM_NAME, replyTo: CONFIG.REPLY_TO,
     });
@@ -146,7 +149,7 @@ function sendCheckIns() {
     const to = get(Q.contact) || get(Q.play) || get(Q.apple);
     if (!looksLikeEmail_(to)) continue;
     const end = Utilities.formatDate(new Date(start.getTime() + 14 * 24 * 60 * 60 * 1000), Session.getScriptTimeZone(), 'MMMM d');
-    const text = `Hi ${firstName_(get(Q.name))},\n\nYou've had Zomello for about a week now. How is it going?\n\nIf anything has been confusing, broken or missing, just reply to this email. A sentence is plenty. You can also use Send feedback in Zomello (Settings > About), which adds your version and device for you.\n\nOne more week to go: please keep Zomello installed until ${end} so the test counts.\n\nThanks for helping,\nZomBeatz Media`;
+    const text = `Hi ${firstName_(get(Q.name))},\n\nYou've had Zomello for about a week now. How is it going?\n\nIf anything has been confusing, broken or missing, just reply to this email. A sentence is plenty. You can also use Send feedback in Zomello (Settings > About), which adds your version and device for you.\n\nOne more week to go: please keep Zomello installed until ${end} so the test counts.\n\nThanks for helping,\nZomBeatz Media\n\n${OPT_OUT}`;
     GmailApp.sendEmail(to, `${SUBJECT}: how is it going?`, text, {
       htmlBody: toHtml_(text), name: CONFIG.FROM_NAME, replyTo: CONFIG.REPLY_TO,
     });
@@ -240,6 +243,7 @@ function welcomeText_(first, wants) {
     `# What we ask\nPlease keep Zomello installed for 14 days in a row and use it the way you normally would. When something is confusing, broken or missing, just reply to this email, or use Send feedback in Zomello (Settings > About). A sentence is plenty.`,
     `The guide is at ${CONFIG.GUIDE} and everything about the test is at ${CONFIG.TEST_PAGE}`,
     'Thanks for helping,\nZomBeatz Media',
+    OPT_OUT,
   );
   return parts.join('\n\n');
 }
@@ -273,6 +277,7 @@ function toHtml_(text) {
   const blocks = linked.split('\n\n').map((b) => {
     const lines = b.split('\n');
     if (lines[0].startsWith('# ')) lines[0] = `<strong>${lines[0].slice(2)}</strong>`;
+    if (b.startsWith('Want to stop testing?')) return `<p style="margin:24px 0 0;font-size:12px;color:#6b7080">${lines.join('<br>')}</p>`;
     return `<p style="margin:0 0 16px">${lines.join('<br>')}</p>`;
   });
   return `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#1c2030;max-width:560px">${blocks.join('')}</div>`;

@@ -28,6 +28,7 @@
 
 - **A link arrives:** paste it into `CONFIG.PLAY_OPT_IN` or `CONFIG.TESTFLIGHT`, save, reload the spreadsheet, then choose **Testers > Send the Play link to everyone waiting** or **Send the TestFlight link to everyone waiting**.
 - **A row went wrong** (a mistyped email, for example): fix the cell, select the row, then choose **Testers > Run again for the selected row**.
+- **Someone replies "stop":** remove them from the Google Group (Members), remove them from the TestFlight group in App Store Connect, and delete their row so later emails skip them. Every email ends with that offer.
 
 ## Good to know
 
