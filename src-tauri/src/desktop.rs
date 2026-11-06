@@ -137,11 +137,22 @@ pub fn get_autostart(app: AppHandle) -> bool {
     app.autolaunch().is_enabled().unwrap_or(false)
 }
 
-/// Installed from the Microsoft Store (an MSIX package lives under WindowsApps). Such an app can't add
-/// itself to start at login, but its package declares a startup entry the person turns on in Windows;
-/// its firewall rule for phones comes with the package too.
+/// Installed from the Microsoft Store or the Mac App Store. Such an app can't add itself to start at
+/// login (the person turns it on in Windows or macOS settings), and it doesn't change the firewall.
 pub fn is_store_package() -> bool {
+    is_microsoft_store() || is_mac_app_store()
+}
+
+/// An MSIX package lives under WindowsApps. Its package declares a startup entry the person turns on
+/// in Windows, and brings its own firewall rule for phones.
+pub fn is_microsoft_store() -> bool {
     cfg!(windows) && std::env::current_exe().is_ok_and(|p| p.to_string_lossy().to_ascii_lowercase().contains("\\windowsapps\\"))
+}
+
+/// The Mac App Store's copy runs in Apple's sandbox, which sets this for every sandboxed app. macOS
+/// itself asks "Allow incoming connections?" the first time a phone connects.
+pub fn is_mac_app_store() -> bool {
+    cfg!(target_os = "macos") && std::env::var_os("APP_SANDBOX_CONTAINER_ID").is_some()
 }
 
 #[tauri::command]
@@ -152,7 +163,11 @@ pub fn store_package() -> bool {
 #[tauri::command]
 pub fn set_autostart(app: AppHandle, enabled: bool) -> Result<(), String> {
     if is_store_package() {
-        return Err("Turn it on in Windows: Settings → Apps → Startup → Zomello.".into());
+        return Err(if is_mac_app_store() {
+            "Turn it on in macOS: System Settings → General → Login Items → + → Zomello.".into()
+        } else {
+            "Turn it on in Windows: Settings → Apps → Startup → Zomello.".into()
+        });
     }
     let l = app.autolaunch();
     if enabled { l.enable() } else { l.disable() }.map_err(|e| e.to_string())

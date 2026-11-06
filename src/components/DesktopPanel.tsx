@@ -52,7 +52,10 @@ export function DesktopPanel() {
       </label>
       {store ? (
         <p className="small muted">
-          <b>Start Zomello when I log in:</b> turn it on in Windows: Settings → Apps → Startup → Zomello.
+          <b>Start Zomello when I log in:</b>{" "}
+          {/Macintosh/.test(navigator.userAgent)
+            ? "turn it on in macOS: System Settings → General → Login Items → + → Zomello."
+            : "turn it on in Windows: Settings → Apps → Startup → Zomello."}
         </p>
       ) : (
         <label className="check-row">
