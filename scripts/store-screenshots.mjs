@@ -189,6 +189,38 @@ if (!only || only === "header") {
   console.log("saved", file);
 }
 
+// ---- Search results picture (3840 × 2560): a headline and two iPhone screens. ----
+if (!only || only === "search") {
+  await cdp("Emulation.setUserAgentOverride", { userAgent: IPHONE_UA });
+  await cdp("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+  await size(440, 956, 3);
+  const boardPng = await screen(`#/board/${WEB}`);
+  const dayPng = await screen("#/myday");
+  const [w, h] = [3840, 2560];
+  const phone = (png, cls) => `<div class="phone ${cls}"><img src="data:image/png;base64,${png}"></div>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+  html,body{margin:0;width:${w}px;height:${h}px;overflow:hidden}
+  body{background:radial-gradient(100% 110% at 20% 0%,#24489c 0%,#152a63 50%,#0b1020 100%);position:relative;font-family:Inter,"Noto Sans",sans-serif;color:#fff}
+  .text{position:absolute;left:260px;top:50%;transform:translateY(-50%);width:1500px}
+  h1{font-family:"Open Sans",Inter,sans-serif;font-weight:700;font-size:200px;line-height:1.05;letter-spacing:-.025em;margin:0}
+  h1 em{font-style:normal;color:#4fb0ec}
+  p{font-size:84px;line-height:1.35;color:#c9d3ea;margin:70px 0 0}
+  .phone{position:absolute;width:900px;border-radius:120px;padding:22px;background:#05070c;box-shadow:0 0 0 4px #2a3550,0 90px 200px #000000b0}
+  .phone img{display:block;width:100%;border-radius:98px}
+  .back{left:1980px;top:260px}
+  .front{left:2700px;top:520px}
+  </style></head><body>
+  <div class="text"><h1>Plan anything.<br><em>Keep it yours.</em></h1><p>Boards, tasks and checklists on your own devices. No account, no ads.</p></div>
+  ${phone(boardPng, "back")}${phone(dayPng, "front")}</body></html>`;
+  await cdp("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile: false });
+  await cdp("Page.navigate", { url: "about:blank" });
+  await sleep(300);
+  await ev(`document.open(); document.write(${JSON.stringify(html)}); document.close(); await document.fonts.ready; ${pause(400)}`);
+  const file = join(OUT, "search-3840x2560.png");
+  writeFileSync(file, Buffer.from(await capture(), "base64"));
+  console.log("saved", file);
+}
+
 ws.close();
 chrome.kill();
 await sleep(800);
