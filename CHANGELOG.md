@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.6.0 (in progress)
+## 0.6.0
 
 **Features: as simple or as full as you like**
 - **Settings > Features** has three starting points, **Simple**, **Standard** and **Everything**, and eight groups you can turn on or off one by one: planning extras, linking tasks, more views, board looks, time tracking, custom fields, bucket automation and AI tools.
