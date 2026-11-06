@@ -5,9 +5,10 @@
 # Optional secrets (Settings → Secrets and variables → Actions):
 #   Android signing: ANDROID_KEYSTORE (base64), ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS
 #   Mac signing (Developer ID, so the .dmg opens without a warning): APPLE_CERTIFICATE (the .p12,
-#     base64), APPLE_CERTIFICATE_PASSWORD, and for notarizing APPLE_ID, APPLE_PASSWORD (an
-#     app-specific password from account.apple.com) and APPLE_TEAM_ID. Without them the Mac build
-#     is unsigned: it still works, but the Mac asks people to allow it in System Settings first.
+#     base64), APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY ("Developer ID Application: ZomBeatz
+#     Media (TEAMID)"), and for notarizing APPLE_ID, APPLE_PASSWORD (an app-specific password from
+#     account.apple.com) and APPLE_TEAM_ID. The same ones as Zom's MRP; organization secrets cover both.
+#     Without them the Mac build is ad-hoc signed: it works, but the Mac asks people to allow it first.
 name: Build apps
 
 on:
@@ -58,31 +59,26 @@ jobs:
 
       - run: npm ci
 
-      # Only pass the Apple secrets on when they're set: an empty one would make the build try to
-      # sign with nothing and fail.
-      - name: Mac signing
+      # Signs with the Apple secrets when they are set (an empty APPLE_CERTIFICATE would make the build
+      # try to import nothing), and ad-hoc ("-") otherwise, which a downloaded Mac app needs to open at all.
+      - name: Mac signing and notarizing
         if: matrix.name == 'mac'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           if [ -z "$APPLE_CERTIFICATE" ]; then
-            echo "::warning::No APPLE_CERTIFICATE secret: the Mac build is unsigned. See the top of this file."
+            echo "::warning::No Apple secrets: the Mac app is ad-hoc signed. See the top of this file."
+            echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
             exit 0
           fi
-          {
-            echo "APPLE_CERTIFICATE=$APPLE_CERTIFICATE"
-            echo "APPLE_CERTIFICATE_PASSWORD=$APPLE_CERTIFICATE_PASSWORD"
-            echo "KEYCHAIN_PASSWORD=$(openssl rand -hex 16)"
-          } >> "$GITHUB_ENV"
-          if [ -n "$APPLE_ID" ] && [ -n "$APPLE_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
-            { echo "APPLE_ID=$APPLE_ID"; echo "APPLE_PASSWORD=$APPLE_PASSWORD"; echo "APPLE_TEAM_ID=$APPLE_TEAM_ID"; } >> "$GITHUB_ENV"
-          else
-            echo "::warning::APPLE_ID, APPLE_PASSWORD or APPLE_TEAM_ID missing: the Mac build is signed but not notarized."
-          fi
+          for v in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -n "${!v}" ]; then { echo "$v<<END_$v"; printf '%s\n' "${!v}"; echo "END_$v"; } >> "$GITHUB_ENV"; fi
+          done
 
       - uses: tauri-apps/tauri-action@v0
         env:
