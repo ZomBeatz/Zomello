@@ -14,7 +14,7 @@
 3. In the script editor, click **+** next to **Services**, choose **Admin SDK API** and click **Add**.
 4. Fill in the two links at the top of `CONFIG`:
    - `PLAY_OPT_IN`: in Play Console, open the closed test's **Testers** tab. The opt-in link appears after you've added the group under **Google Groups**. Until then, leave it empty: Android testers are still added to the group and told the link is on its way, and their rows show **Waiting for link**.
-   - `TESTFLIGHT`: the public link from your external TestFlight group. This only exists after the first build passes Beta App Review. Until then, leave it empty: iPhone and iPad testers are told the link is on its way, and their rows show **Waiting for link**.
+   - `TESTFLIGHT`: the public link from your external TestFlight group. This only exists after the first build passes Beta App Review. Until then, leave it empty: iPhone, iPad and Mac testers are told the link is on its way, and their rows show **Waiting for link**.
 5. Click the **clock icon** (Triggers), then **Add trigger**:
    - function `onFormSubmit`;
    - event source **From spreadsheet**;
