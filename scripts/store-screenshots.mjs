@@ -5,7 +5,8 @@
 //   2. Here:  node scripts/store-screenshots.mjs [output folder]
 //
 // Needs Chromium (or set CHROME=/path/to/chrome). Writes iphone/*.png at 1320 × 2868 (6.9" iPhone),
-// ipad/*.png at 2064 × 2752 (13" iPad) and mac/*.png at 2880 × 1800, sizes App Store Connect takes.
+// ipad/*.png at 2064 × 2752 (13" iPad), duo/*.png at 2034 × 1398 (iPhone Duo, open) and mac/*.png at
+// 2880 × 1800: sizes App Store Connect takes.
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir, homedir } from "node:os";
@@ -76,17 +77,18 @@ const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 function framePage({ w, h, title, text, png, device }) {
   const phone = device === "iphone";
   const mac = device === "mac";
+  const wide = mac || device === "duo"; // landscape pictures: less room above the screen
   const pad = phone ? 110 : 150;
-  const frameW = mac ? w * 0.72 : w * 0.8;
+  const frameW = wide ? w * 0.72 : w * 0.8;
   const radius = phone ? 96 : mac ? 30 : 56;
   return `<!doctype html><html><head><meta charset="utf-8"><style>
   html,body{margin:0;width:${w}px;height:${h}px;overflow:hidden}
   body{background:radial-gradient(120% 70% at 50% 0%,#24489c 0%,#152a63 45%,#0b1020 100%);font-family:Inter,"Noto Sans",sans-serif;color:#fff;display:flex;flex-direction:column;align-items:center}
-  .text{padding:${phone ? 150 : mac ? 100 : 130}px ${pad}px 0;text-align:center}
-  h1{font-family:"Open Sans",Inter,sans-serif;font-weight:700;font-size:${phone ? 104 : 112}px;line-height:1.08;letter-spacing:-.02em;margin:0}
+  .text{padding:${phone ? 150 : wide ? 80 : 130}px ${pad}px 0;text-align:center}
+  h1{font-family:"Open Sans",Inter,sans-serif;font-weight:700;font-size:${phone ? 104 : device === "duo" ? 84 : 112}px;line-height:1.08;letter-spacing:-.02em;margin:0}
   h1 em{font-style:normal;color:#4fb0ec}
-  p{font-size:${phone ? 50 : 52}px;line-height:1.35;color:#c9d3ea;margin:${phone ? 40 : mac ? 24 : 34}px auto 0;max-width:${phone ? 1080 : 1500}px}
-  .frame{margin-top:${phone ? 96 : mac ? 70 : 90}px;width:${frameW}px;border-radius:${radius}px;padding:${phone ? 18 : mac ? 0 : 16}px;background:#05070c;
+  p{font-size:${phone ? 50 : device === "duo" ? 40 : 52}px;line-height:1.35;color:#c9d3ea;margin:${phone ? 40 : wide ? 20 : 34}px auto 0;max-width:${phone ? 1080 : 1500}px}
+  .frame{margin-top:${phone ? 96 : wide ? 56 : 90}px;width:${frameW}px;border-radius:${radius}px;padding:${phone ? 18 : mac ? 0 : 16}px;background:#05070c;
     box-shadow:0 0 0 3px #2a3550,0 60px 140px #00000080}
   .frame img{display:block;width:100%;border-radius:${radius - (phone ? 18 : mac ? 0 : 16)}px}
   </style></head><body><div class="text"><h1>${title}</h1><p>${esc(text)}</p></div>
@@ -145,6 +147,8 @@ for (const [device, ua, list, sw, sh, scale, w, h] of [
   ["iphone", IPHONE_UA, iphone, 440, 956, 3, 1320, 2868],
   ["ipad", IPAD_UA, ipad, 1032, 1376, 2, 2064, 2752],
   ["mac", MAC_UA, mac, 1280, 800, 2, 2880, 1800],
+  // iPhone Duo, open: 1017 × 699 points at 2x (the iPad layout fits it).
+  ["duo", IPHONE_UA, ipad, 1017, 699, 2, 2034, 1398],
 ]) {
   if (only && !only.startsWith(`${device}/`) && only !== device) continue;
   mkdirSync(join(OUT, device), { recursive: true });
