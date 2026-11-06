@@ -27,7 +27,9 @@ fi
 
 VERSION=$(python3 -c "import json; print(json.load(open('src-tauri/tauri.conf.json'))['version'])")
 echo "Building Zomello $VERSION for Google Play…"
-npx tauri android build --aab
+# Keep the Rust code's symbols (file and line numbers) until Gradle copies them into the .aab for
+# Play Console's crash reports; Gradle then strips them from the app itself.
+CARGO_PROFILE_RELEASE_STRIP=false CARGO_PROFILE_RELEASE_DEBUG=line-tables-only npx tauri android build --aab
 AAB=$(find src-tauri/gen/android/app/build/outputs/bundle -name '*release*.aab' | head -1)
 echo
 echo "Done: $AAB"

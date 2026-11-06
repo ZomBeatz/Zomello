@@ -1,3 +1,4 @@
+import { recentProblems } from "./logs";
 import { isRemote } from "./remote";
 import { isServer } from "./server";
 import { deviceWord, inTauri, isMobileApp, openExternal } from "./storage";
@@ -25,9 +26,12 @@ function whichZomello(): string {
   return `a browser on ${system}${where}`;
 }
 
-/** Help > Send feedback: an email to us with the version and device already filled in. */
-export function sendFeedback(): void {
+/** Help > Send feedback: an email to us with the version, device and recent problems already filled in. */
+export async function sendFeedback(): Promise<void> {
   const subject = `Zomello feedback (${__APP_VERSION__})`;
+  // The last few problems from this device's log, if any (a mail link can't carry much more).
+  let problems = await recentProblems(8);
+  while (problems.join("\n").length > 1200) problems = problems.slice(1);
   const body = [
     "What happened, or what would you like?",
     "",
@@ -37,6 +41,7 @@ export function sendFeedback(): void {
     "",
     "---",
     `Zomello ${__APP_VERSION__}, ${whichZomello()} (this ${deviceWord}).`,
+    ...(problems.length ? ["", "Recent problems from this device's log:", ...problems] : []),
   ].join("\n");
   void openExternal(`mailto:${CONTACT}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
 }
