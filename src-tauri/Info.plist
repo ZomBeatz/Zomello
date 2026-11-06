@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Merged into the Mac app's Info.plist by Tauri (the iPhone/iPad app uses Info.ios.plist). -->
+<plist version="1.0">
+<dict>
+  <!-- Only standard HTTPS and the system's own encryption: no export paperwork needed. -->
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
+  <!-- Shown when Zomello looks for Zomello Servers or connected devices on your network. -->
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>Zomello connects your phones and tablets to this Mac, and finds Zomello Servers, on your home network.</string>
+  <key>NSBonjourServices</key>
+  <array>
+    <string>_zomello._tcp</string>
+  </array>
+</dict>
+</plist>

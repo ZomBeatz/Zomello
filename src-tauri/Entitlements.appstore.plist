@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The Mac App Store copy only (scripts/mac-app-store.sh). The App Store requires Apple's sandbox;
+     these are the few doors Zomello needs through it. -->
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.app-sandbox</key>
+  <true/>
+  <!-- Must match the provisioning profile: team ID + bundle ID. -->
+  <key>com.apple.application-identifier</key>
+  <string>QYN992WB7T.com.zombeatz.zomello</string>
+  <key>com.apple.developer.team-identifier</key>
+  <string>QYN992WB7T</string>
+  <!-- Calendar links, Zomello Servers, and reaching other devices. -->
+  <key>com.apple.security.network.client</key>
+  <true/>
+  <!-- Phones and tablets connect to this Mac's boards. -->
+  <key>com.apple.security.network.server</key>
+  <true/>
+  <!-- Board files and attachments the person opens, drops or saves. -->
+  <key>com.apple.security.files.user-selected.read-write</key>
+  <true/>
+  <!-- Exports and saved logs go to Downloads. -->
+  <key>com.apple.security.files.downloads.read-write</key>
+  <true/>
+</dict>
+</plist>

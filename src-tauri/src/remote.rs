@@ -902,6 +902,9 @@ fn firewall_kind() -> &'static str {
     }
     #[cfg(target_os = "macos")]
     {
+        if crate::desktop::is_mac_app_store() {
+            return "none";
+        }
         let on = quiet(MAC_FW).arg("--getglobalstate").output().is_ok_and(|o| String::from_utf8_lossy(&o.stdout).contains("enabled"));
         if on { "macos" } else { "none" }
     }
@@ -930,8 +933,9 @@ fn firewall_command(kind: &str, port: u16) -> Option<String> {
 /// Is Zomello already let through? Windows and macOS can tell; Linux rules need root to read, so
 /// there we remember having done it.
 fn firewall_allowed(kind: &str, port: u16, remembered: bool) -> bool {
-    // The Microsoft Store package brings its own firewall rule for the usual port.
-    if crate::desktop::is_store_package() && port == DEFAULT_PORT {
+    // The Microsoft Store package brings its own firewall rule for the usual port, and the Mac App
+    // Store's sandboxed copy can't change the firewall (macOS asks the person itself).
+    if (crate::desktop::is_microsoft_store() && port == DEFAULT_PORT) || crate::desktop::is_mac_app_store() {
         return true;
     }
     match kind {

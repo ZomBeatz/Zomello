@@ -62,9 +62,6 @@
       "webviewInstallMode": {
         "type": "downloadBootstrapper"
       }
-    },
-    "macOS": {
-      "minimumSystemVersion": "11.0"
     }
   }
 }

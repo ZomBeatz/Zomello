@@ -7,3 +7,7 @@ server/data
 
 # Local editor/assistant settings
 .claude/
+
+# Mac App Store provisioning profile (download it from developer.apple.com; see scripts/mac-app-store.sh)
+src-tauri/embedded.provisionprofile
+*.provisionprofile

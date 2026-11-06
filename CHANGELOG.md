@@ -7,6 +7,9 @@
 - **Send feedback** adds the last few problems from the log to the email, so a bug report says what went wrong.
 - **Android crash reports in Play Console** are readable now: the app bundle carries the debug symbols Google asks for.
 
+**Mac**
+- **A Mac version:** one app for Apple silicon and Intel Macs. The release has a `.dmg`, and a Mac App Store build is on the way. The App Store copy leaves start at login and the firewall to macOS's own settings, like the Microsoft Store copy does on Windows.
+
 **Behind the scenes**
 - Tauri and its plugins updated to their latest fixes. DOMPurify updated for a security fix.
 
