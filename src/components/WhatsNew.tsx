@@ -2,7 +2,9 @@ import type { ReactNode } from "react";
 import { create } from "zustand";
 import { CalendarClock, Network, SlidersHorizontal, Sparkles, Zap } from "lucide-react";
 import { useStore } from "../store";
+import { logLine } from "../logs";
 import { openExternal } from "../storage";
+import { copyText } from "./Markdown";
 import { Modal } from "./ui";
 
 /**
@@ -50,6 +52,15 @@ export const openWhatsNew = () => useWhatsNew.setState({ open: true });
 /** This version has a note, and it hasn't been seen on this account yet. */
 export const whatsNewDue = (seen: string | undefined) => seen !== WHATS_NEW.version && __APP_VERSION__.startsWith(`${WHATS_NEW.version}.`);
 
+/** Opens the guide's full list. If the browser doesn't open, say so and offer the link instead of doing nothing. */
+function seeEverything(close: () => void) {
+  close();
+  openExternal(GUIDE_WHATS_NEW).catch((e) => {
+    logLine("warn", `What's new: couldn't open the guide: ${String(e)}`);
+    useStore.getState().toast("Couldn't open your browser.", { action: { label: "Copy link", run: () => void copyText(GUIDE_WHATS_NEW, "Link copied.") } });
+  });
+}
+
 export function WhatsNew() {
   const close = () => {
     useWhatsNew.setState({ open: false });
@@ -84,7 +95,7 @@ export function WhatsNew() {
         ))}
       </ul>
       <div className="row end gap whats-new-foot">
-        <button className="btn ghost" onClick={() => void openExternal(GUIDE_WHATS_NEW)}>
+        <button className="btn ghost" onClick={() => seeEverything(close)}>
           See everything new
         </button>
         <button className="btn primary" onClick={close}>

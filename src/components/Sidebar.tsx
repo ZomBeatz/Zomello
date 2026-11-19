@@ -87,12 +87,7 @@ export function Sidebar() {
   );
 
   return (
-    <aside ref={asideRef} className={`sidebar ${collapsed ? "collapsed" : ""}`}>
-      <div className="sidebar-fade top">
-        <button className="sidebar-more" tabIndex={-1} aria-label="Scroll up" title="Scroll up" onClick={() => scrollSidebar(asideRef.current, -1)}>
-          <ChevronUp size={14} />
-        </button>
-      </div>
+    <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
       <div className="brand">
         <button
           className="logo-btn"
@@ -130,206 +125,215 @@ export function Sidebar() {
           {collapsed ? <ChevronsRight size={15} /> : <ChevronsLeft size={15} />}
         </button>
       </div>
-      <button className="nav-item quick-add-btn" onClick={() => setOverlay({ quickAddOpen: true })} title="Quick add (N)">
-        <Zap size={16} />
-        <span className="label">Quick add</span>
-        <kbd className="label">N</kbd>
-      </button>
-      <NavItem icon={<Search size={16} />} label="Search" kbd="Ctrl K" onClick={() => setOverlay({ searchOpen: true })} />
-      <NavItem icon={<Home size={16} />} label="Home" on={route.page === "home"} onClick={() => navigate({ page: "home" })} />
-      <NavItem icon={<Sun size={16} />} label="My Day" on={route.page === "myday"} onClick={() => navigate({ page: "myday" })} />
-      <NavItem icon={<UserCheck size={16} />} label="My Tasks" on={route.page === "mytasks"} onClick={() => navigate({ page: "mytasks" })} />
-
-      {starred.length > 0 && (
-        <>
-          <div className="nav-heading">
-            <Star size={12} /> <span className="label">Starred</span>
-          </div>
-          <BoardList list={starred} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
-        </>
-      )}
-
-      {isDeviceWindow && windowDeviceId && <DeviceBanner id={windowDeviceId} />}
-      {(() => {
-        // A new board, optionally straight into a section (phones: each section has its own +).
-        const commitNew = (name: string) => {
-          const n = name.trim();
-          if (n) {
-            const id = createBoard(n);
-            if (addIn) useStore.getState().setBoardCategory(id, addIn);
-            navigate({ page: "board", boardId: id });
-          }
-          setTitle("");
-          setAdding(false);
-          setAddIn(null);
-        };
-        const commitSection = (name: string) => {
-          if (name.trim()) useStore.getState().addCategory(name);
-          setSectionName("");
-          setAddingSection(false);
-        };
-        const addInput = adding && (
-          <input
-            autoFocus
-            className="nav-input"
-            placeholder={addIn ? `Board name (in ${addIn})` : "Board name"}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && title.trim()) commitNew(title);
-              if (e.key === "Escape") {
-                e.currentTarget.value = "";
-                commitNew("");
-              }
-            }}
-            // Clicking away creates the board if a name was typed.
-            onBlur={(e) => commitNew(e.currentTarget.value.trim() ? title : "")}
-          />
-        );
-        const templatesLink = adding && !addIn && (
-          <button
-            className="nav-item small muted"
-            // Before the name box loses focus (which would close it).
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              commitNew("");
-              setOverlay({ templatesOpen: true });
-            }}
-          >
-            <LayoutTemplate size={14} /> <span className="label">Or start from a template…</span>
+      {/* Only the middle scrolls: the logo stays at the top, Settings and Help at the bottom. */}
+      <div ref={asideRef} className="sidebar-scroll">
+        <div className="sidebar-fade top">
+          <button className="sidebar-more" tabIndex={-1} aria-label="Scroll up" title="Scroll up" onClick={() => scrollSidebar(asideRef.current, -1)}>
+            <ChevronUp size={14} />
           </button>
-        );
-        const categoryGroups = categories.map((cat) => {
-          const inCat = live.filter((b) => b.category === cat);
-          const shut = collapsedCats.includes(cat);
-          return (
-            <DropGroup key={cat} name={cat} className="nav-category">
-              <div className="nav-category-row">
-                <button
-                  className="nav-category-head"
-                  onClick={() => useStore.getState().toggleCategoryCollapsed(cat)}
-                  onContextMenu={(e) => openContextMenu(e, () => categoryMenu(cat))}
-                  title="Click to fold; right-click (or press and hold) to rename or remove"
-                  aria-expanded={!shut}
-                >
-                  {shut ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
-                  <span className="grow ellipsis">{cat}</span>
-                  <span className="count">{inCat.length}</span>
-                </button>
-                {!collapsed && (
-                  <button
-                    className="icon-btn tiny"
-                    title={`New board in ${cat}`}
-                    aria-label={`New board in ${cat}`}
-                    onClick={() => {
-                      if (shut) useStore.getState().toggleCategoryCollapsed(cat);
-                      setAddIn(cat);
-                      setAdding(true);
-                    }}
-                  >
-                    <Plus size={14} />
-                  </button>
-                )}
-              </div>
-              {!shut && (
-                <>
-                  <BoardList list={inCat} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
-                  {addIn === cat && addInput}
-                  {inCat.length === 0 && addIn !== cat && !collapsed && <p className="muted small place-empty">No boards yet</p>}
-                </>
-              )}
-            </DropGroup>
-          );
-        });
+        </div>
+        <button className="nav-item quick-add-btn" onClick={() => setOverlay({ quickAddOpen: true })} title="Quick add (N)">
+          <Zap size={16} />
+          <span className="label">Quick add</span>
+          <kbd className="label">N</kbd>
+        </button>
+        <NavItem icon={<Search size={16} />} label="Search" kbd="Ctrl K" onClick={() => setOverlay({ searchOpen: true })} />
+        <NavItem icon={<Home size={16} />} label="Home" on={route.page === "home"} onClick={() => navigate({ page: "home" })} />
+        <NavItem icon={<Sun size={16} />} label="My Day" on={route.page === "myday"} onClick={() => navigate({ page: "myday" })} />
+        <NavItem icon={<UserCheck size={16} />} label="My Tasks" on={route.page === "mytasks"} onClick={() => navigate({ page: "mytasks" })} />
 
-        // OneNote style, on phones and computers alike: sections (categories) with their boards, then
-        // boards in no section, then + Board / + Section. Boards drag between sections.
-        const tree = (
-          // (Desktop: a connected phone's board dragged here comes to this computer.)
-          <div className={`nav-boards ${placesMode ? "place-tree" : ""}`} data-computer-boards={isDesktopApp && !isExtraWindow ? "" : undefined}>
-            <BoardsDnd all={live}>
-              {!collapsed && categoryGroups}
-              <DropGroup name="">
-                {loose.length > 0 && categories.length > 0 && !collapsed && <div className="place-subhead">Other boards</div>}
-                <BoardList list={collapsed ? live : loose} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
-                {loose.length === 0 && categories.length > 0 && !collapsed && <NoSectionDrop />}
-              </DropGroup>
-            </BoardsDnd>
-            {!addIn && addInput}
-            {templatesLink}
-            {addingSection && (
-              <input
-                autoFocus
-                className="nav-input"
-                placeholder="Section name, e.g. Home Projects"
-                value={sectionName}
-                onChange={(e) => setSectionName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") commitSection(sectionName);
-                  if (e.key === "Escape") commitSection("");
-                }}
-                onBlur={() => commitSection(sectionName)}
-              />
-            )}
-            {!collapsed && (
-              <div className="place-actions">
-                <button className="btn sm ghost" onClick={() => (setAddIn(null), setAdding(true))}>
-                  <Plus size={14} /> Board
-                </button>
-                <button className="btn sm ghost" onClick={() => setAddingSection(true)}>
-                  <FolderPlus size={14} /> Section
-                </button>
-              </div>
-            )}
-          </div>
-        );
-        // Phones and tablets: inside a heading per place (This phone, Computer…).
-        if (placesMode && !isDeviceWindow) return <PlaceSections here={tree} />;
-        return (
+        {starred.length > 0 && (
           <>
             <div className="nav-heading">
-              <span className="label">Boards</span>
-              <button className="icon-btn tiny" title="New board" onClick={() => (setAddIn(null), setAdding(true))}>
-                <Plus size={14} />
-              </button>
+              <Star size={12} /> <span className="label">Starred</span>
             </div>
-            {tree}
+            <BoardList list={starred} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
           </>
-        );
-      })()}
+        )}
 
-      {/* Desktop: connected phones. A phone or tablet on this computer's boards: your other devices that share. */}
-      {((isDesktopApp && !isExtraWindow) || (isRemote && !isDeviceWindow)) && <PhoneNav collapsed={collapsed} />}
-      {!isServer && !isRemote && !placesMode && !isDeviceWindow && <ServerNav collapsed={collapsed} />}
-      {inZomelloApp() && !placesMode && (
-        <button className="nav-item" onClick={() => goToPhone()} title={`Switch to the boards stored on this ${deviceWord}`}>
-          <Smartphone size={16} />
-          <span className="label">Boards on this {deviceWord}</span>
-        </button>
-      )}
+        {isDeviceWindow && windowDeviceId && <DeviceBanner id={windowDeviceId} />}
+        {(() => {
+          // A new board, optionally straight into a section (phones: each section has its own +).
+          const commitNew = (name: string) => {
+            const n = name.trim();
+            if (n) {
+              const id = createBoard(n);
+              if (addIn) useStore.getState().setBoardCategory(id, addIn);
+              navigate({ page: "board", boardId: id });
+            }
+            setTitle("");
+            setAdding(false);
+            setAddIn(null);
+          };
+          const commitSection = (name: string) => {
+            if (name.trim()) useStore.getState().addCategory(name);
+            setSectionName("");
+            setAddingSection(false);
+          };
+          const addInput = adding && (
+            <input
+              autoFocus
+              className="nav-input"
+              placeholder={addIn ? `Board name (in ${addIn})` : "Board name"}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && title.trim()) commitNew(title);
+                if (e.key === "Escape") {
+                  e.currentTarget.value = "";
+                  commitNew("");
+                }
+              }}
+              // Clicking away creates the board if a name was typed.
+              onBlur={(e) => commitNew(e.currentTarget.value.trim() ? title : "")}
+            />
+          );
+          const templatesLink = adding && !addIn && (
+            <button
+              className="nav-item small muted"
+              // Before the name box loses focus (which would close it).
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                commitNew("");
+                setOverlay({ templatesOpen: true });
+              }}
+            >
+              <LayoutTemplate size={14} /> <span className="label">Or start from a template…</span>
+            </button>
+          );
+          const categoryGroups = categories.map((cat) => {
+            const inCat = live.filter((b) => b.category === cat);
+            const shut = collapsedCats.includes(cat);
+            return (
+              <DropGroup key={cat} name={cat} className="nav-category">
+                <div className="nav-category-row">
+                  <button
+                    className="nav-category-head"
+                    onClick={() => useStore.getState().toggleCategoryCollapsed(cat)}
+                    onContextMenu={(e) => openContextMenu(e, () => categoryMenu(cat))}
+                    title="Click to fold; right-click (or press and hold) to rename or remove"
+                    aria-expanded={!shut}
+                  >
+                    {shut ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+                    <span className="grow ellipsis">{cat}</span>
+                    <span className="count">{inCat.length}</span>
+                  </button>
+                  {!collapsed && (
+                    <button
+                      className="icon-btn tiny"
+                      title={`New board in ${cat}`}
+                      aria-label={`New board in ${cat}`}
+                      onClick={() => {
+                        if (shut) useStore.getState().toggleCategoryCollapsed(cat);
+                        setAddIn(cat);
+                        setAdding(true);
+                      }}
+                    >
+                      <Plus size={14} />
+                    </button>
+                  )}
+                </div>
+                {!shut && (
+                  <>
+                    <BoardList list={inCat} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
+                    {addIn === cat && addInput}
+                    {inCat.length === 0 && addIn !== cat && !collapsed && <p className="muted small place-empty">No boards yet</p>}
+                  </>
+                )}
+              </DropGroup>
+            );
+          });
 
-      <div className="grow" />
-      {style === "partycat" && (
-        <div className="spin-cat-spot">
-          <SpinCat size={collapsed ? 44 : 64} />
+          // OneNote style, on phones and computers alike: sections (categories) with their boards, then
+          // boards in no section, then + Board / + Section. Boards drag between sections.
+          const tree = (
+            // (Desktop: a connected phone's board dragged here comes to this computer.)
+            <div className={`nav-boards ${placesMode ? "place-tree" : ""}`} data-computer-boards={isDesktopApp && !isExtraWindow ? "" : undefined}>
+              <BoardsDnd all={live}>
+                {!collapsed && categoryGroups}
+                <DropGroup name="">
+                  {loose.length > 0 && categories.length > 0 && !collapsed && <div className="place-subhead">Other boards</div>}
+                  <BoardList list={collapsed ? live : loose} all={live} activeId={activeId} collapsed={collapsed} renaming={renaming} setRenaming={setRenaming} />
+                  {loose.length === 0 && categories.length > 0 && !collapsed && <NoSectionDrop />}
+                </DropGroup>
+              </BoardsDnd>
+              {!addIn && addInput}
+              {templatesLink}
+              {addingSection && (
+                <input
+                  autoFocus
+                  className="nav-input"
+                  placeholder="Section name, e.g. Home Projects"
+                  value={sectionName}
+                  onChange={(e) => setSectionName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitSection(sectionName);
+                    if (e.key === "Escape") commitSection("");
+                  }}
+                  onBlur={() => commitSection(sectionName)}
+                />
+              )}
+              {!collapsed && (
+                <div className="place-actions">
+                  <button className="btn sm ghost" onClick={() => (setAddIn(null), setAdding(true))}>
+                    <Plus size={14} /> Board
+                  </button>
+                  <button className="btn sm ghost" onClick={() => setAddingSection(true)}>
+                    <FolderPlus size={14} /> Section
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+          // Phones and tablets: inside a heading per place (This phone, Computer…).
+          if (placesMode && !isDeviceWindow) return <PlaceSections here={tree} />;
+          return (
+            <>
+              <div className="nav-heading">
+                <span className="label">Boards</span>
+                <button className="icon-btn tiny" title="New board" onClick={() => (setAddIn(null), setAdding(true))}>
+                  <Plus size={14} />
+                </button>
+              </div>
+              {tree}
+            </>
+          );
+        })()}
+
+        {/* Desktop: connected phones. A phone or tablet on this computer's boards: your other devices that share. */}
+        {((isDesktopApp && !isExtraWindow) || (isRemote && !isDeviceWindow)) && <PhoneNav collapsed={collapsed} />}
+        {!isServer && !isRemote && !placesMode && !isDeviceWindow && <ServerNav collapsed={collapsed} />}
+        {inZomelloApp() && !placesMode && (
+          <button className="nav-item" onClick={() => goToPhone()} title={`Switch to the boards stored on this ${deviceWord}`}>
+            <Smartphone size={16} />
+            <span className="label">Boards on this {deviceWord}</span>
+          </button>
+        )}
+
+        <div className="sidebar-fade bottom">
+          <button className="sidebar-more" tabIndex={-1} aria-label="Scroll down for more" title="More below" onClick={() => scrollSidebar(asideRef.current, 1)}>
+            <ChevronDown size={14} />
+            <span className="label">More</span>
+          </button>
         </div>
-      )}
-      <FocusWidget collapsed={collapsed} />
-      <RunningTimer collapsed={collapsed} />
-      <NavItem icon={<Archive size={16} />} label="Archive" on={route.page === "archive"} onClick={() => navigate({ page: "archive" })} />
-      {isServer && me?.isAdmin && (
-        <NavItem icon={<Shield size={16} />} label="Admin" on={route.page === "admin"} onClick={() => navigate({ page: "admin" })} />
-      )}
-      {!isDeviceWindow && (
-        <NavItem icon={<Settings size={16} />} label="Settings" on={route.page === "settings"} onClick={() => navigate({ page: "settings" })} />
-      )}
-      <NavItem icon={<CircleHelp size={16} />} label="Help" kbd="?" onClick={() => setOverlay({ helpOpen: true })} />
-      {isServer && me && <AccountButton collapsed={collapsed} />}
-      <div className="sidebar-fade bottom">
-        <button className="sidebar-more" tabIndex={-1} aria-label="Scroll down for more" title="More below" onClick={() => scrollSidebar(asideRef.current, 1)}>
-          <ChevronDown size={14} />
-          <span className="label">More</span>
-        </button>
+      </div>
+      <div className="sidebar-foot">
+        {style === "partycat" && (
+          <div className="spin-cat-spot">
+            <SpinCat size={collapsed ? 44 : 64} />
+          </div>
+        )}
+        <FocusWidget collapsed={collapsed} />
+        <RunningTimer collapsed={collapsed} />
+        <NavItem icon={<Archive size={16} />} label="Archive" on={route.page === "archive"} onClick={() => navigate({ page: "archive" })} />
+        {isServer && me?.isAdmin && (
+          <NavItem icon={<Shield size={16} />} label="Admin" on={route.page === "admin"} onClick={() => navigate({ page: "admin" })} />
+        )}
+        {!isDeviceWindow && (
+          <NavItem icon={<Settings size={16} />} label="Settings" on={route.page === "settings"} onClick={() => navigate({ page: "settings" })} />
+        )}
+        <NavItem icon={<CircleHelp size={16} />} label="Help" kbd="?" onClick={() => setOverlay({ helpOpen: true })} />
+        {isServer && me && <AccountButton collapsed={collapsed} />}
       </div>
     </aside>
   );
@@ -835,7 +839,7 @@ function scrollSidebar(el: HTMLElement | null, dir: 1 | -1) {
 }
 
 function useScrollFades() {
-  const ref = useRef<HTMLElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   const check = () => {
     const el = ref.current;
     if (!el) return;

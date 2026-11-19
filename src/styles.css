@@ -145,19 +145,26 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 }
 .sidebar {
   width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 2px;
-  padding: 14px 10px; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto;
+  padding: 14px 10px; background: var(--surface); border-right: 1px solid var(--border); overflow: hidden;
+}
+/* The logo (top) and Settings, Help and the rest (bottom) stay put; the boards in between scroll. */
+.sidebar-scroll, .sidebar-foot { display: flex; flex-direction: column; gap: 2px; }
+.sidebar-scroll {
+  flex: 1; min-height: 0; overflow-y: auto; margin: 0 -10px; padding: 0 10px;
   /* Still scrolls (wheel, trackpad, keyboard), just without a bar that would squeeze the menu. */
   scrollbar-width: none;
 }
-.sidebar::-webkit-scrollbar { display: none; }
+.sidebar-scroll::-webkit-scrollbar { display: none; }
+.sidebar-foot { flex: none; padding-top: 6px; }
+.sidebar.collapsed .sidebar-scroll { margin: 0 -8px; padding: 0 8px; }
 /* Soft fades at the edges when there's more to scroll that way (the sidebar has no scrollbar). */
 .sidebar-fade {
   position: sticky; z-index: 2; flex: none; height: 36px; pointer-events: none;
   margin: 0 -10px; opacity: 0; transition: opacity .2s;
 }
-.sidebar-fade.top { top: -14px; margin-top: -14px; margin-bottom: -24px; background: linear-gradient(var(--surface) 30%, transparent); }
-.sidebar-fade.bottom { bottom: -14px; margin-bottom: -14px; margin-top: -24px; background: linear-gradient(transparent, var(--surface) 70%); }
-.sidebar.more-above .sidebar-fade.top, .sidebar.more-below .sidebar-fade.bottom { opacity: 1; }
+.sidebar-fade.top { top: 0; margin-bottom: -36px; background: linear-gradient(var(--surface) 30%, transparent); }
+.sidebar-fade.bottom { bottom: 0; margin-top: -36px; background: linear-gradient(transparent, var(--surface) 70%); }
+.sidebar-scroll.more-above .sidebar-fade.top, .sidebar-scroll.more-below .sidebar-fade.bottom { opacity: 1; }
 .sidebar-fade { display: flex; justify-content: center; }
 .sidebar-fade.top { align-items: flex-start; padding-top: 6px; }
 .sidebar-fade.bottom { align-items: flex-end; padding-bottom: 6px; }
@@ -169,7 +176,7 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 }
 .sidebar-fade.top .sidebar-more { padding: 1px 8px; }
 .sidebar-more:hover { background: var(--accent-soft); }
-.sidebar.more-above .sidebar-fade.top .sidebar-more, .sidebar.more-below .sidebar-fade.bottom .sidebar-more { pointer-events: auto; }
+.sidebar-scroll.more-above .sidebar-fade.top .sidebar-more, .sidebar-scroll.more-below .sidebar-fade.bottom .sidebar-more { pointer-events: auto; }
 .sidebar.collapsed .sidebar-more { padding: 2px 6px; }
 .sidebar.collapsed .sidebar-fade { margin-left: -8px; margin-right: -8px; }
 .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 17px; padding: 6px 8px 16px; color: var(--accent); }
@@ -1275,6 +1282,14 @@ button.badge.rel:hover { filter: brightness(1.15); text-decoration: underline; }
     min-height: 0; max-height: 80vh; overflow-y: auto; margin-top: auto; border-radius: 16px 16px 0 0;
     padding-bottom: max(14px, env(safe-area-inset-bottom)); animation: sheet-up .18s ease-out;
   }
+  /* New in Zomello: a sheet from the bottom too, with its buttons under the thumb. */
+  .modal-backdrop:has(.whats-new) { align-items: flex-end; }
+  .modal.whats-new {
+    min-height: 0; max-height: 88vh; overflow-y: auto; margin-top: auto; border-radius: 16px 16px 0 0;
+    padding: 20px 18px max(16px, env(safe-area-inset-bottom)); animation: sheet-up .18s ease-out;
+  }
+  .whats-new-foot { position: sticky; bottom: 0; background: var(--surface); padding-top: 10px; margin-top: 12px; }
+  .whats-new-foot .btn { flex: 1; }
   .detail-cover { border-radius: 0; }
   .detail-head { padding: 16px 16px 6px; padding-right: 52px; }
   .detail-grid { grid-template-columns: 1fr; padding: 6px 16px 0; gap: 18px; }
@@ -1528,6 +1543,22 @@ html[data-reducemotion] .bassdrop-mark .bd-bars rect { animation: none !importan
 
 /* While a card is dragged on a phone, snapping would fight the drag. */
 body.dragging-card .board-content { scroll-snap-type: none; }
+/* Phones, while holding a card: the buckets as names at the top; drop on one to move the card there. */
+.bucket-chips {
+  position: fixed; z-index: 60; left: 8px; right: 8px; top: calc(env(safe-area-inset-top) + 8px);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg);
+  animation: fade .12s;
+}
+.bucket-chips > .muted { font-size: 12px; padding: 0 4px; }
+.bucket-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--border); font-size: 13px; font-weight: 600;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  transition: background .1s, border-color .1s, transform .1s;
+}
+.bucket-chip.over { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); transform: scale(1.06); }
+.bucket-chip .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 #set-desktop .check-row { align-items: flex-start; } #set-desktop .check-row input { margin-top: 3px; } #set-desktop .check-row span { display: flex; flex-direction: column; gap: 2px; }
 
 /* ---------- Party Cat: an Easter-egg style (play the beat pads in Settings → About) ---------- */

@@ -5,6 +5,7 @@ import {
   closestCenter,
   closestCorners,
   DndContext,
+  pointerWithin,
   DragOverlay,
   KeyboardSensor,
   useDroppable,
@@ -59,10 +60,12 @@ import { copyText } from "../Markdown";
 import { workOrder } from "../../ai";
 
 const COL_PREFIX = "col:";
+/** The bucket names shown at the top of a phone while dragging a card: drop on one to move it there. */
+const CHIP_PREFIX = "chip:";
 
 /**
  * Phone dragging: hold a card near the left or right edge and the board moves over one bucket
- * (again every ~0.6 s while you keep holding), instead of racing to the end.
+ * (again every ~0.5 s while you keep holding), instead of racing to the end.
  */
 function useEdgePaging(enabled: boolean) {
   const st = useRef({ x: -1, since: 0, timer: 0 as unknown as ReturnType<typeof setInterval> });
@@ -77,12 +80,12 @@ function useEdgePaging(enabled: boolean) {
         st.current.timer = setInterval(() => {
           const { x } = st.current;
           const w = window.innerWidth;
-          const dir = x < 0 ? 0 : x < w * 0.14 ? -1 : x > w * 0.86 ? 1 : 0;
+          const dir = x < 0 ? 0 : x < w * 0.18 ? -1 : x > w * 0.82 ? 1 : 0;
           if (!dir) return void (st.current.since = 0);
           const now = Date.now();
           if (!st.current.since) return void (st.current.since = now);
-          if (now - st.current.since < 450) return;
-          st.current.since = now + 150; // the next page waits a little longer
+          if (now - st.current.since < 300) return;
+          st.current.since = now + 250; // the next page waits a little longer
           const board = document.querySelector<HTMLElement>(".board-content");
           const col = document.querySelector<HTMLElement>(".kanban .column");
           if (board && col) board.scrollBy({ left: dir * (col.offsetWidth + 10), behavior: "smooth" });
@@ -186,26 +189,35 @@ export function KanbanView({
 
   const findContainer = (id: UniqueIdentifier, cols = columns): string | undefined => {
     const s = String(id);
+    if (s.startsWith(CHIP_PREFIX)) return s.slice(CHIP_PREFIX.length);
     if (s in cols) return s;
     return Object.keys(cols).find((k) => cols[k].includes(s));
   };
 
   const collision: CollisionDetection = (args) => {
     const type = args.active.data.current?.type;
+    if (type !== "column") {
+      // A finger over one of the bucket names at the top wins over whatever is underneath.
+      const chips = args.droppableContainers.filter((c) => c.data.current?.type === "chip");
+      const hit = chips.length ? pointerWithin({ ...args, droppableContainers: chips }) : [];
+      if (hit.length) return hit;
+    }
     const droppableContainers = args.droppableContainers.filter((c) =>
-      type === "column" ? c.data.current?.type === "column" : c.data.current?.type !== "column",
+      type === "column" ? c.data.current?.type === "column" : c.data.current?.type !== "column" && c.data.current?.type !== "chip",
     );
     return (type === "column" ? closestCenter : closestCorners)({ ...args, droppableContainers });
   };
 
   const onDragStart = ({ active }: DragStartEvent) => {
     setActiveId(active.id);
+    if (phone) navigator.vibrate?.(12); // a small tick when the card lifts (Android)
     if (active.data.current?.type === "card") edge.start();
     if (active.data.current?.type === "card") setDragCols(columns);
   };
 
   const onDragOver = ({ active, over }: DragOverEvent) => {
     if (!over || active.data.current?.type !== "card" || !dragCols) return;
+    if (String(over.id).startsWith(CHIP_PREFIX)) return; // bucket names only act on drop
     const from = findContainer(active.id, dragCols);
     const to = findContainer(over.id, dragCols);
     if (!from || !to || from === to) return;
@@ -237,9 +249,13 @@ export function KanbanView({
     if (!cols) return;
     const id = String(active.id);
     const to = findContainer(over.id, cols);
+    // Dropped on a bucket name: show that bucket, so it's clear where the card went.
+    if (String(over.id).startsWith(CHIP_PREFIX) && to)
+      requestAnimationFrame(() => document.querySelector(`[data-list-id="${to}"]`)?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }));
     const group = groups.find((g) => g.id === to);
     if (!to || !group?.patch) return;
-    let arr = cols[to];
+    // A bucket name puts the card at the end of that bucket.
+    let arr = String(over.id).startsWith(CHIP_PREFIX) ? [...cols[to].filter((x) => x !== id), id] : cols[to];
     const oldIdx = arr.indexOf(id);
     const overIdx = arr.indexOf(String(over.id));
     if (oldIdx >= 0 && overIdx >= 0 && oldIdx !== overIdx) arr = arrayMove(arr, oldIdx, overIdx);
@@ -306,6 +322,7 @@ export function KanbanView({
         </SortableContext>
         {groupBy === "bucket" && <AddList boardId={board.id} />}
       </div>
+      {phone && activeCard && <BucketChips groups={groups.filter((g) => g.patch)} />}
       <DragOverlay dropAnimation={null}>
         {activeCard ? (
           <div className="drag-overlay">
@@ -320,6 +337,28 @@ export function KanbanView({
         ) : null}
       </DragOverlay>
     </DndContext>
+  );
+}
+
+/** Phones: while a card is held, the board's buckets as a row of names at the top. */
+function BucketChips({ groups }: { groups: Group[] }) {
+  return (
+    <div className="bucket-chips" aria-hidden>
+      <span className="muted">Move to</span>
+      {groups.map((g) => (
+        <BucketChip key={g.id} group={g} />
+      ))}
+    </div>
+  );
+}
+
+function BucketChip({ group }: { group: Group }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `${CHIP_PREFIX}${group.id}`, data: { type: "chip" } });
+  return (
+    <span ref={setNodeRef} className={`bucket-chip ${isOver ? "over" : ""}`}>
+      {group.color && <span className="dot" style={{ background: group.color }} />}
+      {group.title}
+    </span>
   );
 }
 
@@ -378,7 +417,7 @@ function Column({
     );
 
   return (
-    <div ref={sortable.setNodeRef} style={style} className={`column ${over ? "over-limit" : ""}`}>
+    <div ref={sortable.setNodeRef} style={style} className={`column ${over ? "over-limit" : ""}`} data-list-id={list?.id}>
       <div className="column-header" {...sortable.attributes} {...sortable.listeners}>
         {group.color && <span className="dot" style={{ background: group.color }} />}
         {list ? (
@@ -772,6 +811,8 @@ function AddList({ boardId }: { boardId: ID }) {
   const createList = useStore((s) => s.createList);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
+  const phone = useIsPhone();
+  const justAdded = useRef(false);
   if (!open)
     return (
       <button className="add-list-btn" onClick={() => setOpen(true)}>
@@ -779,7 +820,18 @@ function AddList({ boardId }: { boardId: ID }) {
       </button>
     );
   const submit = () => {
-    if (title.trim()) createList(boardId, title.trim());
+    if (title.trim()) {
+      const id = createList(boardId, title.trim());
+      // Show the new bucket. Phones show one bucket at a time, so close the box and land on it;
+      // bigger screens keep the box open for the next one, right beside it.
+      if (phone) {
+        justAdded.current = true; // the blur from closing the box mustn't add it twice
+        setOpen(false);
+      }
+      requestAnimationFrame(() =>
+        document.querySelector(`[data-list-id="${id}"]`)?.scrollIntoView({ behavior: "smooth", inline: phone ? "center" : "nearest", block: "nearest" }),
+      );
+    }
     setTitle("");
   };
   return (
@@ -799,7 +851,8 @@ function AddList({ boardId }: { boardId: ID }) {
         }}
         // Clicking away keeps what was typed (Esc or × cancels).
         onBlur={(e) => {
-          if (e.currentTarget.value.trim()) submit();
+          if (e.currentTarget.value.trim() && !justAdded.current) submit();
+          justAdded.current = false;
           setOpen(false);
         }}
       />

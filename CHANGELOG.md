@@ -10,6 +10,12 @@
 **Mac**
 - **A Mac version:** one app for Apple silicon and Intel Macs. The release has a `.dmg`, and a Mac App Store build is on the way. The App Store copy leaves start at login and the firewall to macOS's own settings, like the Microsoft Store copy does on Windows.
 
+**Fixes**
+- **The side menu keeps the logo and Settings in view:** only the boards in between scroll.
+- **New in Zomello** on a phone is a sheet from the bottom, clear of the status bar, with its buttons under your thumb. **See everything new** closes it and opens the guide, and says so if the browser can't open.
+- **A new bucket stays in view** after you add it. On a phone the board moves to it.
+- **Dragging on a phone:** while you hold a card, the board's buckets show as names at the top; drop on one to move the card there. Holding at the screen edge turns to the next bucket sooner, and Android phones give a small buzz when the card lifts.
+
 **Behind the scenes**
 - Tauri and its plugins updated to their latest fixes. DOMPurify updated for a security fix.
 
