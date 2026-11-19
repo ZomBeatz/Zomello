@@ -108,7 +108,7 @@ export const CardTile = memo(function CardTile({
     onPointerDown: stop,
     onClick: (e: React.MouseEvent) => {
       // While picking cards, a tap anywhere on the card picks it.
-      if (e.ctrlKey || e.metaKey || e.shiftKey || useStore.getState().selected.length) return;
+      if (e.ctrlKey || e.metaKey || e.shiftKey || useStore.getState().selected.length || useStore.getState().selecting) return;
       e.stopPropagation();
       openLinked(card.id);
     },
@@ -143,7 +143,7 @@ export const CardTile = memo(function CardTile({
           const [a, b] = [ids.indexOf(rangeStart), ids.indexOf(card.id)].sort((x, y) => x - y);
           if (a >= 0) return st.selectCards(ids.slice(a, b + 1));
         }
-        if (e.ctrlKey || e.metaKey || e.shiftKey || st.selected.length) {
+        if (e.ctrlKey || e.metaKey || e.shiftKey || st.selected.length || st.selecting) {
           st.toggleSelected(card.id);
           rangeStart = card.id;
         } else openCard(card.id);

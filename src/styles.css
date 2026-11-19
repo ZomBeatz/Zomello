@@ -1196,6 +1196,23 @@ button.badge.rel:hover { filter: brightness(1.15); text-decoration: underline; }
 
 /* ---------- selection & related filter ---------- */
 .card-tile.selected { box-shadow: 0 0 0 2.5px var(--accent), var(--shadow); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+/* Phones, while picking: a round tick on each card, filled on the picked ones. */
+.board-page.picking .card-tile::after {
+  content: ""; position: absolute; top: 8px; right: 8px; width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--muted); background: var(--surface); box-sizing: border-box; pointer-events: none;
+}
+.board-page.picking .card-tile.selected::after {
+  border-color: var(--accent); background: var(--accent)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
+    center / 11px no-repeat;
+}
+/* Phones, while picking: how many, Select all and Done, over the phone bar. */
+.selecting-head {
+  position: fixed; z-index: 45; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 8px;
+  padding: calc(env(safe-area-inset-top) + 6px) 10px 6px; background: var(--surface); border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow); animation: fade .12s;
+}
+.selecting-head b { flex: 1; font-size: 15px; }
 .selection-bar {
   position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 8px;
   padding: 8px 10px 8px 16px; border-radius: 12px; background: var(--surface); border: 1px solid var(--accent);

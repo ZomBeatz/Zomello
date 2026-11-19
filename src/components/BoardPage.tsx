@@ -31,13 +31,15 @@ import {
   CircleDot,
   Flag,
   Sun,
-  X, FileDown, ClipboardPaste, Zap, ZapOff, SlidersHorizontal, AlertTriangle, CalendarClock } from "lucide-react";
+  X, FileDown, ClipboardPaste, Zap, ZapOff, SlidersHorizontal, AlertTriangle, CalendarClock, ListChecks } from "lucide-react";
 import type { Board, Card, DueFilter, FieldDef, FieldValue, Filter, GroupBy, ID, ViewMode } from "../types";
 import { useBoardUi, useStore } from "../store";
 import { addDays, format, nextMonday, parseISO } from "date-fns";
 import { byOrder, emptyFilter, filterChoiceCount, filterIsActive, isLate, matchesFilter, todayISO, PALETTE, PRIORITIES, PROGRESS, relatedSet, toISO, uid } from "../utils";
 import { ask, Avatar, ColorPicker, InlineEdit, MenuItem, Popover } from "./ui";
 import { KanbanView } from "./views/KanbanView";
+import { cardsOnScreen } from "./CardTile";
+import { useIsPhone } from "../mobile";
 import { BucketPicker, LabelPicker } from "./pickers";
 import { featureOn, useFeature, viewShown } from "../features";
 import { ListView } from "./views/ListView";
@@ -74,6 +76,8 @@ export function BoardPage({ boardId }: { boardId: ID }) {
   const people = useStore((s) => s.data.settings.people);
   const features = useStore((s) => s.data.settings.features);
   const ui = useBoardUi(boardId);
+  const selecting = useStore((s) => s.selecting);
+  const selectedCount = useStore((s) => s.selected.length);
 
   // Pasting copied cards anywhere on the board (not into a text box) offers to add them.
   useEffect(() => {
@@ -109,13 +113,14 @@ export function BoardPage({ boardId }: { boardId: ID }) {
   }, [allCards, lists, boardId, ui.filter]);
 
   if (!board) return null;
+  const picking = selecting || selectedCount > 0;
   // A view whose feature group is off (Settings > Features) falls back to the board.
   const view = viewShown({ features }, ui.view) ? ui.view : "board";
   const shownUi = view === ui.view ? ui : { ...ui, view };
 
   return (
     <div
-      className={`board-page ${board.background.type !== "none" ? "has-bg" : ""} cols-${board.display.columnWidth}`}
+      className={`board-page ${board.background.type !== "none" ? "has-bg" : ""} cols-${board.display.columnWidth} ${picking ? "picking" : ""}`}
       style={{ "--board": board.color, "--board-bg": boardBackground(board) } as React.CSSProperties}
     >
       <BoardHeader board={board} view={view} />
@@ -138,7 +143,7 @@ export function BoardPage({ boardId }: { boardId: ID }) {
         onClick={(e) => {
           // A click on empty board space ends picking cards.
           const t = e.target as Element;
-          if (useStore.getState().selected.length && !t.closest(".card-tile, button, a, input, select, textarea, label, [contenteditable], .popover, .ctx-menu, .modal"))
+          if (useStore.getState().selected.length && !useStore.getState().selecting && !t.closest(".card-tile, button, a, input, select, textarea, label, [contenteditable], .popover, .ctx-menu, .modal"))
             useStore.getState().clearSelected();
         }}
       >
@@ -149,6 +154,7 @@ export function BoardPage({ boardId }: { boardId: ID }) {
         {view === "charts" && <ChartsView lists={lists} cards={cards} people={people} />}
       </div>
       </div>
+      <SelectingHead />
       <SelectionBar boardId={boardId} />
     </div>
   );
@@ -407,6 +413,7 @@ function Toolbar({
   count: number;
 }) {
   const { setFilter, setBoardUi, saveFilter, deleteSavedFilter } = useStore.getState();
+  const phone = useIsPhone();
   const saved = useStore((s) => s.data.savedFilters).filter((f) => f.boardId === board.id);
   const f = ui.filter;
   const relatedTitle = useStore((s) => (f.relatedTo ? s.data.cards[f.relatedTo]?.title : undefined));
@@ -448,6 +455,12 @@ function Toolbar({
       </div>
 
       <DueChips board={board} due={f.due} />
+      {/* Phones have no Ctrl+click: Select starts picking cards with a tap. */}
+      {phone && (
+        <button className="btn sm ghost" onClick={() => useStore.getState().startSelecting()} title="Pick several cards">
+          <ListChecks size={14} /> <span className="btn-label">Select</span>
+        </button>
+      )}
 
       <Popover
         trigger={(_, t) => (
@@ -654,7 +667,6 @@ function Toolbar({
   );
 }
 
-/** Shown while cards are picked (Ctrl+click, or Select on a card's menu): changes for all of them at once. */
 /** "2 late" and "3 due today" next to the filter: what needs doing now, a click away from showing only those cards. */
 function DueChips({ board, due }: { board: Board; due: DueFilter }) {
   const cards = useStore((s) => s.data.cards);
@@ -733,6 +745,30 @@ function SelectionField({ field: f, cards, onSet }: { field: FieldDef; cards: Ca
   );
 }
 
+/** Phones, while picking cards: how many, Select all, and Done, where the phone bar usually is. */
+function SelectingHead() {
+  const phone = useIsPhone();
+  const selecting = useStore((s) => s.selecting);
+  const n = useStore((s) => s.selected.length);
+  if (!phone || (!selecting && !n)) return null;
+  const st = useStore.getState();
+  return (
+    <div className="selecting-head" role="toolbar" aria-label="Picking cards">
+      <button className="icon-btn" aria-label="Done" title="Done" onClick={() => st.clearSelected()}>
+        <X size={18} />
+      </button>
+      <b>{n ? `${n} selected` : "Tap cards to select"}</b>
+      <button className="btn sm ghost" onClick={() => st.selectCards(cardsOnScreen())}>
+        Select all
+      </button>
+      <button className="btn sm primary" onClick={() => st.clearSelected()}>
+        Done
+      </button>
+    </div>
+  );
+}
+
+/** Shown while cards are picked (Ctrl+click, Select on a phone, or Select on a card's menu): changes for all of them at once. */
 function SelectionBar({ boardId }: { boardId: ID }) {
   const selected = useStore((s) => s.selected);
   const cards = useStore((s) => s.data.cards);

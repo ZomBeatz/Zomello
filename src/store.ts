@@ -434,6 +434,9 @@ interface State {
   /** Adds these cards to the selection. */
   selectCards(ids: ID[]): void;
   clearSelected(): void;
+  /** Phones: "Select" was pressed, so a tap picks a card even before any is picked. Ends with clearSelected. */
+  selecting: boolean;
+  startSelecting(): void;
 
   load(): Promise<void>;
   undo(): boolean;
@@ -799,7 +802,11 @@ export const useStore = create<State>((set, get) => {
       set((s) => ({ selected: [...new Set([...s.selected, ...ids])] }));
     },
     clearSelected() {
-      if (get().selected.length) set({ selected: [] });
+      if (get().selected.length || get().selecting) set({ selected: [], selecting: false });
+    },
+    selecting: false,
+    startSelecting() {
+      set({ selecting: true });
     },
 
     undo() {
@@ -951,7 +958,7 @@ export const useStore = create<State>((set, get) => {
     },
 
     navigate(route) {
-      set({ route, openCardId: null, cardTrail: [], cardNavDir: null, selected: [] });
+      set({ route, openCardId: null, cardTrail: [], cardNavDir: null, selected: [], selecting: false });
     },
     openCard(id, opts) {
       const { openCardId, cardTrail } = get();

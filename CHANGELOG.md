@@ -10,6 +10,9 @@
 **Mac**
 - **A Mac version:** one app for Apple silicon and Intel Macs. The release has a `.dmg`, and a Mac App Store build is on the way. The App Store copy leaves start at login and the firewall to macOS's own settings, like the Microsoft Store copy does on Windows.
 
+**Phones**
+- **Select several cards at once:** press **Select** on a board, then tap cards. A bar at the top shows how many are picked, with **Select all** and **Done**; the bar at the bottom changes them all at once (progress, priority, labels, dates, people, move, archive).
+
 **Fixes**
 - **The side menu keeps the logo and Settings in view:** only the boards in between scroll.
 - **New in Zomello** on a phone is a sheet from the bottom, clear of the status bar, with its buttons under your thumb. **See everything new** closes it and opens the guide, and says so if the browser can't open.
