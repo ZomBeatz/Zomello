@@ -350,6 +350,8 @@ export interface Settings {
   density: "compact" | "normal" | "comfortable";
   weekStartsOn: 0 | 1;
   defaultView: ViewMode;
+  /** What a new board starts with: "basic" (To do, In progress, Done), "blank", or a template id. */
+  newBoardStart?: string;
   sidebarCollapsed: boolean;
   reminders: ReminderSettings;
   /** Page zoom, 1 = 100%. Ctrl + mouse wheel, Ctrl +/-/0. */

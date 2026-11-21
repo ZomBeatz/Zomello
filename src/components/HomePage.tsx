@@ -8,6 +8,7 @@ import { boardCategories, byOrder, dueStatus, isLate, PALETTE, prettyDate, toISO
 import { ColorPicker, Empty, ProgressIcon } from "./ui";
 import { openCardMenu, openContextMenu } from "./ContextMenu";
 import { boardMenu } from "./boardMenu";
+import { BASIC_START, BLANK_START, BOARD_TEMPLATES, QUICK_STARTS, type BoardTemplate } from "../boardTemplates";
 import { useInvites } from "../invites";
 import { useFeature } from "../features";
 import { answerInvite, isServer, loadData as serverLoadData } from "../server";
@@ -19,6 +20,11 @@ export function HomePage() {
   const { navigate, openCard, createBoard } = useStore.getState();
   const [newTitle, setNewTitle] = useState("");
   const [newColor, setNewColor] = useState<string | null>(PALETTE[6]);
+  // A template brings its own color unless one was picked here.
+  const [colorPicked, setColorPicked] = useState(false);
+  const start = useStore((s) => s.data.settings.newBoardStart ?? BASIC_START);
+  const startColor = start === BASIC_START || start === BLANK_START ? newColor ?? undefined : undefined;
+  const makeBoard = () => navigate({ page: "board", boardId: createBoard(newTitle.trim(), colorPicked ? newColor ?? undefined : startColor) });
 
   const boards = useMemo(() => Object.values(data.boards).filter((b) => !b.archived).sort(byOrder), [data.boards]);
   const liveCards = useMemo(() => {
@@ -154,19 +160,16 @@ export function HomePage() {
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && newTitle.trim()) navigate({ page: "board", boardId: createBoard(newTitle.trim(), newColor ?? undefined) });
+              if (e.key === "Enter" && newTitle.trim()) makeBoard();
             }}
           />
-          <ColorPicker value={newColor} onChange={setNewColor} />
-          <button
-            className="btn primary sm"
-            disabled={!newTitle.trim()}
-            onClick={() => navigate({ page: "board", boardId: createBoard(newTitle.trim(), newColor ?? undefined) })}
-          >
+          <ColorPicker value={newColor} onChange={(c) => (setNewColor(c), setColorPicked(true))} />
+          <StartPicker />
+          <button className="btn primary sm" disabled={!newTitle.trim()} onClick={makeBoard}>
             <Plus size={14} /> Create board
           </button>
           <button className="btn ghost sm" onClick={() => useStore.getState().setOverlay({ templatesOpen: true })}>
-            <LayoutTemplate size={14} /> Start from a template
+            <LayoutTemplate size={14} /> All templates
           </button>
           <button className="btn ghost sm" onClick={() => useStore.getState().setOverlay({ importOpen: true })}>
             <FileUp size={14} /> Import from Trello or Planner
@@ -233,5 +236,30 @@ function Invitations() {
         ))}
       </ul>
     </section>
+  );
+}
+
+/** What a new board starts with. The choice is remembered, so the sidebar's + Board makes the same kind. */
+function StartPicker() {
+  const start = useStore((s) => s.data.settings.newBoardStart ?? BASIC_START);
+  const mine = useStore((s) => s.data.boardTemplates);
+  const byId = (id: string) => BOARD_TEMPLATES.find((t) => t.id === id)!;
+  const others = BOARD_TEMPLATES.filter((t) => !QUICK_STARTS.includes(t.id));
+  const option = (t: BoardTemplate) => (
+    <option key={t.id} value={t.id}>
+      {t.icon} {t.name}
+    </option>
+  );
+  return (
+    <label className="start-picker">
+      <span className="muted">Start with</span>
+      <select value={start} onChange={(e) => useStore.getState().updateSettings({ newBoardStart: e.target.value })}>
+        <option value={BASIC_START}>To do, In progress, Done</option>
+        <option value={BLANK_START}>A blank board</option>
+        {QUICK_STARTS.map((id) => option(byId(id)))}
+        <optgroup label="More">{others.map(option)}</optgroup>
+        {mine.length > 0 && <optgroup label="Your templates">{mine.map(option)}</optgroup>}
+      </select>
+    </label>
   );
 }

@@ -10,6 +10,9 @@
 **Mac**
 - **A Mac version:** one app for Apple silicon and Intel Macs. The release has a `.dmg`, and a Mac App Store build is on the way. The App Store copy leaves start at login and the firewall to macOS's own settings, like the Microsoft Store copy does on Windows.
 
+**New boards**
+- **Choose how a new board starts:** Home's new board box has **Start with**: the usual To do, In progress, Done, a blank board, a **Shopping list** (new), a weekly plan, a project, household chores, the other ready-made boards, or one of your own templates. Zomello remembers the choice, so **+ Board** in the side menu makes the same kind.
+
 **Phones**
 - **Select several cards at once:** press **Select** on a board, then tap cards. A bar at the top shows how many are picked, with **Select all** and **Done**; the bar at the bottom changes them all at once (progress, priority, labels, dates, people, move, archive).
 

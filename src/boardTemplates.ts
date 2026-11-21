@@ -10,6 +10,20 @@ const L = { green: "#22c55e", blue: "#0ea5e9", orange: "#ec6a3f", purple: "#a855
 
 export const BOARD_TEMPLATES: BoardTemplate[] = [
   {
+    id: "shopping",
+    name: "Shopping list",
+    icon: "🛒",
+    color: "#16a34a",
+    about: "What to buy, by store. Tick things off as they go in the cart.",
+    labels: [{ name: "Groceries", color: L.green }, { name: "Household", color: L.blue }, { name: "Pharmacy", color: L.red }],
+    lists: [
+      { name: "Grocery store", cards: [{ title: "Milk", labels: ["Groceries"] }, { title: "Bread", labels: ["Groceries"] }, { title: "Fruit and vegetables", labels: ["Groceries"], checklist: ["Apples", "Bananas", "Salad"] }] },
+      { name: "Other stores", cards: [{ title: "Paper towels", labels: ["Household"] }, { title: "Toothpaste", labels: ["Pharmacy"] }] },
+      { name: "Maybe", cards: [] },
+      { name: "In the cart", cards: [] },
+    ],
+  },
+  {
     id: "week",
     name: "Weekly plan",
     icon: "🗓️",
@@ -137,6 +151,14 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     ],
   },
 ];
+
+/**
+ * What + Board starts with (Home > Start with, remembered in settings.newBoardStart): the plain three buckets,
+ * nothing at all, or one of the templates (built-in or your own) by id.
+ */
+export const BASIC_START = "basic";
+export const BLANK_START = "blank";
+export const QUICK_STARTS = ["shopping", "week", "project", "chores"];
 
 /** A template as a board to add (see the store's importBoard). */
 export function templateBoard(t: BoardTemplate): ImportedBoard {

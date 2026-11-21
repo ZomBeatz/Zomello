@@ -7,7 +7,7 @@ import type {
   Activity, ActivityKind, AppData, BadgeMode, Board, BoardDisplay, BoardUi, Card, CardTemplate, Filter, FocusTimer, ID, LinkType, List, Route, Settings,
 } from "./types";
 import type { ImportedBoard } from "./importers";
-import { boardAsTemplate } from "./boardTemplates";
+import { BASIC_START, BLANK_START, BOARD_TEMPLATES, boardAsTemplate, templateBoard } from "./boardTemplates";
 import { broadcastData, isDeviceWindow, isExtraWindow, windowBoardId } from "./windows";
 import { sendDeviceChanges, setDeviceBase } from "./deviceWindow";
 import { isRemote } from "./remote";
@@ -473,7 +473,8 @@ interface State {
   cardBack(toIndex?: number): void;
   setSearchOpen(open: boolean): void;
 
-  createBoard(title: string, color?: string): ID;
+  /** A new board. `start` is "basic", "blank" or a template id; it defaults to the one picked on Home. */
+  createBoard(title: string, color?: string, start?: string): ID;
   updateBoard(id: ID, patch: Partial<Board>): void;
   deleteBoard(id: ID): void;
   /** Save the sidebar order (ids in display order). */
@@ -979,10 +980,16 @@ export const useStore = create<State>((set, get) => {
       set({ searchOpen: open });
     },
 
-    createBoard(title, color) {
+    createBoard(title, color, start = get().data.settings.newBoardStart ?? BASIC_START) {
+      const template = [...BOARD_TEMPLATES, ...get().data.boardTemplates].find((t) => t.id === start);
+      if (template) {
+        const id = get().importBoard({ ...templateBoard(template), title, color: color ?? template.color }, { addPeople: false });
+        mut((d) => ({ ...d, boards: { ...d.boards, [id]: { ...d.boards[id], icon: template.icon } }, ui: { ...d.ui, [id]: defaultUi(d.settings.defaultView) } }));
+        return id;
+      }
       const order = Math.max(-1, ...Object.values(get().data.boards).map((b) => b.order)) + 1;
       const board = newBoard(title, color ?? PALETTE[order % PALETTE.length], order);
-      const lists = defaultBuckets(board.id);
+      const lists = start === BLANK_START ? [] : defaultBuckets(board.id);
       mut((d) => ({
         ...d,
         boards: { ...d.boards, [board.id]: board },
