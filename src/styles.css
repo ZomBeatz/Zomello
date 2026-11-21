@@ -475,6 +475,10 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 .show-on-card { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; color: var(--muted); cursor: pointer; }
 .show-on-card input { margin: 0; }
 .access-chip { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); }
+/* A small text link inside a sentence ("dismiss"). */
+.link-btn { display: inline; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
+.link-btn:hover { color: var(--accent); }
+.demo-note { margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; background: var(--accent-soft); }
 .person-row { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .person-picker select { margin-left: 6px; }
 .comment-by { display: inline-flex; align-items: center; gap: 6px; }
@@ -922,8 +926,9 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px s
 [data-largertargets] .progress-toggle svg { width: 20px; height: 20px; }
 [data-largertargets] .menu-item, [data-largertargets] .ctx-item { padding: 9px 10px; }
 
-.zoom-control { display: flex; align-items: center; gap: 8px; }
-.zoom-control input[type="range"] { width: 200px; accent-color: var(--accent); }
+/* Narrow windows: the slider shrinks (and Reset wraps) instead of pushing the number off the edge. */
+.zoom-control { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; flex: 1; min-width: 0; }
+.zoom-control input[type="range"] { flex: 1 1 100px; min-width: 80px; max-width: 220px; accent-color: var(--accent); }
 .zoom-control .zoom-value { min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
 .a11y-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2px 20px; }
 .a11y-grid .check-row { align-items: flex-start; }

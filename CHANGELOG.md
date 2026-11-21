@@ -24,12 +24,13 @@
 - **Comments:** a card's notes are now **Comments**, and each one shows who wrote it (the name set in Settings > People).
 - **Show on the card, for one card:** in the card window, **On card** next to Checklist, Description, Files & links and Comments shows that part on the card on the board. Right-click a card (press and hold on a phone) > **Card display…** has every choice, over the bucket's and board's settings.
 - **Pictures on cards:** a new **Pictures** choice in Card display shows a count, or small previews of a card's pictures.
-- **My Day and My Tasks** say how they differ: My Day is today's plan; My Tasks is everything assigned to you, whatever the date.
+- **My Day and My Tasks** say how they differ: My Day is today's plan; My Tasks is everything assigned to you, whatever the date. **dismiss** at the end hides that text.
 
 **Phones**
 - **Select several cards at once:** press **Select** on a board, then tap cards. A bar at the top shows how many are picked, with **Select all** and **Done**; the bar at the bottom changes them all at once (progress, priority, labels, dates, people, move, archive).
 
 **Fixes**
+- **Zoom in Settings > Accessibility** fits narrow windows: the slider shrinks instead of pushing the percentage off the edge.
 - **The side menu keeps the logo and Settings in view:** only the boards in between scroll. On Android, the bottom of the menu now stays clear of the navigation buttons.
 - **New in Zomello** on a phone is a sheet from the bottom, clear of the status bar, with its buttons under your thumb. **See everything new** closes it and opens the guide, and says so if the browser can't open.
 - **A new bucket stays in view** after you add it. On a phone the board moves to it.

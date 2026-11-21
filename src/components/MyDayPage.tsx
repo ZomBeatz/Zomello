@@ -4,7 +4,7 @@ import { History, Lightbulb, Plus, Sun, X } from "lucide-react";
 import type { Card, ID } from "../types";
 import { useStore } from "../store";
 import { byOrder, cardSpan, prettyDate, toISO, todayISO } from "../utils";
-import { Empty } from "./ui";
+import { Empty, useIntro } from "./ui";
 import { TaskRow } from "./MyTasksPage";
 import { isHalloween } from "../undead";
 import { myDayLists } from "../myDay";
@@ -19,6 +19,7 @@ export function MyDayPage() {
   const data = useStore((s) => s.data);
   const { createCard, updateCard } = useStore.getState();
   const me = data.settings.me;
+  const intro = useIntro("myday");
   const [title, setTitle] = useState("");
   const { when, chip } = useWhen(title);
   const [suggest, setSuggest] = useState(false);
@@ -98,9 +99,14 @@ export function MyDayPage() {
         <Sun size={24} /> My Day
       </h1>
       <p className="muted">
-        {format(new Date(), "EEEE, MMMM d")}. <b>Today's plan</b>: what's late, due or scheduled today on every board
-        {me ? <> (for {me}, or no one)</> : null}, plus what you add here. Added tasks leave My Day at midnight.
-        For everything assigned to you, whatever the date, see My Tasks.
+        {format(new Date(), "EEEE, MMMM d")}.
+        {intro.shown && (
+          <>
+            {" "}<b>Today's plan</b>: what's late, due or scheduled today on every board
+            {me ? <> (for {me}, or no one)</> : null}, plus what you add here. Added tasks leave My Day at midnight.
+            For everything assigned to you, whatever the date, see My Tasks.{intro.dismiss}
+          </>
+        )}
       </p>
 
       {liveBoards.length > 0 && (

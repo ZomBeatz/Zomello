@@ -1,5 +1,6 @@
 import { Users, X } from "lucide-react";
 import { create } from "zustand";
+import { isDemo } from "../demo";
 import { useStore } from "../store";
 import type { ID, ShareLevel } from "../types";
 import { Avatar, Modal } from "./ui";
@@ -44,6 +45,12 @@ export function PeopleAccessHost() {
         </button>
       </header>
       <div className="customize-body">
+        {isDemo && (
+          <p className="demo-note small">
+            <b>In the demo:</b> try the choices here. In the desktop app, they decide what each person's phone shows; a browser
+            doesn't share anything.
+          </p>
+        )}
         <p className="muted small">
           Who sees this board on their phone, and what they can do. Give someone a phone first: Settings &gt; Phones &amp; tablets &gt;
           <b> Whose is it?</b> Their phone only ever gets the boards you share here, while this computer is on.
@@ -56,8 +63,10 @@ export function PeopleAccessHost() {
               const now = board.share?.[p] ?? "none";
               return (
                 <div key={p} className="badge-mode-row">
-                  <span className="grow person-row">
-                    <Avatar name={p} size={22} /> {p}
+                  <span className="grow">
+                    <span className="person-row">
+                      <Avatar name={p} size={22} /> {p}
+                    </span>
                     <small className="muted">{LEVELS.find((l) => l.id === now)!.about}</small>
                   </span>
                   <div className="seg">

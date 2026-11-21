@@ -376,6 +376,31 @@ export function ConfirmHost() {
   );
 }
 
+/** Puts a page's intro text away ("dismiss" at its end), with Undo in case it was a slip. */
+export function useIntro(id: string): { shown: boolean; dismiss: ReactNode } {
+  const shown = useStore((s) => !s.data.settings.hiddenIntros?.includes(id));
+  const set = (hidden: boolean) => {
+    const st = useStore.getState();
+    const now = st.data.settings.hiddenIntros ?? [];
+    st.updateSettings({ hiddenIntros: hidden ? [...new Set([...now, id])] : now.filter((x) => x !== id) });
+  };
+  const dismiss = (
+    <>
+      {" "}
+      <button
+        className="link-btn"
+        onClick={() => {
+          set(true);
+          useStore.getState().toast("Hid the page's description.", { action: { label: "Undo", run: () => set(false) } });
+        }}
+      >
+        dismiss
+      </button>
+    </>
+  );
+  return { shown, dismiss };
+}
+
 export function Empty({ icon, title, children }: { icon?: ReactNode; title: string; children?: ReactNode }) {
   return (
     <div className="empty">

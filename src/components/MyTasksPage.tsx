@@ -6,7 +6,7 @@ import { useStore } from "../store";
 import {
   byOrder, checklistStats, dueStatus, formatDuration, isLate, prettyDate, PRIORITIES, PROGRESS, toISO, todayISO, trackedMs,
 } from "../utils";
-import { Empty, PriorityBadge, ProgressIcon } from "./ui";
+import { Empty, PriorityBadge, ProgressIcon, useIntro } from "./ui";
 import { openCardMenu } from "./ContextMenu";
 import { useWhen, withWhen } from "./WhenChip";
 import { toggleDone } from "../blocked";
@@ -17,6 +17,7 @@ export function MyTasksPage() {
   const data = useStore((s) => s.data);
   const { createCard } = useStore.getState();
   const me = data.settings.me;
+  const intro = useIntro("mytasks");
   const [group, setGroup] = useState<GroupMode>("due");
   const [includeUnassigned, setIncludeUnassigned] = useState(false);
   const [showDone, setShowDone] = useState(false);
@@ -85,9 +86,12 @@ export function MyTasksPage() {
       </h1>
       <p className="muted">
         {me ? (
-          <>
-            <b>Everything assigned to {me}</b> across all boards, whatever the date. For just what to do today, see My Day.
-          </>
+          intro.shown && (
+            <>
+              <b>Everything assigned to {me}</b> across all boards, whatever the date. For just what to do today, see My Day.
+              {intro.dismiss}
+            </>
+          )
         ) : (
           "Set who you are in Settings → People."
         )}
