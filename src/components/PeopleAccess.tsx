@@ -6,7 +6,7 @@ import { Avatar, Modal } from "./ui";
 
 /**
  * Board menu > People on this board…: which people in your home see this board on their phones, and what
- * they may do there. Their phones are set up in Settings > Devices (Whose is it?). This computer enforces
+ * they may do there. Their phones are set up in Settings > Phones & tablets (Whose is it?). This computer enforces
  * it: a phone only ever gets the boards shared with its person (src-tauri/src/people.rs).
  */
 export const usePeopleAccess = create<{ boardId: ID | null }>(() => ({ boardId: null }));
@@ -45,11 +45,11 @@ export function PeopleAccessHost() {
       </header>
       <div className="customize-body">
         <p className="muted small">
-          Who sees this board on their phone, and what they can do. Give someone a phone first: Settings &gt; Devices &gt;
+          Who sees this board on their phone, and what they can do. Give someone a phone first: Settings &gt; Phones &amp; tablets &gt;
           <b> Whose is it?</b> Their phone only ever gets the boards you share here, while this computer is on.
         </p>
         {others.length === 0 ? (
-          <p className="muted">No one else yet. Add people in Settings &gt; People, or from a phone in Settings &gt; Devices.</p>
+          <p className="muted">No one else yet. Add people in Settings &gt; People, or from a phone in Settings &gt; Phones &amp; tablets.</p>
         ) : (
           <div className="badge-modes">
             {others.map((p) => {

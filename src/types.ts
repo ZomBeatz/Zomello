@@ -258,7 +258,7 @@ export interface Board {
   /** Only on this device: never shown on your other devices (or your computer, from a phone). */
   private?: boolean;
   /**
-   * This computer's board on other people's phones (Settings > Devices > Whose is it?): who sees it and
+   * This computer's board on other people's phones (Settings > Phones & tablets > Whose is it?): who sees it and
    * what they may do. "check" = tick off their own tasks and comment. See src-tauri/src/people.rs.
    */
   share?: Record<string, ShareLevel>;
