@@ -259,7 +259,7 @@ export interface Board {
   private?: boolean;
   /**
    * This computer's board on other people's phones (Settings > Phones & tablets > Whose is it?): who sees it and
-   * what they may do. "check" = tick off their own tasks and comment. See src-tauri/src/people.rs.
+   * what they may do. "check" = comment on any card, and set the status and tick checklist items on their own. See src-tauri/src/people.rs.
    */
   share?: Record<string, ShareLevel>;
   /** Optional group in the sidebar and on Home (e.g. "Work", "Home"). Null = not in one. */

@@ -16,7 +16,7 @@ export const openPeopleAccess = (boardId: ID) => usePeopleAccess.setState({ boar
 const LEVELS: { id: ShareLevel | "none"; name: string; about: string }[] = [
   { id: "none", name: "No access", about: "Doesn't see this board" },
   { id: "view", name: "Can view", about: "Sees it, changes nothing" },
-  { id: "check", name: "Can check off", about: "Ticks off tasks assigned to them, and comments" },
+  { id: "check", name: "Can check off", about: "Comments on any card. On cards assigned to them: sets the status and ticks checklist items" },
   { id: "edit", name: "Can edit", about: "Changes anything on this board" },
 ];
 

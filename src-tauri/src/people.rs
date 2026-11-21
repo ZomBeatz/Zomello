@@ -4,8 +4,8 @@
 //! "edit" }`), and when it saves, only the changes Sam may make are kept:
 //!
 //! - **view:** nothing.
-//! - **check:** tick off (and untick) the cards and checklist items assigned to Sam, and add comments
-//!   to any card on the board.
+//! - **check:** set the status (Not started, In progress, Done) and tick checklist items on the cards
+//!   assigned to Sam, and add comments to any card on the board.
 //! - **edit:** anything on the board (its buckets and cards), except who it's shared with.
 //!
 //! Everything else (other boards, settings, templates) stays as this computer has it. A device without

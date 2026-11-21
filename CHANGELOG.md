@@ -17,7 +17,7 @@
 
 **People in your home**
 - **Give a phone to someone:** in **Settings > Phones & tablets**, each linked phone or tablet has **Whose is it?** Yours sees every board, as before. Someone else's (Sam's phone) sees only the boards shared with Sam.
-- **People on this board:** in a board's menu on the computer, choose who sees it and what they can do: **Can view**, **Can check off** (tick off the tasks assigned to them, and comment) or **Can edit**. The computer keeps only the changes each person is allowed, and their phone shows **View only** or **Check off** on boards they can't fully change.
+- **People on this board:** in a board's menu on the computer, choose who sees it and what they can do: **Can view**, **Can check off** (comment on any card; on cards assigned to them, set the status and tick checklist items) or **Can edit**. The computer keeps only the changes each person is allowed, and their phone shows **View only** or **Check off** on boards they can't fully change.
 - **Assign them tasks:** people you add this way are in a card's **Assigned to** and the board filter. On their phone, those cards are in **My Day** and **My Tasks**, and their comments carry their name.
 
 **Cards**

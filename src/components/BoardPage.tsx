@@ -679,7 +679,7 @@ function AccessChip({ board }: { board: Board }) {
   return (
     <span
       className="access-chip"
-      title={level === "view" ? "You can see this board. Changes you make here aren't kept." : "You can tick off tasks assigned to you, and comment. Other changes aren't kept."}
+      title={level === "view" ? "You can see this board. Changes you make here aren't kept." : "You can comment on any card. On cards assigned to you, you can set the status and tick checklist items. Other changes aren't kept."}
     >
       <Lock size={12} /> {level === "view" ? "View only" : "Check off"}
     </span>
