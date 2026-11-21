@@ -38,7 +38,7 @@
 - **Card display for one card** is part of Board looks, so a simpler setup doesn't show it.
 
 **Desktop**
-- **A Mac version:** one app for Apple silicon and Intel Macs, on GitHub as a `.dmg` and in the Mac App Store. The App Store copy leaves start at login and the firewall to macOS's own settings, like the Microsoft Store copy does on Windows.
+- **A Mac version:** one app for Apple silicon and Intel Macs, on GitHub as a `.dmg`, and in the Mac App Store once Apple approves it. The App Store copy leaves start at login and the firewall to macOS's own settings, like the Microsoft Store copy does on Windows.
 - **A portable Windows copy** (`Zomello_0.7.0_x64-portable.zip`): unzip and run, nothing to install. With the **Zomello Data** folder next to the app, everything Zomello keeps stays in that folder, so it runs from a USB stick and leaves nothing behind. The same folder next to the Linux AppImage or the Mac app makes those portable too.
 
 **Reporting problems**
