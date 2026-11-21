@@ -46,6 +46,9 @@ struct Device {
     /// Show this device's boards on this computer while it's connected.
     #[serde(default = "yes")]
     show_boards: bool,
+    /// Whose device this is. It then gets only the boards shared with that person (people.rs).
+    #[serde(default)]
+    person: Option<String>,
 }
 
 fn yes() -> bool {
@@ -86,6 +89,27 @@ pub fn new_link_token(app: &AppHandle, headers: &HeaderMap) -> Option<String> {
 /// The paired device making this request (signed in with its cookie), if any.
 pub fn requester(app: &AppHandle, headers: &HeaderMap) -> Option<String> {
     device(app, headers).map(|d| d.id)
+}
+
+/// The paired device making this request belongs to a person (so it sees only their boards).
+pub fn requester_is_person(app: &AppHandle, headers: &HeaderMap) -> bool {
+    device(app, headers).is_some_and(|d| d.person.is_some())
+}
+
+/// The person a device belongs to now (it can change while the device is connected).
+fn person_of(app: &AppHandle, id: &str) -> Option<String> {
+    let r = app.state::<Remote>();
+    let inner = r.inner.lock().unwrap();
+    inner.config.devices.iter().find(|d| d.id == id).and_then(|d| d.person.clone())
+}
+
+/// The data as a device may see it: no private boards, and only a person's own boards.
+fn data_for(json: &str, person: Option<&str>) -> String {
+    let json = crate::private::without_private(json);
+    match person {
+        Some(p) => crate::people::for_person(&json, p),
+        None => json,
+    }
 }
 
 /// A connected phone's boards changed (or it came or went): tell the other devices' pages.
@@ -680,6 +704,7 @@ async fn pair(State(app): State<AppHandle>, Json(req): Json<PairReq>) -> Respons
         last_seen: now,
         link_token_hash: None,
         show_boards: true,
+        person: None,
     });
     save_config(&app, &inner.config);
     drop(inner);
@@ -689,26 +714,31 @@ async fn pair(State(app): State<AppHandle>, Json(req): Json<PairReq>) -> Respons
 }
 
 async fn get_data(State(app): State<AppHandle>, headers: HeaderMap) -> Response {
-    if device(&app, &headers).is_none() {
-        return unauthorized();
-    }
-    // This computer's private boards aren't shown on other devices.
+    let Some(dev) = device(&app, &headers) else { return unauthorized() };
+    // This computer's private boards aren't shown on other devices, and a person sees only theirs.
     match crate::read_data(&app) {
-        Ok(json) => ([(header::CONTENT_TYPE, "application/json")], crate::private::without_private(&json)).into_response(),
+        Ok(json) => ([(header::CONTENT_TYPE, "application/json")], data_for(&json, dev.person.as_deref())).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
     }
 }
 
 async fn put_data(State(app): State<AppHandle>, headers: HeaderMap, body: String) -> Response {
-    if device(&app, &headers).is_none() {
-        return unauthorized();
-    }
-    // The device never saw this computer's private boards; keep them as they are.
-    let body = crate::private::keep_private(&body, &crate::read_data(&app).unwrap_or_default());
+    let Some(dev) = device(&app, &headers) else { return unauthorized() };
+    let current = crate::read_data(&app).unwrap_or_default();
+    let body = match &dev.person {
+        // Only the changes this person may make (people.rs).
+        Some(p) => crate::people::merge_from_person(&body, &current, p),
+        // The device never saw this computer's private boards; keep them as they are.
+        None => crate::private::keep_private(&body, &current),
+    };
     if let Err(e) = crate::write_data(&app, &body) {
         return (StatusCode::BAD_REQUEST, e).into_response();
     }
-    let from = headers.get("x-client").and_then(|v| v.to_str().ok()).unwrap_or("device").to_string();
+    // A person's device takes the result back too, so a change they couldn't make is undone there.
+    let from = match dev.person {
+        Some(_) => "people".to_string(),
+        None => headers.get("x-client").and_then(|v| v.to_str().ok()).unwrap_or("device").to_string(),
+    };
     let _ = app.state::<Remote>().tx.send(Msg::Data { from, json: body.clone() });
     // Desktop windows adopt it the same way they adopt each other's saves.
     let _ = app.emit("zomello://data-changed", serde_json::json!({ "from": "remote", "json": body }));
@@ -718,15 +748,15 @@ async fn put_data(State(app): State<AppHandle>, headers: HeaderMap, body: String
 /// Server-sent events: the current data on connect, then every change.
 async fn events(State(app): State<AppHandle>, headers: HeaderMap) -> Response {
     let Some(dev) = device(&app, &headers) else { return unauthorized() };
-    let first = crate::private::without_private(&crate::read_data(&app).unwrap_or_default());
+    let first = data_for(&crate::read_data(&app).unwrap_or_default(), dev.person.as_deref());
     let rx = app.state::<Remote>().tx.subscribe();
     let initial = stream::once(async move { Ok::<_, Infallible>(sse::Event::default().event("data").id("server").data(first)) });
-    let updates = stream::unfold((rx, dev.id), |(mut rx, id)| async move {
+    let updates = stream::unfold((rx, dev.id, app.clone()), |(mut rx, id, app)| async move {
         loop {
             match rx.recv().await {
                 Ok(Msg::Data { from, json }) => {
-                    let json = crate::private::without_private(&json);
-                    return Some((Ok(sse::Event::default().event("data").id(from).data(json)), (rx, id)))
+                    let json = data_for(&json, person_of(&app, &id).as_deref());
+                    return Some((Ok(sse::Event::default().event("data").id(from).data(json)), (rx, id, app)))
                 }
                 Ok(Msg::Revoked(d)) if d == id => return None,
                 Ok(Msg::Shutdown) | Err(broadcast::error::RecvError::Closed) => return None,
@@ -838,6 +868,8 @@ pub struct DeviceInfo {
     show_boards: bool,
     /// Its app has linked with this computer (it can share its boards).
     can_link: bool,
+    /// Whose device it is (it sees only the boards shared with them), or None for all boards.
+    person: Option<String>,
 }
 
 // ---- Firewall ----
@@ -1068,6 +1100,7 @@ fn status_of(app: &AppHandle) -> Status {
                 last_seen: d.last_seen,
                 show_boards: d.show_boards,
                 can_link: d.link_token_hash.is_some(),
+                person: d.person.clone(),
             })
             .collect(),
     }
@@ -1211,6 +1244,24 @@ pub fn remote_show_boards(app: AppHandle, id: String, show: bool) -> Status {
         save_config(&app, &inner.config);
     }
     let _ = app.emit("zomello://linked-changed", serde_json::json!({ "id": id }));
+    status_of(&app)
+}
+
+/// Say whose device this is (None: it sees all boards again). It gets the new view right away.
+#[tauri::command]
+pub fn remote_set_person(app: AppHandle, id: String, person: Option<String>) -> Status {
+    let person = person.map(|p| p.trim().chars().take(60).collect::<String>()).filter(|p| !p.is_empty());
+    {
+        let r = app.state::<Remote>();
+        let mut inner = r.inner.lock().unwrap();
+        if let Some(d) = inner.config.devices.iter_mut().find(|d| d.id == id) {
+            d.person = person;
+        }
+        save_config(&app, &inner.config);
+    }
+    if let Ok(json) = crate::read_data(&app) {
+        let _ = app.state::<Remote>().tx.send(Msg::Data { from: "people".into(), json });
+    }
     status_of(&app)
 }
 

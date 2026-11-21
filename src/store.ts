@@ -355,6 +355,8 @@ export function normalize(raw: unknown): AppData {
     templates: d.templates ?? [],
     boardTemplates: d.boardTemplates ?? [],
     ui,
+    // On a person's phone: whose it is (see the AccessChip).
+    ...(typeof d.person === "string" ? { person: d.person } : {}),
     settings: {
       ...defaultSettings(),
       ...d.settings,

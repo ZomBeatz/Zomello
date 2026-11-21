@@ -1,3 +1,4 @@
+import { ShowOnCard } from "./CardDisplay";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { archiveCard, deleteCard as deleteCardAction } from "../actions";
 import {
@@ -247,6 +248,8 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
           <section>
             <h4>
               <AlignLeft size={15} /> Description
+              <span className="grow" />
+              <ShowOnCard cardId={card.id} kind="description" />
             </h4>
             <MarkdownField
               value={card.description}
@@ -377,6 +380,8 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
           <section>
             <h4>
               <MessageSquare size={15} /> Comments
+              <span className="grow" />
+              <ShowOnCard cardId={card.id} kind="notes" />
             </h4>
             <MarkdownEditor
               placeholder={isPhoneOrTablet ? "Write a comment… (it's kept when you close the card)" : "Write a comment… (Ctrl+Enter to add; it's also kept if you close the card)"}
@@ -710,6 +715,8 @@ function AttachmentsSection({ card, onFiles }: { card: Card; onFiles: (f: FileLi
       <h4>
         <Link2 size={15} /> Files & links
         <span className="grow" />
+        {images.length > 0 && <ShowOnCard cardId={card.id} kind="images" label="Pictures on card" />}
+        <ShowOnCard cardId={card.id} kind="attachments" />
         <button className="btn sm ghost" disabled={busy} onClick={() => fileRef.current?.click()}>
           <Upload size={13} /> {busy ? "Attaching…" : "Attach files"}
         </button>

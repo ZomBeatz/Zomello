@@ -17,6 +17,7 @@ mod link_client;
 mod logs;
 mod places;
 mod private;
+mod people;
 mod servers;
 
 const DATA_FILE: &str = "zomello.json";
@@ -550,6 +551,7 @@ pub fn run() {
         remote::remote_export_cert,
         remote::remote_qr,
         remote::remote_show_boards,
+        remote::remote_set_person,
         link::linked_devices,
         link::linked_data,
         link::linked_send,

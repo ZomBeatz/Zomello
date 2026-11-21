@@ -1,3 +1,4 @@
+import { ShowOnCard } from "./CardDisplay";
 import { useState } from "react";
 import { useDragSensors } from "../mobile";
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
@@ -44,6 +45,8 @@ export function ChecklistSection({ card }: { card: Card }) {
             {cl.done}/{cl.total}
           </span>
         )}
+        <span className="grow" />
+        <ShowOnCard cardId={card.id} kind="checklist" />
       </h4>
       {cl.total > 0 && (
         <div className="progress-bar">

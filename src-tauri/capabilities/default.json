@@ -50,6 +50,7 @@
     "allow-list-attachments",
     "allow-delete-attachment",
     "allow-remote-status",
+    "allow-remote-set-person",
     "allow-remote-set-enabled",
     "allow-remote-start-pairing",
     "allow-remote-cancel-pairing",

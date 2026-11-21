@@ -31,7 +31,7 @@ import {
   CircleDot,
   Flag,
   Sun,
-  X, FileDown, ClipboardPaste, Zap, ZapOff, SlidersHorizontal, AlertTriangle, CalendarClock, ListChecks } from "lucide-react";
+  X, FileDown, ClipboardPaste, Zap, ZapOff, SlidersHorizontal, AlertTriangle, CalendarClock, ListChecks, Lock } from "lucide-react";
 import type { Board, Card, DueFilter, FieldDef, FieldValue, Filter, GroupBy, ID, ViewMode } from "../types";
 import { useBoardUi, useStore } from "../store";
 import { addDays, format, nextMonday, parseISO } from "date-fns";
@@ -170,6 +170,7 @@ function BoardHeader({ board, view }: { board: Board; view: ViewMode }) {
       <span className="board-title-wrap" title={board.title}>
         <InlineEdit className="board-title" value={board.title} onSave={(title) => updateBoard(board.id, { title })} />
       </span>
+      <AccessChip board={board} />
       <button
         className={`icon-btn ${board.starred ? "starred" : ""}`}
         title={board.starred ? "Unstar" : "Star"}
@@ -664,6 +665,24 @@ function Toolbar({
         </label>
       )}
     </div>
+  );
+}
+
+/**
+ * On someone else's phone (the computer shares its boards with them): what they can do on this board.
+ * The computer keeps only the changes they're allowed, so this says why others don't stick.
+ */
+function AccessChip({ board }: { board: Board }) {
+  const person = useStore((s) => s.data.person);
+  const level = person ? board.share?.[person] : undefined;
+  if (!level || level === "edit") return null;
+  return (
+    <span
+      className="access-chip"
+      title={level === "view" ? "You can see this board. Changes you make here aren't kept." : "You can tick off tasks assigned to you, and comment. Other changes aren't kept."}
+    >
+      <Lock size={12} /> {level === "view" ? "View only" : "Check off"}
+    </span>
   );
 }
 

@@ -257,6 +257,11 @@ export interface Board {
   starred: boolean;
   /** Only on this device: never shown on your other devices (or your computer, from a phone). */
   private?: boolean;
+  /**
+   * This computer's board on other people's phones (Settings > Devices > Whose is it?): who sees it and
+   * what they may do. "check" = tick off their own tasks and comment. See src-tauri/src/people.rs.
+   */
+  share?: Record<string, ShareLevel>;
   /** Optional group in the sidebar and on Home (e.g. "Work", "Home"). Null = not in one. */
   category?: string | null;
   /** Calendars shown (read-only) in this board's Calendar view. */
@@ -427,8 +432,12 @@ export interface BoardTemplate {
   createdAt?: number;
 }
 
+export type ShareLevel = "view" | "check" | "edit";
+
 export interface AppData {
   version: 1;
+  /** On a person's phone: whose (the computer sends only their boards). Never set on the computer. */
+  person?: string;
   boards: Record<ID, Board>;
   lists: Record<ID, List>;
   cards: Record<ID, Card>;

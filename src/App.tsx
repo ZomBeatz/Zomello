@@ -55,6 +55,7 @@ import { WelcomeGuide } from "./components/WelcomeGuide";
 import { watchForBraaains } from "./undead";
 import { useWhatsNew, WhatsNew, whatsNewDue } from "./components/WhatsNew";
 import { CardDisplayHost } from "./components/CardDisplay";
+import { PeopleAccessHost } from "./components/PeopleAccess";
 
 const DENSITY = { compact: "13px", normal: "14px", comfortable: "15.5px" };
 
@@ -327,6 +328,7 @@ export default function App() {
       <ContextMenuHost />
       <LinkedSheetHost />
       <CardDisplayHost />
+      <PeopleAccessHost />
       <ConfirmHost />
     </div>
   );

@@ -303,7 +303,8 @@ fn sharing_devices(app: &AppHandle) -> Vec<String> {
 /// and it isn't the requester itself.
 fn may_see(app: &AppHandle, headers: &HeaderMap, id: &str) -> Result<(), Response> {
     let Some(me) = remote::requester(app, headers) else { return Err(StatusCode::UNAUTHORIZED.into_response()) };
-    if me == id || !sharing_devices(app).iter().any(|d| d == id) {
+    // Someone else's device (it belongs to a person) never sees your other devices' boards.
+    if me == id || remote::requester_is_person(app, headers) || !sharing_devices(app).iter().any(|d| d == id) {
         return Err(StatusCode::FORBIDDEN.into_response());
     }
     Ok(())
@@ -313,7 +314,8 @@ fn may_see(app: &AppHandle, headers: &HeaderMap, id: &str) -> Result<(), Respons
 pub async fn shared_devices(State(app): State<AppHandle>, headers: HeaderMap) -> Response {
     let Some(me) = remote::requester(&app, &headers) else { return StatusCode::UNAUTHORIZED.into_response() };
     let sharing = sharing_devices(&app);
-    Json(device_list(&app, |id| id != me && sharing.iter().any(|s| s == id))).into_response()
+    let person = remote::requester_is_person(&app, &headers);
+    Json(device_list(&app, |id| !person && id != me && sharing.iter().any(|s| s == id))).into_response()
 }
 
 /// `GET /api/devices/{id}/data`: that device's data file, as it last sent it.

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-remote-set-person"
+description = "Enables the remote_set_person command without any pre-configured scope."
+commands.allow = ["remote_set_person"]
+
+[[permission]]
+identifier = "deny-remote-set-person"
+description = "Denies the remote_set_person command without any pre-configured scope."
+commands.deny = ["remote_set_person"]

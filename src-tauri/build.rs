@@ -23,6 +23,7 @@ fn main() {
                 "places_take_board",
                 "link_ops_ack",
                 "remote_show_boards",
+                "remote_set_person",
                 "linked_devices",
                 "linked_data",
                 "linked_send",

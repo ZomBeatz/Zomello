@@ -3,7 +3,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { invoke } from "@tauri-apps/api/core";
 import { Download, KeyRound, QrCode, RefreshCw, ShieldCheck, Smartphone, Unlink, X } from "lucide-react";
 import { useStore } from "../store";
-import { ask, InlineEdit, Modal } from "./ui";
+import { ask, CommitInput, InlineEdit, Modal } from "./ui";
 import { copyText } from "./Markdown";
 import { DeviceBackups } from "./DeviceBackups";
 
@@ -16,6 +16,8 @@ interface DeviceInfo {
   show_boards: boolean;
   /** The Zomello app on it has linked with this computer (it can share its boards). */
   can_link: boolean;
+  /** Whose device it is: it sees only the boards shared with them. Null: yours, all boards. */
+  person: string | null;
 }
 interface RemoteStatus {
   enabled: boolean;
@@ -322,7 +324,8 @@ export function DevicesPanel() {
                   Paired {formatDistanceToNow(d.created * 1000, { addSuffix: true })} · last seen{" "}
                   {formatDistanceToNow(d.last_seen * 1000, { addSuffix: true })}
                 </span>
-                {d.can_link && (
+                <PersonPicker device={d} onSet={(person) => void run(() => invoke("remote_set_person", { id: d.id, person }))} />
+                {d.can_link && !d.person && (
                   <label className="check-row small">
                     <input
                       type="checkbox"
@@ -410,5 +413,51 @@ function PairingWindow({ info, setupUrl, onClose }: { info: PairingInfo; setupUr
         )}
       </div>
     </Modal>
+  );
+}
+
+/**
+ * Whose device this is. Yours sees every board; someone else's (Sam's phone) sees only the boards
+ * shared with Sam (a board's menu > People on this board), and Sam can be given tasks.
+ */
+function PersonPicker({ device, onSet }: { device: DeviceInfo; onSet: (person: string | null) => void }) {
+  const people = useStore((s) => s.data.settings.people);
+  const me = useStore((s) => s.data.settings.me);
+  const [adding, setAdding] = useState(false);
+  const others = people.filter((p) => p !== me);
+  const choose = (person: string | null) => {
+    const st = useStore.getState();
+    if (person && !st.data.settings.people.includes(person)) st.updateSettings({ people: [...st.data.settings.people, person] });
+    onSet(person);
+  };
+  return (
+    <label className="check-row small person-picker">
+      Whose is it?
+      {adding ? (
+        <CommitInput
+          autoFocus
+          value=""
+          placeholder="Their name, e.g. Sam"
+          onCommit={(name) => {
+            setAdding(false);
+            if (name.trim() && name.trim() !== me) choose(name.trim());
+          }}
+          onBlur={() => setAdding(false)}
+        />
+      ) : (
+        <select
+          value={device.person ?? ""}
+          onChange={(e) => (e.target.value === "\u0000new" ? setAdding(true) : choose(e.target.value || null))}
+        >
+          <option value="">Mine (sees every board)</option>
+          {[...new Set([...others, ...(device.person ? [device.person] : [])])].map((p) => (
+            <option key={p} value={p}>
+              {p}'s (only boards shared with {p})
+            </option>
+          ))}
+          <option value={"\u0000new"}>Someone else…</option>
+        </select>
+      )}
+    </label>
   );
 }

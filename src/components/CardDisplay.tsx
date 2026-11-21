@@ -67,3 +67,31 @@ export function CardDisplayHost() {
     </Modal>
   );
 }
+
+/**
+ * A small "On card" tick next to a section's name in the card window (like custom fields have): shows
+ * that part in full on the card on the board, whatever the bucket and board show.
+ */
+export function ShowOnCard({ cardId, kind, label = "On card" }: { cardId: ID; kind: BadgeKey; label?: string }) {
+  const card = useStore((s) => s.data.cards[cardId]);
+  const usual = useStore((s): BadgeMode => {
+    const c = s.data.cards[cardId];
+    return (c && (s.data.lists[c.listId]?.badges?.[kind] ?? s.data.boards[c.boardId]?.display.badges[kind])) ?? "off";
+  });
+  if (!card) return null;
+  const now = card.badges?.[kind] ?? usual;
+  const set = (on: boolean) => {
+    const next = { ...(card.badges ?? {}) };
+    // Back to the usual when that already matches; otherwise this card's own choice.
+    const want: BadgeMode = on ? "full" : usual === "full" ? "icon" : usual;
+    if (want === usual) delete next[kind];
+    else next[kind] = want;
+    useStore.getState().updateCard(card.id, { badges: Object.keys(next).length ? next : undefined });
+  };
+  return (
+    <label className="show-on-card" title="Show this in full on the card on the board" onClick={(e) => e.stopPropagation()}>
+      <input type="checkbox" checked={now === "full"} onChange={(e) => set(e.target.checked)} />
+      {label}
+    </label>
+  );
+}

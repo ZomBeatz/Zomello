@@ -15,9 +15,14 @@
 - **Choose how a new board starts:** Home's new board box has **Start with**: blank, To do / In progress / Done, a **Shopping list** (new), a weekly plan, a project, household chores, the other ready-made boards, or one of your own templates.
 - **Templates set up what cards show:** a trip, a move, an event, a shopping list and others show their checklists right on the cards, ready to tick. Saving a board as a template keeps its card display too.
 
+**People in your home**
+- **Give a phone to someone:** in **Settings > Devices**, each linked phone or tablet has **Whose is it?** Yours sees every board, as before. Someone else's (Sam's phone) sees only the boards shared with Sam.
+- **People on this board:** in a board's menu on the computer, choose who sees it and what they can do: **Can view**, **Can check off** (tick off the tasks assigned to them, and comment) or **Can edit**. The computer keeps only the changes each person is allowed, and their phone shows **View only** or **Check off** on boards they can't fully change.
+- **Assign them tasks:** people you add this way are in a card's **Assigned to** and the board filter. On their phone, those cards are in **My Day** and **My Tasks**, and their comments carry their name.
+
 **Cards**
 - **Comments:** a card's notes are now **Comments**, and each one shows who wrote it (the name set in Settings > People).
-- **Card display for one card:** right-click a card (press and hold on a phone) > **Card display…** chooses what that card shows on the board, over its bucket's and board's settings.
+- **Show on the card, for one card:** in the card window, **On card** next to Checklist, Description, Files & links and Comments shows that part on the card on the board. Right-click a card (press and hold on a phone) > **Card display…** has every choice, over the bucket's and board's settings.
 - **Pictures on cards:** a new **Pictures** choice in Card display shows a count, or small previews of a card's pictures.
 - **My Day and My Tasks** say how they differ: My Day is today's plan; My Tasks is everything assigned to you, whatever the date.
 

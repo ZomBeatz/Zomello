@@ -471,6 +471,12 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 .tile-band { position: absolute; top: 0; left: 0; right: 0; height: 6px; }
 .tile-title { font-weight: 650; font-size: 15px; }
 .board-tile.new { border: 1px dashed var(--border); box-shadow: none; padding-top: 14px; gap: 10px; }
+/* The card window's "On card" ticks, next to a section's name. */
+.show-on-card { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; color: var(--muted); cursor: pointer; }
+.show-on-card input { margin: 0; }
+.access-chip { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); }
+.person-row { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.person-picker select { margin-left: 6px; }
 .comment-by { display: inline-flex; align-items: center; gap: 6px; }
 /* Card display > Pictures: Details. */
 .tile-pictures { display: flex; gap: 4px; align-items: center; margin-top: 6px; }

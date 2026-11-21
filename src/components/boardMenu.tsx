@@ -9,6 +9,7 @@ import type { MenuEntry } from "./ContextMenu";
 import { isServer, leaveBoard, ownsBoard } from "../server";
 import { workOrder } from "../ai";
 import { copyText } from "./Markdown";
+import { openPeopleAccess } from "./PeopleAccess";
 import { exportBoard } from "../boardFile";
 import { exportCalendarFile } from "../icsExport";
 import { inTauri, isDesktopApp, isMobileApp } from "../storage";
@@ -23,6 +24,10 @@ export function boardMenu(board: Board, opts: { onRename?: () => void } = {}): M
   return [
     { label: "Open", icon: <ExternalLink size={14} />, onClick: () => st.navigate({ page: "board", boardId: board.id }) },
     ...(isServer ? [{ label: ownsBoard(board) ? "Share…" : "People on this board…", icon: <Users size={14} />, onClick: () => st.setOverlay({ shareBoardId: board.id }) }] : []),
+    // This computer's boards on the phones of people in your home (Settings > Devices > Whose is it?).
+    ...(isDesktopApp && !isServer && !isDeviceWindow && !board.private
+      ? [{ label: board.share && Object.keys(board.share).length ? `People on this board (${Object.keys(board.share).length})…` : "People on this board…", icon: <Users size={14} />, onClick: () => openPeopleAccess(board.id) }]
+      : []),
     ...(isMobileApp
       ? []
       : [{ label: "Open in new window", icon: <AppWindow size={14} />, onClick: () => void openBoardWindow(board.id, board.title) }]),
