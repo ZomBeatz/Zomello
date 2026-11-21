@@ -22,9 +22,10 @@ export function HomePage() {
   const [newColor, setNewColor] = useState<string | null>(PALETTE[6]);
   // A template brings its own color unless one was picked here.
   const [colorPicked, setColorPicked] = useState(false);
-  const start = useStore((s) => s.data.settings.newBoardStart ?? BASIC_START);
+  // Every new board starts blank unless a layout is picked for this one.
+  const [start, setStart] = useState(BLANK_START);
   const startColor = start === BASIC_START || start === BLANK_START ? newColor ?? undefined : undefined;
-  const makeBoard = () => navigate({ page: "board", boardId: createBoard(newTitle.trim(), colorPicked ? newColor ?? undefined : startColor) });
+  const makeBoard = () => navigate({ page: "board", boardId: createBoard(newTitle.trim(), colorPicked ? newColor ?? undefined : startColor, start) });
 
   const boards = useMemo(() => Object.values(data.boards).filter((b) => !b.archived).sort(byOrder), [data.boards]);
   const liveCards = useMemo(() => {
@@ -164,7 +165,7 @@ export function HomePage() {
             }}
           />
           <ColorPicker value={newColor} onChange={(c) => (setNewColor(c), setColorPicked(true))} />
-          <StartPicker />
+          <StartPicker start={start} onChange={setStart} />
           <button className="btn primary sm" disabled={!newTitle.trim()} onClick={makeBoard}>
             <Plus size={14} /> Create board
           </button>
@@ -239,9 +240,8 @@ function Invitations() {
   );
 }
 
-/** What a new board starts with. The choice is remembered, so the sidebar's + Board makes the same kind. */
-function StartPicker() {
-  const start = useStore((s) => s.data.settings.newBoardStart ?? BASIC_START);
+/** What this new board starts with (blank, one To do bucket, unless something else is picked). */
+function StartPicker({ start, onChange }: { start: string; onChange: (start: string) => void }) {
   const mine = useStore((s) => s.data.boardTemplates);
   const byId = (id: string) => BOARD_TEMPLATES.find((t) => t.id === id)!;
   const others = BOARD_TEMPLATES.filter((t) => !QUICK_STARTS.includes(t.id));
@@ -253,9 +253,9 @@ function StartPicker() {
   return (
     <label className="start-picker">
       <span className="muted">Start with</span>
-      <select value={start} onChange={(e) => useStore.getState().updateSettings({ newBoardStart: e.target.value })}>
+      <select value={start} onChange={(e) => onChange(e.target.value)}>
+        <option value={BLANK_START}>Blank (one To do bucket)</option>
         <option value={BASIC_START}>To do, In progress, Done</option>
-        <option value={BLANK_START}>A blank board</option>
         {QUICK_STARTS.map((id) => option(byId(id)))}
         <optgroup label="More">{others.map(option)}</optgroup>
         {mine.length > 0 && <optgroup label="Your templates">{mine.map(option)}</optgroup>}

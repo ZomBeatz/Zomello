@@ -1,4 +1,10 @@
 :root {
+  /* The phone's status bar, notch and gesture bar. The Android app sets these itself (insets.ts):
+     its WebView often reports 0 here. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
   --bg: #f4f5f8;
   --surface: #ffffff;
   --surface-2: #eef0f4;
@@ -141,7 +147,7 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 /* iPad: keep the wide layout clear of the status bar and home indicator (all zero on computers). */
 .app:not(.phone) {
   box-sizing: border-box;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
 }
 .sidebar {
   width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 2px;
@@ -465,6 +471,10 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 .tile-band { position: absolute; top: 0; left: 0; right: 0; height: 6px; }
 .tile-title { font-weight: 650; font-size: 15px; }
 .board-tile.new { border: 1px dashed var(--border); box-shadow: none; padding-top: 14px; gap: 10px; }
+.comment-by { display: inline-flex; align-items: center; gap: 6px; }
+/* Card display > Pictures: Details. */
+.tile-pictures { display: flex; gap: 4px; align-items: center; margin-top: 6px; }
+.tile-pictures img { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
 .start-picker { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
 .start-picker select { width: 100%; }
 .progress-bar { display: block; height: 6px; background: var(--surface-3); border-radius: 4px; overflow: hidden; margin: 6px 0; }
@@ -1211,7 +1221,7 @@ button.badge.rel:hover { filter: brightness(1.15); text-decoration: underline; }
 /* Phones, while picking: how many, Select all and Done, over the phone bar. */
 .selecting-head {
   position: fixed; z-index: 45; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 8px;
-  padding: calc(env(safe-area-inset-top) + 6px) 10px 6px; background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: calc(var(--safe-top) + 6px) 10px 6px; background: var(--surface); border-bottom: 1px solid var(--border);
   box-shadow: var(--shadow); animation: fade .12s;
 }
 .selecting-head b { flex: 1; font-size: 15px; }
@@ -1232,7 +1242,7 @@ button.badge.rel:hover { filter: brightness(1.15); text-decoration: underline; }
 
 /* ---------- phones & tablets ---------- */
 .phone-bar {
-  display: flex; align-items: center; gap: 10px; padding: 6px 8px; padding-top: max(6px, env(safe-area-inset-top));
+  display: flex; align-items: center; gap: 10px; padding: 6px 8px; padding-top: max(6px, var(--safe-top));
   background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
 .phone-bar-title { font-weight: 700; font-size: 16px; }
@@ -1244,7 +1254,7 @@ button.badge.rel:hover { filter: brightness(1.15); text-decoration: underline; }
   .app.phone .sidebar {
     position: fixed; inset: 0 auto 0 0; z-index: 60; width: min(300px, 84vw);
     transform: translateX(-102%); transition: transform .18s; box-shadow: var(--shadow-lg);
-    padding-top: max(14px, env(safe-area-inset-top));
+    padding-top: max(14px, var(--safe-top));
   }
   .app.phone.nav-open .sidebar { transform: none; }
   .app.phone .sidebar .collapse-btn { display: none; }
@@ -1252,10 +1262,10 @@ button.badge.rel:hover { filter: brightness(1.15); text-decoration: underline; }
 
   .page { padding: 16px 14px 80px; }
   /* Edge-to-edge phones (the Android app): keep clear of the status bar, notch and gesture bar. */
-  .app.phone { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); box-sizing: border-box; }
-  .app.phone .main { padding-bottom: env(safe-area-inset-bottom); }
-  .app.phone .sidebar { padding-bottom: max(14px, env(safe-area-inset-bottom)); }
-  .modal { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); box-sizing: border-box; }
+  .app.phone { padding-left: var(--safe-left); padding-right: var(--safe-right); box-sizing: border-box; }
+  .app.phone .main { padding-bottom: var(--safe-bottom); }
+  .app.phone .sidebar { padding-bottom: max(14px, var(--safe-bottom)); }
+  .modal { padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); box-sizing: border-box; }
   /* The welcome guide fills the screen: its Back/Next buttons sit at the bottom. */
   .modal.welcome { display: flex; flex-direction: column; }
   .modal.welcome .welcome-body { flex: 1; }
@@ -1299,24 +1309,24 @@ button.badge.rel:hover { filter: brightness(1.15); text-decoration: underline; }
   .modal-backdrop:has(.linked-sheet) { align-items: flex-end; }
   .modal.linked-sheet {
     min-height: 0; max-height: 80vh; overflow-y: auto; margin-top: auto; border-radius: 16px 16px 0 0;
-    padding-bottom: max(14px, env(safe-area-inset-bottom)); animation: sheet-up .18s ease-out;
+    padding-bottom: max(14px, var(--safe-bottom)); animation: sheet-up .18s ease-out;
   }
   /* New in Zomello: a sheet from the bottom too, with its buttons under the thumb. */
   .modal-backdrop:has(.whats-new) { align-items: flex-end; }
   .modal.whats-new {
     min-height: 0; max-height: 88vh; overflow-y: auto; margin-top: auto; border-radius: 16px 16px 0 0;
-    padding: 20px 18px max(16px, env(safe-area-inset-bottom)); animation: sheet-up .18s ease-out;
+    padding: 20px 18px max(16px, var(--safe-bottom)); animation: sheet-up .18s ease-out;
   }
   .whats-new-foot { position: sticky; bottom: 0; background: var(--surface); padding-top: 10px; margin-top: 12px; }
   .whats-new-foot .btn { flex: 1; }
   .detail-cover { border-radius: 0; }
   .detail-head { padding: 16px 16px 6px; padding-right: 52px; }
   .detail-grid { grid-template-columns: 1fr; padding: 6px 16px 0; gap: 18px; }
-  .card-detail .close { top: max(10px, env(safe-area-inset-top)); }
+  .card-detail .close { top: max(10px, var(--safe-top)); }
 
-  .toasts { left: 12px; right: 12px; transform: none; bottom: max(12px, env(safe-area-inset-bottom)); }
+  .toasts { left: 12px; right: 12px; transform: none; bottom: max(12px, var(--safe-bottom)); }
   .sel-hint, .hide-phone { display: none !important; }
-  .selection-bar { flex-wrap: wrap; justify-content: center; white-space: normal; left: 12px; right: 12px; transform: none; max-width: none; bottom: max(12px, env(safe-area-inset-bottom)); padding: 8px; }
+  .selection-bar { flex-wrap: wrap; justify-content: center; white-space: normal; left: 12px; right: 12px; transform: none; max-width: none; bottom: max(12px, var(--safe-bottom)); padding: 8px; }
   .selection-bar .sel-count { width: 100%; text-align: center; }
 }
 
@@ -1550,7 +1560,7 @@ html[data-reducemotion] .bassdrop-mark .bd-bars rect { animation: none !importan
 .prog-waiting { color: #f59e0b; } .prog-hold { color: #a855f7; }
 
 .conn-pill {
-  position: fixed; top: calc(10px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 250;
+  position: fixed; top: calc(10px + var(--safe-top)); left: 50%; transform: translateX(-50%); z-index: 250;
   display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; font-size: 13px;
   background: var(--surface); color: var(--text-2); box-shadow: var(--shadow-lg); border: 1px solid var(--border);
   animation: fade .2s;
@@ -1564,7 +1574,7 @@ html[data-reducemotion] .bassdrop-mark .bd-bars rect { animation: none !importan
 body.dragging-card .board-content { scroll-snap-type: none; }
 /* Phones, while holding a card: the buckets as names at the top; drop on one to move the card there. */
 .bucket-chips {
-  position: fixed; z-index: 60; left: 8px; right: 8px; top: calc(env(safe-area-inset-top) + 8px);
+  position: fixed; z-index: 60; left: 8px; right: 8px; top: calc(var(--safe-top) + 8px);
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px;
   background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg);
   animation: fade .12s;

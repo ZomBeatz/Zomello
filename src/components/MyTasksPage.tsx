@@ -84,7 +84,13 @@ export function MyTasksPage() {
         <UserCheck size={24} /> My Tasks
       </h1>
       <p className="muted">
-        {me ? <>Everything assigned to <b>{me}</b> across all boards.</> : "Set who you are in Settings → People."}
+        {me ? (
+          <>
+            <b>Everything assigned to {me}</b> across all boards, whatever the date. For just what to do today, see My Day.
+          </>
+        ) : (
+          "Set who you are in Settings → People."
+        )}
       </p>
 
       <div className="toolbar flat">

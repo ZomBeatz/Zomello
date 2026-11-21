@@ -51,6 +51,9 @@ import { useNow } from "./useNow";
 import { featureOn, sectionShown } from "../features";
 import { setProgress, toggleDone } from "../blocked";
 
+/** A comment by whoever is using this device (Settings > People). */
+const newComment = (text: string) => ({ id: uid(), text, createdAt: Date.now(), author: useStore.getState().data.settings.me || undefined });
+
 export function CardModal({ cardId }: { cardId: ID }) {
   const card = useStore((s) => s.data.cards[cardId]);
   const trail = useStore((s) => s.cardTrail);
@@ -94,7 +97,7 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
   useSaveOnUnmount(() => {
     const text = comment.trim();
     const cur = useStore.getState().data.cards[card.id];
-    if (text && cur) updateCard(card.id, { comments: [{ id: uid(), text, createdAt: Date.now() }, ...cur.comments] });
+    if (text && cur) updateCard(card.id, { comments: [newComment(text), ...cur.comments] });
   });
   const coverImg = card.coverImage ? card.attachments.find((a) => a.id === card.coverImage) : undefined;
 
@@ -373,15 +376,15 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
           {show("notes") && (
           <section>
             <h4>
-              <MessageSquare size={15} /> Notes
+              <MessageSquare size={15} /> Comments
             </h4>
             <MarkdownEditor
-              placeholder={isPhoneOrTablet ? "Write a note… (it's kept when you close the card)" : "Write a note… (Ctrl+Enter to add; it's also kept if you close the card)"}
+              placeholder={isPhoneOrTablet ? "Write a comment… (it's kept when you close the card)" : "Write a comment… (Ctrl+Enter to add; it's also kept if you close the card)"}
               value={comment}
               onChange={setComment}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && comment.trim()) {
-                  set({ comments: [{ id: uid(), text: comment.trim(), createdAt: Date.now() }, ...card.comments] });
+                  set({ comments: [newComment(comment.trim()), ...card.comments] });
                   setComment("");
                 }
               }}
@@ -390,18 +393,22 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
               <button
                 className="btn primary sm"
                 onClick={() => {
-                  set({ comments: [{ id: uid(), text: comment.trim(), createdAt: Date.now() }, ...card.comments] });
+                  set({ comments: [newComment(comment.trim()), ...card.comments] });
                   setComment("");
                 }}
               >
-                Save note
+                Add comment
               </button>
             )}
             <ul className="comments">
               {card.comments.map((c) => (
                 <li key={c.id}>
                   <div className="row between">
-                    <span className="muted small">{timeAgo(c.createdAt)}</span>
+                    <span className="comment-by">
+                      {c.author && <Avatar name={c.author} size={18} />}
+                      {c.author && <b className="small">{c.author}</b>}
+                      <span className="muted small">{timeAgo(c.createdAt)}</span>
+                    </span>
                     <button
                       className="icon-btn tiny"
                       onClick={() => set({ comments: card.comments.filter((x) => x.id !== c.id) })}

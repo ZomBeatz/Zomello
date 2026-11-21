@@ -98,8 +98,9 @@ export function MyDayPage() {
         <Sun size={24} /> My Day
       </h1>
       <p className="muted">
-        {format(new Date(), "EEEE, MMMM d")}. What's late, due or scheduled today on every board
+        {format(new Date(), "EEEE, MMMM d")}. <b>Today's plan</b>: what's late, due or scheduled today on every board
         {me ? <> (for {me}, or no one)</> : null}, plus what you add here. Added tasks leave My Day at midnight.
+        For everything assigned to you, whatever the date, see My Tasks.
       </p>
 
       {liveBoards.length > 0 && (

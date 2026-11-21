@@ -1,12 +1,12 @@
 import { memo } from "react";
 import { differenceInCalendarDays } from "date-fns";
 import {
-  AlignLeft, Ban, Calendar, CheckSquare, CornerDownRight, Flag, Link2, ListTree, MessageSquare, Octagon, Paperclip, Repeat, Timer, ZapOff,
+  AlignLeft, Ban, Calendar, CheckSquare, CornerDownRight, Flag, Image as ImageIcon, Link2, ListTree, MessageSquare, Octagon, Paperclip, Repeat, Timer, ZapOff,
 } from "lucide-react";
-import type { Board, Card, ID } from "../types";
+import type { BadgeKey, BadgeMode, Board, Card, ID } from "../types";
 import { useStore } from "../store";
 import {
-  agingLevel, checklistStats, describeRecurrence, dueStatus, formatDuration, formatFieldValue, fromISO, isBlocked,
+  agingLevel, checklistStats, describeRecurrence, dueStatus, formatDuration, formatFieldValue, fromISO, isBlocked, isImage,
   parentIndex, plainText, prettyDateTime, priorityMeta, subtaskIds, timeAgo, trackedMs,
 } from "../utils";
 import { storedSrc } from "../storage";
@@ -24,6 +24,9 @@ const REL_LABEL = {
   blocked: "Blocked by it",
   related: "Related",
 } as const;
+
+/** Boards made before "Pictures" was an option don't have it: off. */
+const PICTURES_OFF: Partial<Record<BadgeKey, BadgeMode>> = { images: "off" };
 
 /** The card under the mouse, for hover keyboard shortcuts (see shortcuts.ts). */
 export let hoveredCardId: ID | null = null;
@@ -83,9 +86,10 @@ export const CardTile = memo(function CardTile({
   const subIds = subtaskIds(card);
   const subDone = card.checklist.filter((i) => i.cardId && i.done).length;
   const relCount = (t: string) => card.links.filter((l) => l.type === t).length;
-  // The bucket can override the board's "Show on cards" settings.
+  // The bucket can override the board's "Show on cards" settings, and the card can override both.
   const listBadges = useStore((s) => s.data.lists[card.listId]?.badges);
-  const mode = listBadges ? { ...board.display.badges, ...listBadges } : board.display.badges;
+  const mode: Record<BadgeKey, BadgeMode> = { ...PICTURES_OFF, ...board.display.badges, ...listBadges, ...card.badges };
+  const pictures = mode.images === "off" ? [] : card.attachments.filter((a) => a.stored && isImage(a.name, a.mime) && a.id !== card.coverImage);
   const labels = board.labels.filter((l) => card.labelIds.includes(l.id));
   const cl = checklistStats(card);
   // The bucket can override the board's "hide ticked items on cards".
@@ -250,9 +254,18 @@ export const CardTile = memo(function CardTile({
           {card.attachments.length > 3 && <span className="muted">+{card.attachments.length - 3} more</span>}
         </div>
       )}
+      {mode.images === "full" && pictures.length > 0 && (
+        <div className="tile-pictures">
+          {pictures.slice(0, 4).map((a) => (
+            <img key={a.id} src={storedSrc(a.url)} alt={a.name} draggable={false} loading="lazy" />
+          ))}
+          {pictures.length > 4 && <span className="muted">+{pictures.length - 4}</span>}
+        </div>
+      )}
       {mode.notes === "full" && card.comments.length > 0 && (
         <p className="tile-note">
-          <MessageSquare size={11} /> {plainText(card.comments[0].text).slice(0, 110)}
+          <MessageSquare size={11} /> {card.comments[0].author && <b>{card.comments[0].author}: </b>}
+          {plainText(card.comments[0].text).slice(0, 110)}
           <span className="muted"> · {timeAgo(card.comments[0].createdAt)}</span>
         </p>
       )}
@@ -341,6 +354,12 @@ export const CardTile = memo(function CardTile({
           <span className="badge">
             <MessageSquare size={12} />
             {card.comments.length}
+          </span>
+        )}
+        {mode.images === "icon" && pictures.length > 0 && (
+          <span className="badge" title="Pictures">
+            <ImageIcon size={12} />
+            {pictures.length}
           </span>
         )}
         {mode.attachments === "icon" && card.attachments.length > 0 && (

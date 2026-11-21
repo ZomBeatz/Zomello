@@ -33,7 +33,9 @@ import {
   ClipboardCopy,
   ListChecks,
   ZapOff,
+  SlidersHorizontal,
 } from "lucide-react";
+import { openCardDisplay } from "./CardDisplay";
 import type { ID } from "../types";
 import { copyCards } from "../cardClipboard";
 import { useStore } from "../store";
@@ -221,6 +223,11 @@ function cardMenu(cardId: ID): MenuEntry[] {
       label: st.selected.includes(cardId) ? "Unselect" : "Select",
       icon: <ListChecks size={14} />,
       onClick: () => st.toggleSelected(cardId),
+    },
+    {
+      label: card.badges ? "Card display (custom)…" : "Card display…",
+      icon: <SlidersHorizontal size={14} />,
+      onClick: () => openCardDisplay(cardId),
     },
     {
       label: done ? "Mark incomplete" : "Mark complete",

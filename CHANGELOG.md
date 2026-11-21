@@ -11,13 +11,21 @@
 - **A Mac version:** one app for Apple silicon and Intel Macs. The release has a `.dmg`, and a Mac App Store build is on the way. The App Store copy leaves start at login and the firewall to macOS's own settings, like the Microsoft Store copy does on Windows.
 
 **New boards**
-- **Choose how a new board starts:** Home's new board box has **Start with**: the usual To do, In progress, Done, a blank board, a **Shopping list** (new), a weekly plan, a project, household chores, the other ready-made boards, or one of your own templates. Zomello remembers the choice, so **+ Board** in the side menu makes the same kind.
+- **A new board starts blank,** with one **To do** bucket, unless you pick something else.
+- **Choose how a new board starts:** Home's new board box has **Start with**: blank, To do / In progress / Done, a **Shopping list** (new), a weekly plan, a project, household chores, the other ready-made boards, or one of your own templates.
+- **Templates set up what cards show:** a trip, a move, an event, a shopping list and others show their checklists right on the cards, ready to tick. Saving a board as a template keeps its card display too.
+
+**Cards**
+- **Comments:** a card's notes are now **Comments**, and each one shows who wrote it (the name set in Settings > People).
+- **Card display for one card:** right-click a card (press and hold on a phone) > **Card display…** chooses what that card shows on the board, over its bucket's and board's settings.
+- **Pictures on cards:** a new **Pictures** choice in Card display shows a count, or small previews of a card's pictures.
+- **My Day and My Tasks** say how they differ: My Day is today's plan; My Tasks is everything assigned to you, whatever the date.
 
 **Phones**
 - **Select several cards at once:** press **Select** on a board, then tap cards. A bar at the top shows how many are picked, with **Select all** and **Done**; the bar at the bottom changes them all at once (progress, priority, labels, dates, people, move, archive).
 
 **Fixes**
-- **The side menu keeps the logo and Settings in view:** only the boards in between scroll.
+- **The side menu keeps the logo and Settings in view:** only the boards in between scroll. On Android, the bottom of the menu now stays clear of the navigation buttons.
 - **New in Zomello** on a phone is a sheet from the bottom, clear of the status bar, with its buttons under your thumb. **See everything new** closes it and opens the guide, and says so if the browser can't open.
 - **A new bucket stays in view** after you add it. On a phone the board moves to it.
 - **Dragging on a phone:** while you hold a card, the board's buckets show as names at the top; drop on one to move the card there. Holding at the screen edge turns to the next bucket sooner, and Android phones give a small buzz when the card lifts.

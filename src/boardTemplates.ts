@@ -15,6 +15,7 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     icon: "🛒",
     color: "#16a34a",
     about: "What to buy, by store. Tick things off as they go in the cart.",
+    badges: { checklist: "full", description: "off" },
     labels: [{ name: "Groceries", color: L.green }, { name: "Household", color: L.blue }, { name: "Pharmacy", color: L.red }],
     lists: [
       { name: "Grocery store", cards: [{ title: "Milk", labels: ["Groceries"] }, { title: "Bread", labels: ["Groceries"] }, { title: "Fruit and vegetables", labels: ["Groceries"], checklist: ["Apples", "Bananas", "Salad"] }] },
@@ -29,6 +30,7 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     icon: "🗓️",
     color: "#2580c3",
     about: "This week at a glance: what's on, what's next, what's done.",
+    badges: { checklist: "full", dates: "full" },
     labels: [{ name: "Work", color: L.blue }, { name: "Home", color: L.green }, { name: "Errand", color: L.orange }],
     lists: [
       { name: "This week", cards: [{ title: "Plan the week (10 minutes on Sunday)", checklist: ["Look at the calendar", "Pick the 3 most important things", "Move the rest to Later"] }] },
@@ -44,6 +46,7 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     icon: "📦",
     color: "#ec6a3f",
     about: "Everything for a move, from booking the van to updating your address.",
+    badges: { checklist: "full", dates: "full" },
     labels: [{ name: "Book", color: L.orange }, { name: "Pack", color: L.blue }, { name: "Admin", color: L.purple }],
     lists: [
       {
@@ -67,6 +70,7 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     icon: "📚",
     color: "#6366f1",
     about: "Assignments, exams and reading for one term or semester.",
+    badges: { dates: "full", checklist: "full" },
     labels: [{ name: "Assignment", color: L.purple }, { name: "Exam", color: L.red }, { name: "Reading", color: L.blue }],
     lists: [
       { name: "To do", cards: [{ title: "Add every due date from the syllabus", checklist: ["Class 1", "Class 2", "Class 3"] }] },
@@ -81,6 +85,7 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     icon: "✈️",
     color: "#0ea5e9",
     about: "Bookings, plans and a packing list for a trip.",
+    badges: { checklist: "full", dates: "full" },
     labels: [{ name: "Booking", color: L.orange }, { name: "Idea", color: L.yellow }, { name: "Packing", color: L.blue }],
     lists: [
       { name: "Ideas", cards: [{ title: "Places to see", labels: ["Idea"] }, { title: "Places to eat", labels: ["Idea"] }] },
@@ -113,6 +118,7 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     icon: "🏠",
     color: "#22c55e",
     about: "Daily, weekly and monthly chores (open a card and set Repeat to make it come back).",
+    badges: { checklist: "full" },
     labels: [{ name: "Daily", color: L.green }, { name: "Weekly", color: L.blue }, { name: "Monthly", color: L.purple }],
     lists: [
       { name: "Daily", cards: [{ title: "Dishes", labels: ["Daily"] }, { title: "Tidy up for 10 minutes", labels: ["Daily"] }] },
@@ -127,6 +133,7 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     icon: "🎉",
     color: "#a855f7",
     about: "Guests, food, supplies and the day itself.",
+    badges: { checklist: "full", dates: "full" },
     labels: [{ name: "Guests", color: L.blue }, { name: "Food", color: L.orange }, { name: "Buy", color: L.green }],
     lists: [
       { name: "Plan", cards: [{ title: "Pick the date and place" }, { title: "Guest list", labels: ["Guests"] }, { title: "Send invitations", labels: ["Guests"] }] },
@@ -153,11 +160,11 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
 ];
 
 /**
- * What + Board starts with (Home > Start with, remembered in settings.newBoardStart): the plain three buckets,
- * nothing at all, or one of the templates (built-in or your own) by id.
+ * What a new board starts with (Home > Start with): blank, with one To do bucket (always the default),
+ * the three buckets To do, In progress, Done, or one of the templates (built-in or your own) by id.
  */
-export const BASIC_START = "basic";
 export const BLANK_START = "blank";
+export const BASIC_START = "basic";
 export const QUICK_STARTS = ["shopping", "week", "project", "chores"];
 
 /** A template as a board to add (see the store's importBoard). */
@@ -193,6 +200,7 @@ export function boardAsTemplate(data: AppData, boardId: ID, name: string): Board
     color: b.color,
     about: b.description.split("\n")[0].slice(0, 120),
     labels: b.labels.filter((l) => l.name).map(({ name, color }) => ({ name, color })),
+    badges: b.display?.badges,
     lists: lists.map((l) => ({
       name: l.title,
       cards: Object.values(data.cards)

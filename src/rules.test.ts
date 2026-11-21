@@ -22,7 +22,7 @@ const st = () => useStore.getState();
 const card = (id: string) => st().data.cards[id];
 /** A board with its three default buckets (To do, In progress, Done) and two labels. */
 function board(title = "Test") {
-  const id = st().createBoard(title);
+  const id = st().createBoard(title, undefined, "basic"); // To do, In progress, Done
   st().updateBoard(id, { labels: [{ id: `${id}-red`, name: "Red", color: "#f00" }, { id: `${id}-blue`, name: "Blue", color: "#00f" }] });
   const lists = Object.values(st().data.lists).filter((l) => l.boardId === id).sort((a, b) => a.order - b.order);
   return { id, todo: lists[0].id, doing: lists[1].id, done: lists[2].id, red: `${id}-red`, blue: `${id}-blue` };

@@ -1174,7 +1174,7 @@ function BucketDisplayDialog({ list, board, onClose }: { list: List; board: Boar
                 <span className="grow">{b.name}</span>
                 <div className="seg">
                   <button className={!own ? "active" : ""} onClick={() => set(b.key, null)}>
-                    Board ({label(board.display.badges[b.key])})
+                    Board ({label(board.display.badges[b.key] ?? "off")})
                   </button>
                   {(["off", "icon", "full"] as BadgeMode[]).map((m) => (
                     <button key={m} className={own === m ? "active" : ""} onClick={() => set(b.key, m)}>

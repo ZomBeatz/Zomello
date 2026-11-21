@@ -54,6 +54,7 @@ import { ConnectionBanner, SecureBanner } from "./components/RemoteGate";
 import { WelcomeGuide } from "./components/WelcomeGuide";
 import { watchForBraaains } from "./undead";
 import { useWhatsNew, WhatsNew, whatsNewDue } from "./components/WhatsNew";
+import { CardDisplayHost } from "./components/CardDisplay";
 
 const DENSITY = { compact: "13px", normal: "14px", comfortable: "15.5px" };
 
@@ -325,6 +326,7 @@ export default function App() {
       <Toasts />
       <ContextMenuHost />
       <LinkedSheetHost />
+      <CardDisplayHost />
       <ConfirmHost />
     </div>
   );

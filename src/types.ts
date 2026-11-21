@@ -88,6 +88,8 @@ export interface Comment {
   id: ID;
   text: string;
   createdAt: number;
+  /** Who wrote it (Settings > People > "me" on that device). Older notes have none. */
+  author?: string;
 }
 
 export interface Card {
@@ -96,6 +98,8 @@ export interface Card {
   listId: ID;
   title: string;
   description: string;
+  /** This card's own "Show on cards" choices, over its bucket's and board's (card menu > Card display). */
+  badges?: Partial<Record<BadgeKey, BadgeMode>>;
   labelIds: ID[];
   priority: Priority;
   progress: Progress;
@@ -193,7 +197,7 @@ export type BoardBackground =
   | { type: "image"; value: string };
 
 export type BadgeKey =
-  | "dates" | "checklist" | "assignees" | "priority" | "description" | "notes" | "links" | "time" | "attachments";
+  | "dates" | "checklist" | "assignees" | "priority" | "description" | "notes" | "links" | "time" | "attachments" | "images";
 /** off = hidden, icon = compact badge, full = the actual information. */
 export type BadgeMode = "off" | "icon" | "full";
 
@@ -350,8 +354,6 @@ export interface Settings {
   density: "compact" | "normal" | "comfortable";
   weekStartsOn: 0 | 1;
   defaultView: ViewMode;
-  /** What a new board starts with: "basic" (To do, In progress, Done), "blank", or a template id. */
-  newBoardStart?: string;
   sidebarCollapsed: boolean;
   reminders: ReminderSettings;
   /** Page zoom, 1 = 100%. Ctrl + mouse wheel, Ctrl +/-/0. */
@@ -419,6 +421,8 @@ export interface BoardTemplate {
   about: string;
   labels: { name: string; color: string }[];
   lists: { name: string; cards: { title: string; labels?: string[]; checklist?: string[]; description?: string; priority?: Priority }[] }[];
+  /** What cards on a board made from it show (e.g. checklists ticked right on the card), over the usual. */
+  badges?: Partial<Record<BadgeKey, BadgeMode>>;
   /** Saved by you (can be renamed and deleted). */
   createdAt?: number;
 }

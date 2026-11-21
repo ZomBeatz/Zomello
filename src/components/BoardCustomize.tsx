@@ -15,9 +15,10 @@ export const BADGES: { key: BadgeKey; name: string; icon: string; full: string }
   { key: "checklist", name: "Checklist", icon: "Count (2/5)", full: "The items, tickable right on the card" },
   { key: "assignees", name: "Assigned to", icon: "Avatars", full: "Avatars with names" },
   { key: "description", name: "Description", icon: "Icon", full: "First lines of the description" },
-  { key: "notes", name: "Notes", icon: "Count", full: "Latest note" },
+  { key: "notes", name: "Comments", icon: "Count", full: "Latest comment" },
   { key: "links", name: "Linked tasks", icon: "Count", full: "Linked task names" },
   { key: "attachments", name: "Files & links", icon: "Count", full: "File names" },
+  { key: "images", name: "Pictures", icon: "Count", full: "Small previews of the card's pictures" },
   { key: "time", name: "Time tracked", icon: "Total", full: "Total / estimate" },
 ];
 
@@ -29,7 +30,7 @@ export const SECTIONS: { key: CardSection; name: string }[] = [
   { key: "checklist", name: "Checklist" },
   { key: "links", name: "Linked tasks" },
   { key: "files", name: "Files & links" },
-  { key: "notes", name: "Notes" },
+  { key: "notes", name: "Comments" },
   { key: "activity", name: "Activity" },
   { key: "progress", name: "Progress" },
   { key: "priority", name: "Priority" },
@@ -285,19 +286,21 @@ export function BoardCustomize({ board }: { board: Board }) {
           <h4>Show on cards</h4>
           <p className="muted small">What each card on the board shows. “Icon” is compact; “Details” shows the actual information.</p>
           <div className="badge-modes">
-            {BADGES.map((b) => (
+            {BADGES.map((b) => {
+              const now = board.display.badges[b.key] ?? "off";
+              return (
               <div key={b.key} className="badge-mode-row">
                 <span className="grow">
                   {b.name}
                   <small className="muted">
-                    {board.display.badges[b.key] === "full" ? b.full : board.display.badges[b.key] === "icon" ? b.icon : "Hidden"}
+                    {now === "full" ? b.full : now === "icon" ? b.icon : "Hidden"}
                   </small>
                 </span>
                 <div className="seg">
                   {(["off", "icon", "full"] as BadgeMode[]).map((m) => (
                     <button
                       key={m}
-                      className={board.display.badges[b.key] === m ? "active" : ""}
+                      className={now === m ? "active" : ""}
                       onClick={() => setDisplay({ badges: { ...board.display.badges, [b.key]: m } })}
                     >
                       {m === "off" ? "Hidden" : m === "icon" ? "Icon" : "Details"}
@@ -305,7 +308,8 @@ export function BoardCustomize({ board }: { board: Board }) {
                   ))}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
           <label className="check-row">
             <input type="checkbox" checked={!!board.display.hideChecked} onChange={(e) => setDisplay({ hideChecked: e.target.checked })} />

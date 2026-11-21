@@ -1,5 +1,5 @@
 import { LayoutTemplate, Trash2, X } from "lucide-react";
-import { BOARD_TEMPLATES, templateBoard, type BoardTemplate } from "../boardTemplates";
+import { BOARD_TEMPLATES, type BoardTemplate } from "../boardTemplates";
 import { useStore } from "../store";
 import { InlineEdit, Modal } from "./ui";
 
@@ -12,8 +12,7 @@ export function BoardTemplates() {
     const taken = Object.values(st.data.boards).map((b) => b.title);
     let title = t.name;
     for (let n = 2; taken.includes(title); n++) title = `${t.name} (${n})`;
-    const id = st.importBoard({ ...templateBoard(t), title }, { addPeople: false });
-    st.updateBoard(id, { icon: t.icon });
+    const id = st.createBoard(title, undefined, t.id);
     close();
     st.navigate({ page: "board", boardId: id });
     st.toast(`Made “${title}” from a template. Rename it, or change anything you like.`, { undo: true });

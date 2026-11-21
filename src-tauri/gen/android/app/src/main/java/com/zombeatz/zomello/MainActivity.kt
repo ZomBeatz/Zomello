@@ -13,6 +13,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import java.io.File
 
 /** Launcher icons (activity aliases in AndroidManifest.xml) by style. */
@@ -102,9 +104,20 @@ class MainActivity : TauriActivity() {
     CookieManager.getInstance().flush()
   }
 
+  // The status bar, notch and navigation bar, in CSS pixels. Many Android WebViews report 0 for
+  // env(safe-area-inset-*) even edge to edge, so the page reads these instead (styles.css --safe-*).
+  @Volatile private var insetsJson = "{\"top\":0,\"right\":0,\"bottom\":0,\"left\":0}"
+
   override fun onWebViewCreate(webView: WebView) {
     this.webView = webView
     webView.addJavascriptInterface(LocalNetwork(), "ZomelloAndroid")
+    ViewCompat.setOnApplyWindowInsetsListener(webView) { v, insets ->
+      val i = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+      val d = v.resources.displayMetrics.density
+      insetsJson = "{\"top\":${i.top / d},\"right\":${i.right / d},\"bottom\":${i.bottom / d},\"left\":${i.left / d}}"
+      v.post { webView.evaluateJavascript("window.dispatchEvent(new Event('zomello-insets'))", null) }
+      insets
+    }
   }
 
   private fun localNetworkPermission(): String? =
@@ -118,6 +131,10 @@ class MainActivity : TauriActivity() {
 
   /** window.ZomelloAndroid in the page: the local network permission, and saving sign-ins. */
   inner class LocalNetwork {
+    /** The system bars' sizes, as JSON: {"top":24,"right":0,"bottom":48,"left":0}. */
+    @JavascriptInterface
+    fun insets(): String = insetsJson
+
     @JavascriptInterface
     fun hasLocalNetwork(): Boolean {
       val p = localNetworkPermission() ?: return true

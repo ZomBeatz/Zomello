@@ -39,6 +39,7 @@ export const defaultDisplay = (): BoardDisplay => ({
     links: "icon",
     time: "icon",
     attachments: "icon",
+    images: "off",
   },
   aging: false,
 });
@@ -473,7 +474,7 @@ interface State {
   cardBack(toIndex?: number): void;
   setSearchOpen(open: boolean): void;
 
-  /** A new board. `start` is "basic", "blank" or a template id; it defaults to the one picked on Home. */
+  /** A new board. `start` is "blank" (one To do bucket, the default), "basic" (three buckets) or a template id. */
   createBoard(title: string, color?: string, start?: string): ID;
   updateBoard(id: ID, patch: Partial<Board>): void;
   deleteBoard(id: ID): void;
@@ -980,16 +981,20 @@ export const useStore = create<State>((set, get) => {
       set({ searchOpen: open });
     },
 
-    createBoard(title, color, start = get().data.settings.newBoardStart ?? BASIC_START) {
+    createBoard(title, color, start = BLANK_START) {
       const template = [...BOARD_TEMPLATES, ...get().data.boardTemplates].find((t) => t.id === start);
       if (template) {
         const id = get().importBoard({ ...templateBoard(template), title, color: color ?? template.color }, { addPeople: false });
-        mut((d) => ({ ...d, boards: { ...d.boards, [id]: { ...d.boards[id], icon: template.icon } }, ui: { ...d.ui, [id]: defaultUi(d.settings.defaultView) } }));
+        mut((d) => {
+          const b = d.boards[id];
+          const display = { ...b.display, badges: { ...b.display.badges, ...template.badges } };
+          return { ...d, boards: { ...d.boards, [id]: { ...b, icon: template.icon, display } }, ui: { ...d.ui, [id]: defaultUi(d.settings.defaultView) } };
+        });
         return id;
       }
       const order = Math.max(-1, ...Object.values(get().data.boards).map((b) => b.order)) + 1;
       const board = newBoard(title, color ?? PALETTE[order % PALETTE.length], order);
-      const lists = start === BLANK_START ? [] : defaultBuckets(board.id);
+      const lists = start === BASIC_START ? defaultBuckets(board.id) : [newList(board.id, "To do", 0)];
       mut((d) => ({
         ...d,
         boards: { ...d.boards, [board.id]: board },
