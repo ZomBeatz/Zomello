@@ -10,7 +10,7 @@ import { openCardMenu, openContextMenu } from "./ContextMenu";
 import { boardMenu } from "./boardMenu";
 import { BASIC_START, BLANK_START, BOARD_TEMPLATES, QUICK_STARTS, type BoardTemplate } from "../boardTemplates";
 import { useInvites } from "../invites";
-import { useFeature } from "../features";
+import { FEATURES, featureOn, useFeature } from "../features";
 import { answerInvite, isServer, loadData as serverLoadData } from "../server";
 import { toggleDone } from "../blocked";
 
@@ -120,6 +120,7 @@ export function HomePage() {
       </p>
 
       <Invitations />
+      <DiscoverFeatures />
       <div className="home-grid">
         {sections.map((s) => (
           <section key={s.title} className={`panel ${s.tone ?? ""}`}>
@@ -261,5 +262,51 @@ function StartPicker({ start, onChange }: { start: string; onChange: (start: str
         {mine.length > 0 && <optgroup label="Your templates">{mine.map(option)}</optgroup>}
       </select>
     </label>
+  );
+}
+
+const DISCOVER_AFTER = 7 * 24 * 3600 * 1000;
+
+/**
+ * A week after someone starts with a simpler setup: the feature groups they don't have yet, each a click
+ * away, once. Not now puts it away for good (Settings > Features has them all any time).
+ */
+function DiscoverFeatures() {
+  const settings = useStore((s) => s.data.settings);
+  const off = FEATURES.filter((f) => !featureOn(settings, f.id));
+  const since = settings.onboardedAt;
+  if (!off.length || !since || Date.now() - since < DISCOVER_AFTER || settings.hiddenIntros?.includes("discover")) return null;
+  const st = useStore.getState();
+  const hide = () => st.updateSettings({ hiddenIntros: [...new Set([...(settings.hiddenIntros ?? []), "discover"])] });
+  return (
+    <section className="panel discover">
+      <div className="row between">
+        <h3>
+          <Sparkles size={16} /> There's more when you want it
+        </h3>
+        <button className="btn sm ghost" onClick={hide}>
+          Not now
+        </button>
+      </div>
+      <p className="muted small">You started with a simpler Zomello. These are switched off; turn any of them on here or in Settings &gt; Features.</p>
+      <ul className="discover-list">
+        {off.map((f) => (
+          <li key={f.id}>
+            <span className="grow">
+              <b>{f.name}</b> <span className="muted small">{f.what}</span>
+            </span>
+            <button
+              className="btn sm"
+              onClick={() => {
+                st.updateSettings({ features: { ...settings.features, [f.id]: true } });
+                st.toast(`${f.name} is on. Settings > Features turns it off again.`, { key: "discover" });
+              }}
+            >
+              Turn on
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

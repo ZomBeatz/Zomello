@@ -1,14 +1,13 @@
 # Changelog
 
-## 0.6.1 (in progress)
+## 0.7.0
 
-**Reporting problems**
-- **A problem log on each device:** errors and crashes are noted in a small file that never leaves the device. **Settings > About** shows how many lines it has and can **Copy**, **Save** or **Clear** it.
-- **Send feedback** adds the last few problems from the log to the email, so a bug report says what went wrong.
-- **Android crash reports in Play Console** are readable now: the app bundle carries the debug symbols Google asks for.
-
-**Mac**
-- **A Mac version:** one app for Apple silicon and Intel Macs. The release has a `.dmg`, and a Mac App Store build is on the way. The App Store copy leaves start at login and the firewall to macOS's own settings, like the Microsoft Store copy does on Windows.
+**People in your home**
+- **Give a phone to someone:** in **Settings > Phones & tablets**, each linked phone or tablet has **Whose is it?** Yours sees every board, as before. Someone else's (Sam's phone) sees only the boards shared with Sam.
+- **People on this board:** in a board's menu on the computer, choose who sees it and what they can do: **Can view**, **Can check off** (comment on any card; on cards assigned to them, set the status and tick checklist items) or **Can edit**. The computer keeps only the changes each person is allowed, and their phone shows **View only** or **Check off** on boards they can't fully change.
+- **Can check off** can also, if you tick them: **pick up cards nobody has**, **move their cards between buckets**, and **hand their cards to someone else**. It covers every status (Not started, In progress, Waiting, On hold, Completed).
+- **Custom…** sets it all yourself: each bucket **Hidden**, **See**, **Work in** or **In charge** (also adds, removes and re-assigns there), and what they can do: status and checklists, comments, editing what cards say, adding, archiving, picking up, handing off, and which priorities they may set. Hidden buckets never reach their phone. Their phone shows **Limited**.
+- **Assign them tasks:** people you add this way are in a card's **Assigned to** and the board filter. On their phone, those cards are in **My Day** and **My Tasks**, and their comments carry their name.
 
 **Auto-assign** (a bucket rule, with Bucket automation turned on)
 - **Cards that arrive with no one go to whoever has the most room.** Each card has an **Effort** (1, 2, 3, 5 or 8 points; 1 unless set), and each person a capacity on the board: how many points they can carry, and the biggest card they should get.
@@ -25,21 +24,27 @@
 - **Choose how a new board starts:** Home's new board box has **Start with**: blank, To do / In progress / Done, a **Shopping list** (new), a weekly plan, a project, household chores, the other ready-made boards, or one of your own templates.
 - **Templates set up what cards show:** a trip, a move, an event, a shopping list and others show their checklists right on the cards, ready to tick. Saving a board as a template keeps its card display too.
 
-**People in your home**
-- **Give a phone to someone:** in **Settings > Phones & tablets**, each linked phone or tablet has **Whose is it?** Yours sees every board, as before. Someone else's (Sam's phone) sees only the boards shared with Sam.
-- **People on this board:** in a board's menu on the computer, choose who sees it and what they can do: **Can view**, **Can check off** (comment on any card; on cards assigned to them, set the status and tick checklist items) or **Can edit**. The computer keeps only the changes each person is allowed, and their phone shows **View only** or **Check off** on boards they can't fully change.
-- **Can check off** can also, if you tick them: **pick up cards nobody has**, **move their cards between buckets**, and **hand their cards to someone else**. It covers every status (Not started, In progress, Waiting, On hold, Completed).
-- **Custom…** sets it all yourself: each bucket **Hidden**, **See**, **Work in** or **In charge** (also adds, removes and re-assigns there), and what they can do: status and checklists, comments, editing what cards say, adding, archiving, picking up, handing off, and which priorities they may set. Hidden buckets never reach their phone. Their phone shows **Limited**.
-- **Assign them tasks:** people you add this way are in a card's **Assigned to** and the board filter. On their phone, those cards are in **My Day** and **My Tasks**, and their comments carry their name.
-
 **Cards**
 - **Comments:** a card's notes are now **Comments**, and each one shows who wrote it (the name set in Settings > People).
-- **Show on the card, for one card:** in the card window, **On card** next to Checklist, Description, Files & links and Comments shows that part on the card on the board. Right-click a card (press and hold on a phone) > **Card display…** has every choice, over the bucket's and board's settings.
+- **Show on the card, for one card** (with Board looks turned on): in the card window, **On card** next to Checklist, Description, Files & links and Comments shows that part on the card on the board. Right-click a card (press and hold on a phone) > **Card display…** has every choice, over the bucket's and board's settings.
 - **Pictures on cards:** a new **Pictures** choice in Card display shows a count, or small previews of a card's pictures.
 - **My Day and My Tasks** say how they differ: My Day is today's plan; My Tasks is everything assigned to you, whatever the date. **dismiss** at the end hides that text.
 
 **Phones**
 - **Select several cards at once:** press **Select** on a board, then tap cards. A bar at the top shows how many are picked, with **Select all** and **Done**; the bar at the bottom changes them all at once (progress, priority, labels, dates, people, move, archive).
+
+**Getting started**
+- **There's more when you want it:** a week after starting with Simple or Standard, Home lists the feature groups that are switched off, each with **Turn on**. **Not now** puts it away for good.
+- **Card display for one card** is part of Board looks, so a simpler setup doesn't show it.
+
+**Desktop**
+- **A Mac version:** one app for Apple silicon and Intel Macs, on GitHub as a `.dmg` and in the Mac App Store. The App Store copy leaves start at login and the firewall to macOS's own settings, like the Microsoft Store copy does on Windows.
+- **A portable Windows copy** (`Zomello_0.7.0_x64-portable.zip`): unzip and run, nothing to install. With the **Zomello Data** folder next to the app, everything Zomello keeps stays in that folder, so it runs from a USB stick and leaves nothing behind. The same folder next to the Linux AppImage or the Mac app makes those portable too.
+
+**Reporting problems**
+- **A problem log on each device:** errors and crashes are noted in a small file that never leaves the device. **Settings > About** shows how many lines it has and can **Copy**, **Save** or **Clear** it.
+- **Send feedback** adds the last few problems from the log to the email, so a bug report says what went wrong.
+- **Android crash reports in Play Console** are readable now: the app bundle carries the debug symbols Google asks for.
 
 **Fixes**
 - **Make room in the side menu:** Settings > Appearance > **Side menu** can hide the Focus timer and the Archive. A running countdown still shows, and the Archive is also in Settings > Data (**Open the Archive**).

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { create } from "zustand";
-import { CalendarClock, Network, SlidersHorizontal, Sparkles, Zap } from "lucide-react";
+import { Flag, LayoutTemplate, Shuffle, Sparkles, Users } from "lucide-react";
 import { useStore } from "../store";
 import { logLine } from "../logs";
 import { openExternal } from "../storage";
@@ -12,34 +12,28 @@ import { Modal } from "./ui";
  * things worth trying. Update WHATS_NEW for each release; the full list is the guide's What's new page.
  */
 export const WHATS_NEW: { version: string; items: { icon: ReactNode; title: string; text: string; action?: { label: string; run: () => void } }[] } = {
-  version: "0.6",
+  version: "0.7",
   items: [
     {
-      icon: <SlidersHorizontal size={18} />,
-      title: "Choose what you see",
-      text: "Simple, Standard or Everything, or turn eight groups on and off yourself. Nothing is deleted when you hide something.",
-      action: {
-        label: "Open Features",
-        run: () => {
-          useStore.getState().navigate({ page: "settings" });
-          setTimeout(() => document.getElementById("set-features")?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
-        },
-      },
+      icon: <Users size={18} />,
+      title: "Share boards with the people at home",
+      text: "Give a linked phone to someone, then choose which boards they see and whether they can view, tick off their own tasks, or edit. Find it in a board's menu: People on this board.",
     },
     {
-      icon: <Zap size={18} />,
-      title: "Buckets that do the busywork",
-      text: "Bucket rules can now start cards from a template, assign people, set due dates, act on finished checklists and late cards, and tidy up done cards. Find them in a bucket's ⋯ menu.",
+      icon: <Shuffle size={18} />,
+      title: "Auto-assign",
+      text: "A bucket can hand its cards to whoever has the most room, most important first, and queue the rest. Turn it on in a bucket's rules.",
     },
     {
-      icon: <Network size={18} />,
-      title: "Linked and blocked tasks",
-      text: "Tap a card's link badge to see everything it's connected to. Blocked cards say what they're waiting on, and you'll hear when they're free.",
+      icon: <Flag size={18} />,
+      title: "Your own priorities",
+      text: "Rename, recolor and add priorities per board, with an icon and a colored card edge. Customize > Priorities.",
     },
     {
-      icon: <CalendarClock size={18} />,
-      title: "What's due, at a glance",
-      text: "\"Late\" and \"due today\" show next to a board's Filter button, one click from showing just those cards.",
+      icon: <LayoutTemplate size={18} />,
+      title: "Start a board your way",
+      text: "New boards start blank with one To do bucket, or pick a layout or template under Start with, including a new shopping list.",
+      action: { label: "Go to Home", run: () => useStore.getState().navigate({ page: "home" }) },
     },
   ],
 };

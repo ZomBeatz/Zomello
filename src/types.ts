@@ -399,6 +399,8 @@ export interface Settings {
   unlockedStyles: AppStyle[];
   /** The version whose "New in Zomello" note has been seen (e.g. "0.6"). */
   seenWhatsNew?: string;
+  /** When the welcome guide was finished (ms), so Home can offer more features after a while. */
+  onboardedAt?: number;
   /** Side menu items turned off in Settings > Appearance, to make room. Archive is still in Settings > Data. */
   sideHidden?: ("focus" | "archive")[];
   /** Page intros put away with "dismiss" (e.g. "myday", "mytasks"). */

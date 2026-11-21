@@ -492,6 +492,10 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 .upload-settings { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
 .upload-settings h4 { margin: 0; }
 .upload-settings input[type="number"] { width: 6em; }
+.panel.discover { margin-bottom: 16px; }
+.panel.discover h3 { display: flex; align-items: center; gap: 8px; margin: 0; }
+.discover-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.discover-list li { display: flex; align-items: center; gap: 10px; }
 .waiting-badge { color: var(--warn, #f59e0b); border-color: currentColor; }
 .capacity-rows { display: flex; flex-direction: column; gap: 6px; }
 .capacity-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }

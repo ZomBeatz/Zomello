@@ -39,7 +39,7 @@ export function WelcomeGuide({ onClose }: { onClose: () => void }) {
       else st.updateSettings({ me: name.trim(), people: [...new Set([...st.data.settings.people, name.trim()])] });
     }
     // Someone new doesn't need to hear what's new.
-    st.updateSettings({ onboarded: true, seenWhatsNew: WHATS_NEW.version, ...(firstRun ? { features: presetFeatures(level) } : {}) });
+    st.updateSettings({ onboarded: true, seenWhatsNew: WHATS_NEW.version, ...(firstRun ? { features: presetFeatures(level), onboardedAt: Date.now() } : {}) });
     onClose();
     if (!firstRun) return;
     if (start === "empty") {

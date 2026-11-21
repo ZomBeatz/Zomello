@@ -224,11 +224,10 @@ function cardMenu(cardId: ID): MenuEntry[] {
       icon: <ListChecks size={14} />,
       onClick: () => st.toggleSelected(cardId),
     },
-    {
-      label: card.badges ? "Card display (custom)…" : "Card display…",
-      icon: <SlidersHorizontal size={14} />,
-      onClick: () => openCardDisplay(cardId),
-    },
+    // Part of Board looks; still there for a card that already has its own choices.
+    ...(featureOn(data.settings, "looks") || card.badges
+      ? [{ label: card.badges ? "Card display (custom)…" : "Card display…", icon: <SlidersHorizontal size={14} />, onClick: () => openCardDisplay(cardId) }]
+      : []),
     {
       label: done ? "Mark incomplete" : "Mark complete",
       icon: done ? <CircleDashed size={14} /> : <CheckCircle2 size={14} />,

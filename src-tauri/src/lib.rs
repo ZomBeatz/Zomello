@@ -18,6 +18,7 @@ mod logs;
 mod places;
 mod private;
 mod people;
+mod portable;
 mod uploads;
 mod servers;
 
@@ -33,7 +34,11 @@ const LEGACY_DIR: &str = "com.zombeatz.planwise";
 const LEGACY_FILE: &str = "planwise.json";
 
 fn data_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    // Portable copy: everything lives in the "Zomello Data" folder next to the app (portable.rs).
+    let dir = match portable::dir() {
+        Some(d) => d.clone(),
+        None => app.path().app_data_dir().map_err(|e| e.to_string())?,
+    };
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir)
 }
@@ -467,6 +472,7 @@ async fn open_board_window(app: AppHandle, board_id: String, title: String) -> R
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    portable::prepare();
     // WebKitGTK's DMA-BUF renderer shows a blank window on many NVIDIA/Wayland setups.
     #[cfg(target_os = "linux")]
     if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {

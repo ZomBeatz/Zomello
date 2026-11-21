@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import { create } from "zustand";
 import { useStore } from "../store";
+import { useFeature } from "../features";
 import type { BadgeKey, BadgeMode, ID } from "../types";
 import { BADGES } from "./BoardCustomize";
 import { Modal } from "./ui";
@@ -74,11 +75,13 @@ export function CardDisplayHost() {
  */
 export function ShowOnCard({ cardId, kind, label = "On card" }: { cardId: ID; kind: BadgeKey; label?: string }) {
   const card = useStore((s) => s.data.cards[cardId]);
+  // Part of Board looks (Settings > Features): hidden in a simpler setup unless this card already uses it.
+  const looks = useFeature("looks");
   const usual = useStore((s): BadgeMode => {
     const c = s.data.cards[cardId];
     return (c && (s.data.lists[c.listId]?.badges?.[kind] ?? s.data.boards[c.boardId]?.display.badges[kind])) ?? "off";
   });
-  if (!card) return null;
+  if (!card || (!looks && card.badges?.[kind] == null)) return null;
   const now = card.badges?.[kind] ?? usual;
   const set = (on: boolean) => {
     const next = { ...(card.badges ?? {}) };

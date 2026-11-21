@@ -24,7 +24,11 @@ static WRITE: Mutex<()> = Mutex::new(());
 
 /// Finds the log folder and starts logging. Called once, when the app starts.
 pub fn init(app: &AppHandle) {
-    if let Ok(dir) = app.path().app_log_dir() {
+    let dir = match crate::portable::dir() {
+        Some(d) => Ok(d.join("logs")),
+        None => app.path().app_log_dir(),
+    };
+    if let Ok(dir) = dir {
         if fs::create_dir_all(&dir).is_ok() {
             let _ = DIR.set(dir);
         }
