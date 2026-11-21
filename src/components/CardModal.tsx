@@ -1,3 +1,4 @@
+import { EFFORTS } from "../assign";
 import { ShowOnCard } from "./CardDisplay";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { archiveCard, deleteCard as deleteCardAction } from "../actions";
@@ -73,6 +74,7 @@ export function CardModal({ cardId }: { cardId: ID }) {
 
 function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
   const board = useStore((s) => s.data.boards[card.boardId]);
+  const usesAutoAssign = useStore((s) => Object.values(s.data.lists).some((l) => l.boardId === card.boardId && l.autoAssign));
   const allLists = useStore((s) => s.data.lists);
   const allBoards = useStore((s) => s.data.boards);
   const people = useStore((s) => s.data.settings.people);
@@ -459,6 +461,18 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
               ))}
             </select>
           </Field>
+          {(usesAutoAssign || card.effort) && (
+            <Field label="Effort" hidden={!show("priority")}>
+              <select value={card.effort ?? ""} onChange={(e) => set({ effort: e.target.value ? Number(e.target.value) : undefined })} title="How much work it is, in points. Auto-assign counts it against people's capacity.">
+                <option value="">1 point (usual)</option>
+                {EFFORTS.map((n) => (
+                  <option key={n} value={n}>
+                    {n} point{n === 1 ? "" : "s"}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           <Field label="Start date" hidden={!show("startDate")}>
             <DateInput
               value={card.startDate}

@@ -114,6 +114,10 @@ export interface Card {
   description: string;
   /** This card's own "Show on cards" choices, over its bucket's and board's (card menu > Card display). */
   badges?: Partial<Record<BadgeKey, BadgeMode>>;
+  /** Auto-assign: how much work it is, in points (1, 2, 3, 5, 8). None counts as 1. */
+  effort?: number;
+  /** Auto-assign chose who has it (Rebalance may change it). Cleared when someone changes it by hand. */
+  autoAssigned?: boolean | null;
   labelIds: ID[];
   priority: Priority;
   progress: Progress;
@@ -201,6 +205,8 @@ export interface List {
   latePriority?: Priority | null;
   /** Per-bucket override of the board's "hide ticked checklist items on cards". */
   hideChecked?: boolean;
+  /** Auto-assign: cards that arrive with no one get the person with the most room (see src/assign.ts). */
+  autoAssign?: boolean;
 }
 
 export type BoardBackground =
@@ -278,6 +284,10 @@ export interface Board {
    * what they may do. "check" = comment on any card, and set the status and tick checklist items on their own. See src-tauri/src/people.rs.
    */
   share?: Record<string, ShareLevel>;
+  /** Details for each person in `share` (Check off extras, Custom permissions). */
+  shareRules?: Record<string, ShareRules>;
+  /** Auto-assign: what each person can carry on this board. Only people listed here are picked. */
+  capacity?: Record<string, Capacity>;
   /** Optional group in the sidebar and on Home (e.g. "Work", "Home"). Null = not in one. */
   category?: string | null;
   /** Calendars shown (read-only) in this board's Calendar view. */
@@ -450,7 +460,40 @@ export interface BoardTemplate {
   createdAt?: number;
 }
 
-export type ShareLevel = "view" | "check" | "edit";
+export type ShareLevel = "view" | "check" | "edit" | "custom";
+/** A bucket as one person sees it (Custom permissions). "lead" = in charge: also adds, removes and re-assigns. */
+export type BucketAccess = "hidden" | "see" | "work" | "lead";
+
+/** One person's details on a shared board (Check off extras, or everything for Custom). See people.rs. */
+export interface ShareRules {
+  /** Custom: each bucket's access; buckets not listed (and new ones) get `otherBuckets`. */
+  buckets?: Record<ID, BucketAccess>;
+  otherBuckets?: BucketAccess;
+  comment?: boolean;
+  /** Set the status and tick checklists: on their own cards, or any card in buckets they work in. */
+  status?: "none" | "own" | "any";
+  /** Take unassigned cards. */
+  pickUp?: boolean;
+  /** Give their cards to someone else. */
+  handOff?: boolean;
+  /** Check off: move their own cards between buckets. */
+  moveOwn?: boolean;
+  /** Edit what a card says: title, notes, dates, labels, fields, effort, priority. */
+  details?: boolean;
+  create?: boolean;
+  /** Archive or delete cards in buckets they work in. */
+  archive?: boolean;
+  /** The priorities they may set (and change cards from). None: any. */
+  priorities?: Priority[];
+}
+
+/** Auto-assign: how much one person can carry on a board. */
+export interface Capacity {
+  /** Effort points they can have at once (unfinished cards on this board). */
+  points: number;
+  /** The biggest card (in effort points) they should get. None: any. */
+  maxCard?: number;
+}
 
 export interface AppData {
   version: 1;

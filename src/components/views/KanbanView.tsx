@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState } from "react";
 import { archiveList, deleteList as deleteListAction } from "../../actions";
 import { useDragSensors, useIsPhone } from "../../mobile";
+import { EFFORTS } from "../../assign";
+import { rebalance } from "../AutoAssign";
 import {
   closestCenter,
   closestCorners,
@@ -45,6 +47,7 @@ import {
   ClipboardPaste,
   ListChecks,
   Wand2,
+  Scale,
   Zap,
 } from "lucide-react";
 import type { BadgeKey, BadgeMode, Board, Card, GroupBy, ID, List, Priority, Progress } from "../../types";
@@ -528,6 +531,18 @@ function Column({
                 >
                   Paste cards here…
                 </MenuItem>
+                {list.autoAssign && (
+                  <MenuItem
+                    icon={<Scale size={14} />}
+                    onClick={() => {
+                      close();
+                      const n = rebalance(list.id);
+                      useStore.getState().toast(n ? `Handing out ${n} card${n === 1 ? "" : "s"} again` : "Nothing to rebalance: Auto-assign's cards here have all been started.", { key: "auto-assign" });
+                    }}
+                  >
+                    Rebalance (hand out unstarted cards again)
+                  </MenuItem>
+                )}
                 {(automation || hasRules(list)) && (
                   <MenuItem icon={<Wand2 size={14} />} onClick={() => (setRulesOpen(true), close())}>
                     Bucket rules{hasRules(list) ? " (on)" : ""}…
@@ -880,7 +895,7 @@ const hasRules = (l: List) =>
   !!(
     l.autoProgress || l.newPriority || l.newLabelIds?.length || l.arriveLabelIds?.length || l.newTemplateId || l.arriveDueDays != null ||
     l.arriveAssignees?.length || l.arriveMyDay || l.checkedComplete || l.checkedMoveTo || l.archiveAfterDays != null ||
-    l.lateMoveTo || l.latePriority
+    l.lateMoveTo || l.latePriority || l.autoAssign
   );
 
 /** Rules that can act on cards already in a bucket ("Apply to the cards already here"). */
@@ -896,6 +911,7 @@ function rulesSummary(l: List, lists: Record<ID, List>, templates: { id: ID; nam
     l.newTemplateId && `New cards start from "${templates.find((t) => t.id === l.newTemplateId)?.name ?? "a template"}"`,
     n(l.newLabelIds) && "New cards get labels",
     l.newPriority && `New cards get ${priorityMeta(l.newPriority, board).name} priority`,
+    l.autoAssign && "Cards with no one go to whoever has the most room (Auto-assign)",
     l.autoProgress && `Cards here are set to ${PROGRESS.find((p) => p.id === l.autoProgress)?.name ?? ""}`,
     n(l.arriveLabelIds) && "Cards here get labels",
     l.arriveDueDays != null && "Cards here get a due date",
@@ -914,7 +930,7 @@ function rulesSummary(l: List, lists: Record<ID, List>, templates: { id: ID; nam
 const NO_RULES: Partial<List> = {
   autoProgress: null, newPriority: null, newLabelIds: undefined, arriveLabelIds: undefined, newTemplateId: null, arriveDueDays: null,
   arriveAssignees: undefined, arriveMyDay: undefined, checkedComplete: undefined, checkedMoveTo: null, archiveAfterDays: null,
-  lateMoveTo: null, latePriority: null,
+  lateMoveTo: null, latePriority: null, autoAssign: undefined,
 };
 
 const DUE_CHOICES = [0, 1, 2, 3, 7, 14];
@@ -1108,6 +1124,7 @@ function BucketRulesDialog({ list, board, onClose }: { list: List; board: Board;
             </select>
           </label>
         </section>
+        <AutoAssignRule list={list} board={liveBoard} />
         <section>
           <h4>Tidy up</h4>
           <label className="rule-row">
@@ -1141,6 +1158,69 @@ function BucketRulesDialog({ list, board, onClose }: { list: List; board: Board;
         )}
       </div>
     </Modal>
+  );
+}
+
+/**
+ * Bucket rules > Auto-assign: the rule itself, and (for the whole board) who it may pick and how much
+ * each person can carry. See src/assign.ts.
+ */
+function AutoAssignRule({ list, board }: { list: List; board: Board }) {
+  const updateList = useStore((s) => s.updateList);
+  const people = useStore((s) => s.data.settings.people);
+  const cap = board.capacity ?? {};
+  const setCap = (person: string, c: { points: number; maxCard?: number } | null) => {
+    const next = { ...cap };
+    if (c) next[person] = c;
+    else delete next[person];
+    useStore.getState().updateBoard(board.id, { capacity: Object.keys(next).length ? next : undefined });
+  };
+  return (
+    <section>
+      <h4>Auto-assign</h4>
+      <label className="check-row">
+        <input type="checkbox" checked={!!list.autoAssign} onChange={(e) => updateList(list.id, { autoAssign: e.target.checked || undefined })} />
+        Give cards that arrive here with no one to whoever has the most room
+      </label>
+      <p className="muted small">
+        Most important first. A card's effort (in the card window) is how much room it takes. When nobody has room, it waits its turn
+        and goes out as soon as someone does.
+      </p>
+      <h5>Who it can pick on this board</h5>
+      <div className="capacity-rows">
+        {people.map((p) => {
+          const c = cap[p];
+          return (
+            <div key={p} className="capacity-row">
+              <label className="check-row grow">
+                <input type="checkbox" checked={!!c} onChange={(e) => setCap(p, e.target.checked ? { points: 8 } : null)} />
+                <Avatar name={p} size={20} /> {p}
+              </label>
+              {c && (
+                <>
+                  <label className="small">
+                    Can carry{" "}
+                    <input type="number" min={1} max={999} value={c.points} onChange={(e) => setCap(p, { ...c, points: Math.max(1, Number(e.target.value) || 1) })} />{" "}
+                    points
+                  </label>
+                  <label className="small">
+                    Biggest card{" "}
+                    <select value={c.maxCard ?? ""} onChange={(e) => setCap(p, { ...c, maxCard: e.target.value ? Number(e.target.value) : undefined })}>
+                      <option value="">any</option>
+                      {EFFORTS.map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

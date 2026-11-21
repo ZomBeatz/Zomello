@@ -482,6 +482,14 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 .person-row { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .person-picker select { margin-left: 6px; }
 .comment-by { display: inline-flex; align-items: center; gap: 6px; }
+.badge-mode-row:has(.access-extras) { flex-wrap: wrap; }
+.access-extras { flex-basis: 100%; display: flex; flex-direction: column; gap: 4px; padding: 8px 0 4px 30px; }
+.custom-rules { gap: 6px; }
+.custom-rules .seg button { padding: 3px 8px; font-size: 12px; }
+.waiting-badge { color: var(--warn, #f59e0b); border-color: currentColor; }
+.capacity-rows { display: flex; flex-direction: column; gap: 6px; }
+.capacity-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.capacity-row input[type="number"] { width: 4.5em; }
 .pri-icon { width: 3em; text-align: center; }
 .priority-def input[type="color"] { width: 34px; height: 30px; padding: 2px; border-radius: 6px; }
 /* A board priority with "Color the card's edge". */

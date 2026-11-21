@@ -1,10 +1,11 @@
 import { memo } from "react";
 import { differenceInCalendarDays } from "date-fns";
 import {
-  AlignLeft, Ban, Calendar, CheckSquare, CornerDownRight, Flag, Image as ImageIcon, Link2, ListTree, MessageSquare, Octagon, Paperclip, Repeat, Timer, ZapOff,
+  AlignLeft, Ban, Calendar, CheckSquare, CornerDownRight, Flag, Hourglass, Image as ImageIcon, Link2, ListTree, MessageSquare, Octagon, Paperclip, Repeat, Timer, ZapOff,
 } from "lucide-react";
 import type { BadgeKey, BadgeMode, Board, Card, ID } from "../types";
 import { useStore } from "../store";
+import { queuePlace } from "../assign";
 import {
   agingLevel, checklistStats, describeRecurrence, dueStatus, formatDuration, formatFieldValue, fromISO, isBlocked, isImage,
   parentIndex, plainText, prettyDateTime, priorityMeta, subtaskIds, timeAgo, trackedMs,
@@ -92,6 +93,8 @@ export const CardTile = memo(function CardTile({
   const pictures = mode.images === "off" ? [] : card.attachments.filter((a) => a.stored && isImage(a.name, a.mime) && a.id !== card.coverImage);
   const labels = board.labels.filter((l) => card.labelIds.includes(l.id));
   const pri = priorityMeta(card.priority, board);
+  // Auto-assign's queue: only cards with no one, in a bucket with the rule.
+  const waitingPlace = useStore((s) => (card.assignees.length === 0 && s.data.lists[card.listId]?.autoAssign ? queuePlace(s.data, card) : 0));
   const cl = checklistStats(card);
   // The bucket can override the board's "hide ticked items on cards".
   const listHide = useStore((s) => s.data.lists[card.listId]?.hideChecked);
@@ -283,6 +286,16 @@ export const CardTile = memo(function CardTile({
         {mode.priority === "icon" && (board.priorities?.length || card.priority !== "medium") && (
           <span className="badge icon-only" title={`${pri.name} priority`} style={{ color: pri.color }}>
             {pri.icon && board.priorities?.length ? pri.icon : <Flag size={12} fill="currentColor" />}
+          </span>
+        )}
+        {waitingPlace > 0 && (
+          <span className="badge waiting-badge" title="Auto-assign gives it to the next person with room">
+            <Hourglass size={12} /> Waiting for someone (#{waitingPlace})
+          </span>
+        )}
+        {card.effort && card.effort > 1 && (
+          <span className="badge subtle" title="Effort">
+            {card.effort} pts
           </span>
         )}
         {bucketName && <span className="badge subtle">{bucketName}</span>}

@@ -56,6 +56,7 @@ import { watchForBraaains } from "./undead";
 import { useWhatsNew, WhatsNew, whatsNewDue } from "./components/WhatsNew";
 import { CardDisplayHost } from "./components/CardDisplay";
 import { PeopleAccessHost } from "./components/PeopleAccess";
+import { AutoAssign } from "./components/AutoAssign";
 
 const DENSITY = { compact: "13px", normal: "14px", comfortable: "15.5px" };
 
@@ -329,6 +330,7 @@ export default function App() {
       <LinkedSheetHost />
       <CardDisplayHost />
       <PeopleAccessHost />
+      <AutoAssign />
       <ConfirmHost />
     </div>
   );

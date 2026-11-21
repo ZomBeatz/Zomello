@@ -1134,6 +1134,8 @@ export const useStore = create<State>((set, get) => {
       return card.id;
     },
     updateCard(id, patch) {
+      // Changing who has a card by hand: it's no longer Auto-assign's choice (Rebalance leaves it alone).
+      if (patch.assignees && !("autoAssigned" in patch) && get().data.cards[id]?.autoAssigned) patch = { ...patch, autoAssigned: null };
       const before = get().data.cards;
       mut((d) => ({ ...d, cards: checklistRules(d, d.cards, patchCard(d.cards, id, arrive(d, id, patch))) }));
       // Finishing a card that others wait on: say which ones can start now.
