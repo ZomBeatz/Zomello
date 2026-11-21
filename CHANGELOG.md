@@ -49,6 +49,14 @@
 - **A new bucket stays in view** after you add it. On a phone the board moves to it.
 - **Dragging on a phone:** while you hold a card, the board's buckets show as names at the top; drop on one to move the card there. Holding at the screen edge turns to the next bucket sooner, and Android phones give a small buzz when the card lifts.
 
+**Safety**
+- **Links can't start programs:** web, mail and phone links open as before, and files on your computer open, but a program, script, installer or shortcut (a link or an attached file) is only shown in its folder. Links to network shares don't open.
+- **Notes are plain formatting only:** no styles, forms or buttons, so a note from someone else can't dress itself up as part of Zomello. Pictures from the web show when you click them, so opening a card doesn't tell anyone you looked.
+- **A content security policy** for the app and for the pages your computer and Zomello Server send to phones: they only run Zomello's own code, and can't be shown inside another site.
+- **Files from other people's phones** are off unless you turn them on (Settings > Phones & tablets): pictures, documents or anything that doesn't run, up to an amount per person, and checked for viruses with Microsoft Defender on Windows or ClamAV on Linux.
+- **People's phones** only get the files and calendars of the boards shared with them, can't change a board's calendar addresses, and don't store backups on your computer. A server's page on your phone no longer sees the names of the phone's private boards.
+- Updated the encryption library the phone link uses (rustls) and Zomello Server's database library (SQLite), for known security fixes.
+
 **Behind the scenes**
 - Tauri and its plugins updated to their latest fixes. DOMPurify updated for a security fix.
 

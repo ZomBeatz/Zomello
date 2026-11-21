@@ -47,7 +47,14 @@ pub fn places_read(app: AppHandle, webview: Webview) -> Value {
     if let Some(m) = v.as_object_mut() {
         m.remove("link");
     }
-    if let Ok(me) = place_of(&webview) {
+    let me = place_of(&webview).ok();
+    // Another place's page (a computer or server) never learns the names of this phone's private boards.
+    if me.as_deref() != Some("phone") {
+        if let Some(list) = v["boards"]["phone"]["boards"].as_array_mut() {
+            list.retain(|b| b["private"] != Value::Bool(true));
+        }
+    }
+    if let Some(me) = me {
         v["me"] = Value::String(me);
     }
     v

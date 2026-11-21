@@ -178,6 +178,13 @@ pub fn merge_from_person(incoming: &str, current: &str, person: &str) -> String 
             data["boards"][id] = b;
         }
     }
+    // Cards they can see (or are adding on a board they edit): the only ones a checklist item may mirror.
+    let visible: std::collections::HashSet<String> = [&data, &inc]
+        .iter()
+        .flat_map(|d| d["cards"].as_object().into_iter().flatten())
+        .filter(|(_, c)| level(c["boardId"].as_str()).is_some())
+        .map(|(id, _)| id.clone())
+        .collect();
     for kind in ["lists", "cards"] {
         let cur = data[kind].as_object().cloned().unwrap_or_default();
         let new = inc[kind].as_object().cloned().unwrap_or_default();
@@ -192,7 +199,11 @@ pub fn merge_from_person(incoming: &str, current: &str, person: &str) -> String 
             // Added or changed on a board they edit, and not taken from a board they can't edit.
             let was = cur.get(id).and_then(|c| c["boardId"].as_str());
             if editable(e["boardId"].as_str()) && (was.is_none() || editable(was)) {
-                out.insert(id.clone(), e.clone());
+                let mut e = e.clone();
+                if kind == "cards" {
+                    keep_links(&mut e, cur.get(id), &visible);
+                }
+                out.insert(id.clone(), e);
             }
         }
         data[kind] = Value::Object(out);
@@ -244,6 +255,19 @@ pub fn merge_from_person(incoming: &str, current: &str, person: &str) -> String 
     data.to_string()
 }
 
+/// Checklist items that mirror a card they can't see (and didn't already mirror) lose the link, so a
+/// hidden card's title never comes back to their phone.
+fn keep_links(card: &mut Value, old: Option<&Value>, visible: &std::collections::HashSet<String>) {
+    let Some(items) = card["checklist"].as_array_mut() else { return };
+    for item in items {
+        let Some(target) = item["cardId"].as_str().map(str::to_string) else { continue };
+        let had = old.and_then(|o| o["checklist"].as_array()).into_iter().flatten().any(|o| o["id"] == item["id"] && o["cardId"] == item["cardId"]);
+        if !had && !visible.contains(&target) {
+            item["cardId"] = Value::Null;
+        }
+    }
+}
+
 /// One card: the current copy with the changes `person` may make from the device's copy.
 fn merge_card(old: &Value, n: &Value, r: &Rules, person: &str, lists_here: &dyn Fn(Option<&str>) -> bool) -> Value {
     let mut c = old.clone();
@@ -290,6 +314,16 @@ fn merge_card(old: &Value, n: &Value, r: &Rules, person: &str, lists_here: &dyn 
         for key in ["title", "description", "startDate", "dueDate", "labelIds", "fields", "cover", "coverImage", "coverSize", "effort", "checklist", "attachments", "recurrence", "estimate"] {
             if n.get(key).is_some() {
                 c[key] = n[key].clone();
+            }
+        }
+        // A checklist item can mirror another card (its title shows here). They can't point one at a
+        // card they don't already have linked, or a hidden card's title would come back to their phone.
+        if let Some(items) = c["checklist"].as_array_mut() {
+            for item in items {
+                let had = old["checklist"].as_array().into_iter().flatten().any(|o| o["id"] == item["id"] && o["cardId"] == item["cardId"]);
+                if !item["cardId"].is_null() && !had {
+                    item["cardId"] = Value::Null;
+                }
             }
         }
         if r.may_set_priority(&old["priority"]) && r.may_set_priority(&n["priority"]) {
@@ -544,5 +578,13 @@ mod tests {
         s["boards"]["trip"]["calendarFeeds"] = json!([{ "id": "f", "url": "http://192.168.1.1/admin" }]);
         let m: Value = serde_json::from_str(&super::merge_from_person(&s.to_string(), &json, "Sam")).unwrap();
         assert_eq!(m["boards"]["trip"]["calendarFeeds"][0]["url"], "https://cal.example/a.ics");
+    }
+
+    #[test]
+    fn no_new_links_to_other_cards_in_checklists() {
+        let mut s = as_seen("Sam");
+        s["cards"]["socks"]["checklist"] = json!([{ "id": "i1", "text": "?", "done": false, "cardId": "gift" }]);
+        let m = saved("Sam", &s);
+        assert_eq!(m["cards"]["socks"]["checklist"][0]["cardId"], Value::Null);
     }
 }

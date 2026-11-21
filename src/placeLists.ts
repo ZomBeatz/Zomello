@@ -17,6 +17,8 @@ export interface PlaceBoard {
   color: string;
   category: string | null;
   starred: boolean;
+  /** Private: only on this phone (left out when another place's page reads the list). */
+  private?: boolean;
 }
 export interface PlaceInfo {
   origin: string;
@@ -45,7 +47,7 @@ function boardList() {
   const boards: PlaceBoard[] = Object.values(d.boards)
     .filter((b) => !b.archived)
     .sort((a, b) => a.order - b.order)
-    .map((b) => ({ id: b.id, title: b.title, color: b.color, category: b.category ?? null, starred: b.starred }));
+    .map((b) => ({ id: b.id, title: b.title, color: b.color, category: b.category ?? null, starred: b.starred, ...(b.private ? { private: true } : {}) }));
   return { boards, sections: d.settings.sections ?? [] };
 }
 
