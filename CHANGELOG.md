@@ -10,6 +10,16 @@
 **Mac**
 - **A Mac version:** one app for Apple silicon and Intel Macs. The release has a `.dmg`, and a Mac App Store build is on the way. The App Store copy leaves start at login and the firewall to macOS's own settings, like the Microsoft Store copy does on Windows.
 
+**Auto-assign** (a bucket rule, with Bucket automation turned on)
+- **Cards that arrive with no one go to whoever has the most room.** Each card has an **Effort** (1, 2, 3, 5 or 8 points; 1 unless set), and each person a capacity on the board: how many points they can carry, and the biggest card they should get.
+- **Most important first:** priority decides the order. When nobody has room, a card shows **Waiting for someone (#2)** and goes out as soon as someone does (finishing a card, a capacity going up).
+- **Rebalance** (bucket menu) hands out again the cards Auto-assign gave that nobody has started. A card someone re-assigns by hand is left alone.
+- It runs on the computer that holds the boards, so a card is never handed out twice.
+
+**Priorities**
+- **Each board can have its own priorities:** Customize > Priorities renames, recolors, reorders, adds and removes them, with an icon each. Every picker, filter, sort, group, chart and badge uses the board's list. Boards that don't customize keep Urgent, Important, Medium and Low.
+- **A priority can color the card's edge**, and can be allowed to **go over capacity** for Auto-assign (an emergency still gets assigned).
+
 **New boards**
 - **A new board starts blank,** with one **To do** bucket, unless you pick something else.
 - **Choose how a new board starts:** Home's new board box has **Start with**: blank, To do / In progress / Done, a **Shopping list** (new), a weekly plan, a project, household chores, the other ready-made boards, or one of your own templates.
@@ -18,6 +28,8 @@
 **People in your home**
 - **Give a phone to someone:** in **Settings > Phones & tablets**, each linked phone or tablet has **Whose is it?** Yours sees every board, as before. Someone else's (Sam's phone) sees only the boards shared with Sam.
 - **People on this board:** in a board's menu on the computer, choose who sees it and what they can do: **Can view**, **Can check off** (comment on any card; on cards assigned to them, set the status and tick checklist items) or **Can edit**. The computer keeps only the changes each person is allowed, and their phone shows **View only** or **Check off** on boards they can't fully change.
+- **Can check off** can also, if you tick them: **pick up cards nobody has**, **move their cards between buckets**, and **hand their cards to someone else**. It covers every status (Not started, In progress, Waiting, On hold, Completed).
+- **Custom…** sets it all yourself: each bucket **Hidden**, **See**, **Work in** or **In charge** (also adds, removes and re-assigns there), and what they can do: status and checklists, comments, editing what cards say, adding, archiving, picking up, handing off, and which priorities they may set. Hidden buckets never reach their phone. Their phone shows **Limited**.
 - **Assign them tasks:** people you add this way are in a card's **Assigned to** and the board filter. On their phone, those cards are in **My Day** and **My Tasks**, and their comments carry their name.
 
 **Cards**
@@ -30,6 +42,7 @@
 - **Select several cards at once:** press **Select** on a board, then tap cards. A bar at the top shows how many are picked, with **Select all** and **Done**; the bar at the bottom changes them all at once (progress, priority, labels, dates, people, move, archive).
 
 **Fixes**
+- **Make room in the side menu:** Settings > Appearance > **Side menu** can hide the Focus timer and the Archive. A running countdown still shows, and the Archive is also in Settings > Data (**Open the Archive**).
 - **Zoom in Settings > Accessibility** fits narrow windows: the slider shrinks instead of pushing the percentage off the edge.
 - **The side menu keeps the logo and Settings in view:** only the boards in between scroll. On Android, the bottom of the menu now stays clear of the navigation buttons.
 - **New in Zomello** on a phone is a sheet from the bottom, clear of the status bar, with its buttons under your thumb. **See everything new** closes it and opens the guide, and says so if the browser can't open.

@@ -74,6 +74,9 @@ export function Sidebar() {
   const [renaming, setRenaming] = useState<ID | null>(null);
   const [dancing, setDancing] = useState(false);
   const style = useStore((s) => s.data.settings.style);
+  const hideFocus = useStore((s) => !!s.data.settings.sideHidden?.includes("focus"));
+  const hideArchive = useStore((s) => !!s.data.settings.sideHidden?.includes("archive"));
+  const focusRunning = useStore((s) => !!s.focus);
   const homeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const burst = useRef<{ from: Route | null; last: number }>({ from: null, last: 0 });
   const asideRef = useScrollFades();
@@ -323,9 +326,12 @@ export function Sidebar() {
             <SpinCat size={collapsed ? 44 : 64} />
           </div>
         )}
-        <FocusWidget collapsed={collapsed} />
+        {/* Hidden in Settings > Appearance; a countdown that's running still shows. */}
+        {(!hideFocus || focusRunning) && <FocusWidget collapsed={collapsed} />}
         <RunningTimer collapsed={collapsed} />
-        <NavItem icon={<Archive size={16} />} label="Archive" on={route.page === "archive"} onClick={() => navigate({ page: "archive" })} />
+        {(!hideArchive || route.page === "archive") && (
+          <NavItem icon={<Archive size={16} />} label="Archive" on={route.page === "archive"} onClick={() => navigate({ page: "archive" })} />
+        )}
         {isServer && me?.isAdmin && (
           <NavItem icon={<Shield size={16} />} label="Admin" on={route.page === "admin"} onClick={() => navigate({ page: "admin" })} />
         )}

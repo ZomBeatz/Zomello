@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { openWhatsNew } from "./WhatsNew";
 import { format } from "date-fns";
-import { Accessibility, Bell, Blocks, CalendarPlus, Download, FileUp, Minus, Plus, Eraser, LayoutTemplate, MessageSquare, Repeat, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
+import { Accessibility, Archive, Bell, Blocks, CalendarPlus, Download, FileUp, Minus, Plus, Eraser, LayoutTemplate, MessageSquare, Repeat, RotateCcw, Trash2, Upload, UserPlus, X } from "lucide-react";
 import { sendFeedback } from "../feedback";
 import { clearLog, readLog } from "../logs";
 import { copyText } from "./Markdown";
@@ -257,6 +257,30 @@ export function SettingsPage() {
             {viewShown(settings, "timeline") && <option value="timeline">Timeline view</option>}
           </select>
         </div>
+        <div className="field-row">
+          <label>Side menu</label>
+          <div className="col">
+            {(
+              [
+                ["focus", "Focus timer"],
+                ["archive", "Archive (also in Settings > Data)"],
+              ] as const
+            ).map(([id, name]) => (
+              <label key={id} className="check-row">
+                <input
+                  type="checkbox"
+                  checked={!settings.sideHidden?.includes(id)}
+                  onChange={(e) => {
+                    const now = settings.sideHidden ?? [];
+                    const next = e.target.checked ? now.filter((x) => x !== id) : [...now, id];
+                    updateSettings({ sideHidden: next.length ? next : undefined });
+                  }}
+                />
+                Show {name}
+              </label>
+            ))}
+          </div>
+        </div>
         <p className="muted small">Each board also has its own look: open a board and press Customize (or B).</p>
       </section>
 
@@ -428,6 +452,9 @@ export function SettingsPage() {
           folder next to it.
         </p>
         <div className="row gap-sm wrap">
+          <button className="btn" onClick={() => useStore.getState().navigate({ page: "archive" })} title="Archived boards, buckets and cards: bring them back or delete them">
+            <Archive size={14} /> Open the Archive
+          </button>
           <button className="btn" onClick={doExport}>
             <Download size={14} /> Export JSON
           </button>
