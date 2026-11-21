@@ -111,8 +111,16 @@ pub async fn calendar(State(app): State<App>, headers: HeaderMap, UrlPath((board
 #[folder = "../dist"]
 struct Web;
 
+/// What the app's pages may load and run: only their own scripts, never inside another site's frame.
+/// Notes from other people can't bring in scripts even if one slipped through the cleaner.
+const WEB_CSP: &str = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+
 pub async fn web(uri: Uri) -> Response {
     let path = uri.path().trim_start_matches('/');
+    // Marks the page as running on a server (a file, so the page needs no inline script).
+    if path == "zomello-flag.js" {
+        return ([(header::CONTENT_TYPE, "text/javascript"), (header::CACHE_CONTROL, "no-cache")], "window.__ZOMELLO_SERVER__=1;").into_response();
+    }
     if !path.is_empty() && !path.starts_with("api/") {
         if let Some(f) = Web::get(path) {
             let mime = mime_guess::from_path(path).first_or_octet_stream().to_string();
@@ -127,8 +135,18 @@ pub async fn web(uri: Uri) -> Response {
     }
     match Web::get("index.html") {
         Some(f) => {
-            let html = String::from_utf8_lossy(&f.data).replacen("<head>", "<head><script>window.__ZOMELLO_SERVER__=1</script>", 1);
-            ([(header::CONTENT_TYPE, "text/html; charset=utf-8"), (header::CACHE_CONTROL, "no-cache")], html).into_response()
+            let html = String::from_utf8_lossy(&f.data).replacen("<head>", "<head><script src=\"/zomello-flag.js\"></script>", 1);
+            (
+                [
+                    (header::CONTENT_TYPE, "text/html; charset=utf-8"),
+                    (header::CACHE_CONTROL, "no-cache"),
+                    (header::CONTENT_SECURITY_POLICY, WEB_CSP),
+                    (header::X_CONTENT_TYPE_OPTIONS, "nosniff"),
+                    (header::REFERRER_POLICY, "no-referrer"),
+                ],
+                html,
+            )
+                .into_response()
         }
         None => (StatusCode::NOT_FOUND, "The web app wasn't built into this server. Run `npm run build` before building the server.").into_response(),
     }

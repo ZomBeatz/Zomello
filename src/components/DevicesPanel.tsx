@@ -33,6 +33,17 @@ interface RemoteStatus {
   devices: DeviceInfo[];
   firewall: { kind: "ufw" | "firewalld" | "windows" | "macos" | "none"; allowed: boolean; command: string | null };
   cert: { fingerprint: string; created: number; covers_address: boolean } | null;
+  uploads: UploadRules;
+  /** Bytes each person has sent. */
+  uploaded: Record<string, number>;
+  /** "Microsoft Defender", "ClamAV", or null when this computer has none Zomello can use. */
+  scanner: string | null;
+}
+interface UploadRules {
+  allow: boolean;
+  maxMb: number;
+  kinds: "images" | "documents" | "any";
+  scan: boolean;
 }
 interface PairingInfo {
   code: string;
@@ -344,6 +355,10 @@ export function DevicesPanel() {
         </ul>
       )}
 
+      {st.devices.some((d) => d.person) && (
+        <UploadSettings st={st} onSet={(rules) => void run(() => invoke("remote_set_uploads", { rules }))} />
+      )}
+
       <DeviceBackups />
 
       {pairing && (
@@ -459,5 +474,57 @@ function PersonPicker({ device, onSet }: { device: DeviceInfo; onSet: (person: s
         </select>
       )}
     </label>
+  );
+}
+
+/**
+ * Files from other people's phones (a phone that's someone else's, see Whose is it?): off until turned on,
+ * then only the chosen kinds, up to an amount each, never anything that runs, and checked for viruses
+ * when this computer has a scanner. Enforced by this computer (src-tauri/src/uploads.rs).
+ */
+function UploadSettings({ st, onSet }: { st: RemoteStatus; onSet: (r: UploadRules) => void }) {
+  const r = st.uploads;
+  const mb = (b: number) => (b / 1024 / 1024).toFixed(b < 10 * 1024 * 1024 ? 1 : 0);
+  const used = Object.entries(st.uploaded ?? {}).filter(([, b]) => b > 0);
+  return (
+    <div className="upload-settings">
+      <h4>Files from other people's phones</h4>
+      <label className="check-row">
+        <input type="checkbox" checked={r.allow} onChange={(e) => onSet({ ...r, allow: e.target.checked })} />
+        Let them attach files to cards
+      </label>
+      {r.allow && (
+        <>
+          <label className="check-row small">
+            Kinds of file
+            <select value={r.kinds} onChange={(e) => onSet({ ...r, kinds: e.target.value as UploadRules["kinds"] })}>
+              <option value="images">Pictures only</option>
+              <option value="documents">Pictures and documents (PDF, Office, text, audio and video)</option>
+              <option value="any">Anything that doesn't run</option>
+            </select>
+          </label>
+          <label className="check-row small">
+            Up to
+            <input type="number" min={1} max={100000} value={r.maxMb} onChange={(e) => onSet({ ...r, maxMb: Math.max(1, Number(e.target.value) || 1) })} />
+            MB from each person in all
+          </label>
+          {used.length > 0 && (
+            <p className="muted small">Sent so far: {used.map(([p, b]) => `${p} ${mb(b)} MB`).join(", ")}</p>
+          )}
+          <p className="muted small">Programs, scripts, installers, shortcuts and web pages are never taken from other people's phones.</p>
+        </>
+      )}
+      <label className="check-row">
+        <input type="checkbox" checked={r.scan} onChange={(e) => onSet({ ...r, scan: e.target.checked })} />
+        Check files from phones for viruses
+      </label>
+      <p className="muted small">
+        {st.scanner
+          ? `Using ${st.scanner}. A file with a threat in it is removed straight away and the phone is told.`
+          : navigator.userAgent.includes("Mac")
+            ? "macOS checks files itself when they're opened."
+            : "No virus scanner found on this computer. On Linux, install ClamAV (the clamav package) and Zomello uses it."}
+      </p>
+    </div>
   );
 }

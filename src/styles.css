@@ -487,6 +487,11 @@ kbd { font: 11px ui-monospace, monospace; background: var(--surface-2); border: 
 .access-extras { flex-basis: 100%; display: flex; flex-direction: column; gap: 4px; padding: 8px 0 4px 30px; }
 .custom-rules { gap: 6px; }
 .custom-rules .seg button { padding: 3px 8px; font-size: 12px; }
+/* A note's picture from the web, before it's clicked: just its alt text in a box. */
+.markdown img.remote-img { display: inline-block; min-width: 180px; min-height: 2.2em; padding: 6px 10px; border: 1px dashed var(--border); border-radius: 6px; font-size: 12px; color: var(--muted); cursor: pointer; }
+.upload-settings { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
+.upload-settings h4 { margin: 0; }
+.upload-settings input[type="number"] { width: 6em; }
 .waiting-badge { color: var(--warn, #f59e0b); border-color: currentColor; }
 .capacity-rows { display: flex; flex-direction: column; gap: 6px; }
 .capacity-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }

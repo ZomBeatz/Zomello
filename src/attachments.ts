@@ -34,7 +34,7 @@ export const dropIsEmpty = (p: DropPayload) => !p.files.length && !p.paths.lengt
 export async function attachToCard(cardId: ID, p: DropPayload): Promise<number> {
   const st = useStore.getState();
   const added: Attachment[] = [];
-  const fail = (name: string, e: unknown) => st.toast(`Couldn't attach ${name}: ${e}`);
+  const fail = (name: string, e: unknown) => st.toast(`Couldn't attach ${name}: ${e instanceof Error ? e.message : e}`);
   for (const f of p.files) {
     try {
       added.push({ id: uid(), name: f.name, url: await storeFile(f), addedAt: Date.now(), stored: true, size: f.size, mime: f.type });

@@ -142,6 +142,12 @@ struct Config {
     /// When the CA was made (unix seconds; 0 = unknown).
     #[serde(default)]
     ca_created: u64,
+    /// What other people's phones may send (uploads.rs).
+    #[serde(default)]
+    uploads: crate::uploads::Rules,
+    /// Bytes each person has sent so far.
+    #[serde(default)]
+    uploaded: std::collections::BTreeMap<String, u64>,
 }
 
 impl Default for Config {
@@ -154,6 +160,8 @@ impl Default for Config {
             address: None,
             ca_scope: vec![],
             ca_created: 0,
+            uploads: Default::default(),
+            uploaded: Default::default(),
         }
     }
 }
@@ -788,19 +796,50 @@ async fn devices_events(State(app): State<AppHandle>, headers: HeaderMap) -> Res
 }
 
 async fn upload(State(app): State<AppHandle>, headers: HeaderMap, body: Bytes) -> Response {
-    if device(&app, &headers).is_none() {
-        return unauthorized();
-    }
+    let Some(dev) = device(&app, &headers) else { return unauthorized() };
     let name = headers.get("x-name").and_then(|v| v.to_str().ok()).map(crate::percent_decode).unwrap_or_else(|| "file".into());
-    match crate::store_bytes(&app, &name, &body) {
-        Ok(rel) => rel.into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
+    let rules = app.state::<Remote>().inner.lock().unwrap().config.uploads.clone();
+    // Someone else's phone: only what Settings allows (uploads.rs).
+    if let Some(p) = &dev.person {
+        let used = app.state::<Remote>().inner.lock().unwrap().config.uploaded.get(p).copied().unwrap_or(0);
+        if let Some(why) = crate::uploads::refuse(&rules, &name, body.len() as u64, used) {
+            return (StatusCode::FORBIDDEN, why).into_response();
+        }
     }
+    let rel = match crate::store_bytes(&app, &name, &body) {
+        Ok(rel) => rel,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
+    };
+    // Checked for viruses before anyone can open it; a harmful file is removed straight away.
+    if rules.scan {
+        if let Ok(path) = crate::attachment_path(&app, &rel) {
+            let p = path.clone();
+            if tauri::async_runtime::spawn_blocking(move || crate::uploads::infected(&p)).await.ok().flatten() == Some(true) {
+                let _ = fs::remove_file(&path);
+                if let Some(dir) = path.parent() {
+                    let _ = fs::remove_dir(dir);
+                }
+                crate::logs::write("warn", &format!("A file from {} was removed: the virus check found a threat in it.", dev.name));
+                return (StatusCode::UNPROCESSABLE_ENTITY, "The virus check found a threat in that file, so it wasn't kept.").into_response();
+            }
+        }
+    }
+    if let Some(p) = &dev.person {
+        let r = app.state::<Remote>();
+        let mut inner = r.inner.lock().unwrap();
+        *inner.config.uploaded.entry(p.clone()).or_default() += body.len() as u64;
+        save_config(&app, &inner.config);
+    }
+    rel.into_response()
 }
 
 async fn file(State(app): State<AppHandle>, headers: HeaderMap, UrlPath(rel): UrlPath<String>) -> Response {
-    if device(&app, &headers).is_none() {
-        return unauthorized();
+    let Some(dev) = device(&app, &headers) else { return unauthorized() };
+    // Someone else's phone only gets the files on what it's shown.
+    if let Some(p) = &dev.person {
+        if !crate::people::may_see_file(&crate::read_data(&app).unwrap_or_default(), p, &rel) {
+            return StatusCode::NOT_FOUND.into_response();
+        }
     }
     match crate::attachment_path(&app, &rel) {
         Ok(path) => match fs::read(&path) {
@@ -814,11 +853,12 @@ async fn file(State(app): State<AppHandle>, headers: HeaderMap, UrlPath(rel): Ur
 /// A board's calendar feed, fetched by this computer. Only addresses saved on a board can be fetched,
 /// so a device can't make this computer download arbitrary sites.
 async fn calendar_feed(State(app): State<AppHandle>, headers: HeaderMap, UrlPath((board, feed)): UrlPath<(String, String)>) -> Response {
-    if device(&app, &headers).is_none() {
-        return unauthorized();
+    let Some(dev) = device(&app, &headers) else { return unauthorized() };
+    let json = crate::read_data(&app).unwrap_or_default();
+    if dev.person.as_deref().is_some_and(|p| !crate::people::may_see_board(&json, p, &board)) {
+        return StatusCode::NOT_FOUND.into_response();
     }
-    let url = crate::read_data(&app)
-        .ok()
+    let url = Some(json)
         .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
         .and_then(|d| {
             d["boards"][&board]["calendarFeeds"]
@@ -836,8 +876,16 @@ async fn calendar_feed(State(app): State<AppHandle>, headers: HeaderMap, UrlPath
 
 /// The app itself (the same files the desktop window uses). index.html is marked so the page knows
 /// it's running on a device.
+/// What the app's pages may load and run in a phone's browser: only its own scripts, never inside
+/// another site's frame. Notes from other people can't bring in scripts even if one slipped through.
+pub const WEB_CSP: &str = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+
 async fn asset(State(app): State<AppHandle>, uri: axum::http::Uri) -> Response {
     let path = uri.path();
+    // Marks the page as running on a device (a file, so the page needs no inline script).
+    if path == "/zomello-flag.js" {
+        return ([(header::CONTENT_TYPE, "text/javascript"), (header::CACHE_CONTROL, "no-cache")], "window.__ZOMELLO_REMOTE__=1;").into_response();
+    }
     let resolver = app.asset_resolver();
     let found = if path == "/" { None } else { resolver.get(path.to_string()) };
     match found {
@@ -848,8 +896,18 @@ async fn asset(State(app): State<AppHandle>, uri: axum::http::Uri) -> Response {
         }
         None => match resolver.get("/index.html".into()) {
             Some(a) => {
-                let html = String::from_utf8_lossy(&a.bytes()).replacen("<head>", "<head><script>window.__ZOMELLO_REMOTE__=1</script>", 1);
-                ([(header::CONTENT_TYPE, "text/html; charset=utf-8"), (header::CACHE_CONTROL, "no-cache")], html).into_response()
+                let html = String::from_utf8_lossy(&a.bytes()).replacen("<head>", "<head><script src=\"/zomello-flag.js\"></script>", 1);
+                (
+                    [
+                        (header::CONTENT_TYPE, "text/html; charset=utf-8"),
+                        (header::CACHE_CONTROL, "no-cache"),
+                        (header::CONTENT_SECURITY_POLICY, WEB_CSP),
+                        (header::X_CONTENT_TYPE_OPTIONS, "nosniff"),
+                        (header::REFERRER_POLICY, "no-referrer"),
+                    ],
+                    html,
+                )
+                    .into_response()
             }
             None => (StatusCode::NOT_FOUND, "Zomello's app files aren't available in this build").into_response(),
         },
@@ -1056,6 +1114,10 @@ pub struct Status {
     devices: Vec<DeviceInfo>,
     firewall: Firewall,
     cert: Option<CertInfo>,
+    /// Files from other people's phones (uploads.rs), how much each has sent, and the virus scanner.
+    uploads: crate::uploads::Rules,
+    uploaded: std::collections::BTreeMap<String, u64>,
+    scanner: Option<&'static str>,
 }
 
 fn status_of(app: &AppHandle) -> Status {
@@ -1090,6 +1152,9 @@ fn status_of(app: &AppHandle) -> Status {
             created: c.ca_created,
             covers_address: host.as_ref().is_none_or(|h| covers(&scope_of(c), h)),
         }),
+        uploads: c.uploads.clone(),
+        uploaded: c.uploaded.clone(),
+        scanner: crate::uploads::scanner_name(),
         devices: c
             .devices
             .iter()
@@ -1244,6 +1309,18 @@ pub fn remote_show_boards(app: AppHandle, id: String, show: bool) -> Status {
         save_config(&app, &inner.config);
     }
     let _ = app.emit("zomello://linked-changed", serde_json::json!({ "id": id }));
+    status_of(&app)
+}
+
+/// Settings > Phones & tablets > Files from other people's phones.
+#[tauri::command]
+pub fn remote_set_uploads(app: AppHandle, rules: crate::uploads::Rules) -> Status {
+    {
+        let r = app.state::<Remote>();
+        let mut inner = r.inner.lock().unwrap();
+        inner.config.uploads = crate::uploads::Rules { max_mb: rules.max_mb.clamp(1, 100_000), ..rules };
+        save_config(&app, &inner.config);
+    }
     status_of(&app)
 }
 

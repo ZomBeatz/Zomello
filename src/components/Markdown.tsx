@@ -10,6 +10,39 @@ import { AutoTextarea, useSaveOnUnmount } from "./ui";
 
 marked.setOptions({ gfm: true, breaks: true });
 
+/**
+ * Notes can come from other people (a shared board, someone's phone, an imported file), so they only
+ * get plain formatting: no styles (which could draw a fake screen over the app), no forms or buttons,
+ * no inputs but task-list ticks. Pictures from the web wait for a click, so opening a card doesn't tell
+ * anyone that you looked (or where you are).
+ */
+DOMPurify.addHook("uponSanitizeElement", (node, data) => {
+  if (data.tagName === "input" && (node as Element).getAttribute("type") !== "checkbox") node.parentNode?.removeChild(node);
+});
+DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+  if (node.tagName !== "IMG") return;
+  const src = node.getAttribute("src") ?? "";
+  if (!/^https?:/i.test(src)) return;
+  node.removeAttribute("src");
+  node.setAttribute("data-remote-src", src);
+  node.setAttribute("class", "remote-img");
+  let host = "the web";
+  try {
+    host = new URL(src).host;
+  } catch {
+    // Keep "the web".
+  }
+  node.setAttribute("alt", `Picture from ${host}: click to show`);
+  node.setAttribute("title", `Click to load this picture from ${host}`);
+});
+const PURIFY = {
+  FORBID_ATTR: ["style", "class", "id", "srcset"],
+  FORBID_TAGS: ["style", "form", "button", "select", "textarea", "option", "iframe", "frame", "object", "embed", "dialog", "template", "svg", "math"],
+};
+
+/** A note's Markdown as safe HTML (see the hooks above). */
+export const noteHtml = (text: string) => DOMPurify.sanitize(marked.parse(text, { async: false }) as string, PURIFY);
+
 /** Clipboard API first; falls back to the old selection + copy command (works in more webviews). */
 export async function copyText(text: string, done = "Copied to clipboard") {
   let ok = false;
@@ -47,7 +80,7 @@ export function Markdown({
   className?: string;
   onToggleTask?: (index: number) => void;
 }) {
-  const html = useMemo(() => DOMPurify.sanitize(marked.parse(text, { async: false }) as string), [text]);
+  const html = useMemo(() => noteHtml(text), [text]);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -75,6 +108,15 @@ export function Markdown({
       dangerouslySetInnerHTML={{ __html: html }}
       onClick={(e) => {
         const t = e.target as HTMLElement;
+        // A picture from the web, shown on request.
+        if (t.tagName === "IMG" && t.dataset.remoteSrc) {
+          e.preventDefault();
+          e.stopPropagation();
+          t.setAttribute("src", t.dataset.remoteSrc);
+          t.removeAttribute("data-remote-src");
+          t.classList.remove("remote-img");
+          return;
+        }
         const a = t.closest("a");
         if (a?.getAttribute("href")) {
           e.preventDefault();

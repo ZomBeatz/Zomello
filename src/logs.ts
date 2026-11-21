@@ -74,6 +74,10 @@ export function catchPageErrors(): void {
     logLine("error", ev.error ? describe(ev.error) : `${ev.message}${where}`);
   });
   window.addEventListener("unhandledrejection", (ev) => logLine("error", `Unhandled: ${describe(ev.reason)}`));
+  // Something the page tried to load or run was stopped by its content policy (a bug, or a bad note).
+  document.addEventListener("securitypolicyviolation", (ev) =>
+    logLine("warn", `Blocked by the content policy: ${ev.effectiveDirective} ${ev.blockedURI || "(inline)"}${ev.sourceFile ? ` in ${ev.sourceFile.split("/").pop()}:${ev.lineNumber}` : ""}`),
+  );
 }
 
 /** A view that crashed (from ErrorBoundary). */

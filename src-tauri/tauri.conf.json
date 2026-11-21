@@ -21,7 +21,8 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: asset: http://asset.localhost zfile: http://zfile.localhost https:; media-src 'self' data: blob: asset: http://asset.localhost zfile: http://zfile.localhost; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost zfile: http://zfile.localhost https:; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "devCsp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: asset: http://asset.localhost zfile: http://zfile.localhost https:; media-src 'self' data: blob: asset: http://asset.localhost zfile: http://zfile.localhost; font-src 'self' data:; connect-src 'self' ws://localhost:1420 http://localhost:1420 ipc: http://ipc.localhost zfile: http://zfile.localhost https:; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
       "assetProtocol": {
         "enable": true,
         "scope": [

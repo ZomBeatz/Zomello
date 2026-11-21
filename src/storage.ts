@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { planLink, runsWhenOpened } from "./safeOpen";
 import { isRemote, remoteFileUrl, remoteLoad, remoteSave, remoteUpload } from "./remote";
 import { fileUrl as serverFileUrl, isServer, loadData as serverLoad, upload as serverUpload } from "./server";
 
@@ -180,20 +181,36 @@ export async function dataLocation(): Promise<string> {
   return inTauri ? invoke<string>("data_location") : "Browser localStorage (dev mode)";
 }
 
-/** file:///home/me/My%20File.jpg → /home/me/My File.jpg (Windows: file:///C:/x → C:/x). */
-export function fileUrlToPath(u: string): string {
-  const p = decodeURIComponent(u.replace(/^file:\/\/(localhost)?/i, ""));
-  return /^\/[A-Za-z]:\//.test(p) ? p.slice(1) : p;
+export { fileUrlToPath } from "./safeOpen";
+
+async function say(text: string) {
+  const { useStore } = await import("./store");
+  useStore.getState().toast(text, { key: "open-link" });
 }
 
+/**
+ * Opens a link from a card or note: web, mail and phone links in their apps; a file on this computer
+ * unless it's a program or script (that one is only shown in its folder). See safeOpen.ts.
+ */
 export async function openExternal(target: string): Promise<void> {
-  if (/^file:/i.test(target)) target = fileUrlToPath(target);
-  if (inTauri) {
-    const { openUrl, openPath } = await import("@tauri-apps/plugin-opener");
-    if (/^[a-z][a-z0-9+.-]*:/i.test(target)) return openUrl(target);
-    return openPath(target);
+  const plan = planLink(target);
+  if (!inTauri) {
+    if (plan.kind === "web") window.open(plan.url, "_blank", "noopener");
+    else void say("Files on your computer open from the Zomello app.");
+    return;
   }
-  window.open(target, "_blank", "noopener");
+  const { openUrl, openPath, revealItemInDir } = await import("@tauri-apps/plugin-opener");
+  switch (plan.kind) {
+    case "web":
+      return openUrl(plan.url);
+    case "file":
+      return openPath(plan.path);
+    case "runs":
+      void say("That file runs a program, so Zomello shows it in its folder instead of opening it.");
+      return revealItemInDir(plan.path).catch(() => void say("Couldn't find that file."));
+    case "refused":
+      void say(plan.why);
+  }
 }
 
 // ---- Stored attachments ----
@@ -245,7 +262,12 @@ export const isWindows = typeof navigator !== "undefined" && /Windows/i.test(nav
 export async function openStored(url: string): Promise<void> {
   if (!inTauri) return void window.open(storedSrc(url), "_blank", "noopener");
   const abs = await invoke<string>("attachment_abs_path", { rel: url });
-  const { openPath } = await import("@tauri-apps/plugin-opener");
+  const { openPath, revealItemInDir } = await import("@tauri-apps/plugin-opener");
+  // An attached program or script (someone else may have attached it) is shown, never run.
+  if (runsWhenOpened(abs)) {
+    void say("That file runs a program, so Zomello shows it in its folder instead of opening it.");
+    return revealItemInDir(abs);
+  }
   return openPath(abs);
 }
 

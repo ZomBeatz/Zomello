@@ -142,7 +142,8 @@ pub async fn link_snapshot(State(app): State<AppHandle>, headers: HeaderMap, bod
     // Locked private boards only go into the backup; nothing here can open them.
     let locked = v.as_object_mut().and_then(|m| m.remove("privateBackup")).and_then(|x| x.as_str().map(str::to_string));
     let text = v.to_string();
-    if v["settings"]["backupToComputer"] == true {
+    // Backups are for your own phones; someone else's phone doesn't store its boards on your computer.
+    if v["settings"]["backupToComputer"] == true && !remote::requester_is_person(&app, &headers) {
         crate::backup::keep(&app, &dev.id, &dev.name, &text, locked.as_deref());
     }
     {
@@ -165,6 +166,9 @@ pub async fn backup_files(State(app): State<AppHandle>, headers: HeaderMap) -> R
 /// `PUT /api/link/backup-file/attachments/...`: one attached file for the phone's backups.
 pub async fn backup_file(State(app): State<AppHandle>, headers: HeaderMap, UrlPath(rel): UrlPath<String>, body: Bytes) -> Response {
     let Some(dev) = phone(&app, &headers) else { return StatusCode::UNAUTHORIZED.into_response() };
+    if remote::requester_is_person(&app, &headers) {
+        return (StatusCode::FORBIDDEN, "Backups are only kept for your own devices.").into_response();
+    }
     match crate::backup::save_file(&app, &dev.id, &rel, &body) {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(e) => (StatusCode::BAD_REQUEST, e).into_response(),

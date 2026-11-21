@@ -136,6 +136,19 @@ pub fn for_person(json: &str, person: &str) -> String {
     data.to_string()
 }
 
+/// `person` can see this board.
+pub fn may_see_board(json: &str, person: &str, board: &str) -> bool {
+    serde_json::from_str::<Value>(json).is_ok_and(|d| shared_boards(&d, person).iter().any(|(b, _)| b == board))
+}
+
+/// A stored file (`attachments/...`) is used on something `person` can see: a card in a bucket shown
+/// to them, or one of their boards' backgrounds.
+pub fn may_see_file(json: &str, person: &str, rel: &str) -> bool {
+    let seen: Value = serde_json::from_str(&for_person(json, person)).unwrap_or(Value::Null);
+    let quoted = Value::String(rel.to_string()).to_string();
+    ["cards", "boards"].iter().any(|k| seen[*k].to_string().contains(&quoted))
+}
+
 fn ids(v: &Value) -> Vec<&str> {
     v.as_array().into_iter().flatten().filter_map(|x| x["id"].as_str()).collect()
 }
@@ -157,7 +170,9 @@ pub fn merge_from_person(incoming: &str, current: &str, person: &str) -> String 
     for (id, _) in boards.iter().filter(|(_, a)| a == "edit") {
         if let (Some(new), Some(old)) = (inc["boards"].get(id), data["boards"].get(id)) {
             let mut b = new.clone();
-            for key in ["share", "shareRules", "private", "capacity"] {
+            // Who it's shared with, and the calendar addresses this computer fetches (a person could
+            // otherwise point them at things on your home network) stay as you set them.
+            for key in ["share", "shareRules", "private", "capacity", "calendarFeeds"] {
                 b[key] = old[key].clone();
             }
             data["boards"][id] = b;
@@ -511,5 +526,23 @@ mod tests {
         s2["cards"]["pans"]["assignees"] = json!(["Sam"]);
         let m2: Value = serde_json::from_str(&super::merge_from_person(&s2.to_string(), &after, "Kim")).unwrap();
         assert_eq!(m2["cards"]["pans"]["assignees"], json!(["Sam"]));
+    }
+
+    #[test]
+    fn files_and_calendars_only_from_their_boards() {
+        let mut d = sample();
+        d["cards"]["dishes"]["attachments"] = json!([{ "url": "attachments/1/soap.jpg", "stored": true }]);
+        d["cards"]["taxes"]["attachments"] = json!([{ "url": "attachments/2/return.pdf", "stored": true }]);
+        d["boards"]["trip"]["calendarFeeds"] = json!([{ "id": "f", "url": "https://cal.example/a.ics" }]);
+        let json = d.to_string();
+        assert!(super::may_see_file(&json, "Sam", "attachments/1/soap.jpg"));
+        assert!(!super::may_see_file(&json, "Sam", "attachments/2/return.pdf"));
+        assert!(super::may_see_board(&json, "Sam", "trip") && !super::may_see_board(&json, "Sam", "work"));
+
+        // Can edit, but the calendar addresses stay as the owner set them.
+        let mut s: Value = serde_json::from_str(&super::for_person(&json, "Sam")).unwrap();
+        s["boards"]["trip"]["calendarFeeds"] = json!([{ "id": "f", "url": "http://192.168.1.1/admin" }]);
+        let m: Value = serde_json::from_str(&super::merge_from_person(&s.to_string(), &json, "Sam")).unwrap();
+        assert_eq!(m["boards"]["trip"]["calendarFeeds"][0]["url"], "https://cal.example/a.ics");
     }
 }

@@ -24,6 +24,7 @@ fn main() {
                 "link_ops_ack",
                 "remote_show_boards",
                 "remote_set_person",
+                "remote_set_uploads",
                 "linked_devices",
                 "linked_data",
                 "linked_send",
