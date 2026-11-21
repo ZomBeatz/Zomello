@@ -8,11 +8,11 @@ import { copyText } from "./Markdown";
 import { Modal } from "./ui";
 
 /**
- * "New in Zomello": a short note shown once after updating to a new version (a 0.x release), with the few
+ * "New in Zomello": a short note shown once after updating to a new version ("0.6" covers every 0.6.x, "0.6.1" only that one), with the few
  * things worth trying. Update WHATS_NEW for each release; the full list is the guide's What's new page.
  */
 export const WHATS_NEW: { version: string; items: { icon: ReactNode; title: string; text: string; action?: { label: string; run: () => void } }[] } = {
-  version: "0.7",
+  version: "0.6.1",
   items: [
     {
       icon: <Users size={18} />,
@@ -44,7 +44,8 @@ export const useWhatsNew = create<{ open: boolean }>(() => ({ open: false }));
 export const openWhatsNew = () => useWhatsNew.setState({ open: true });
 
 /** This version has a note, and it hasn't been seen on this account yet. */
-export const whatsNewDue = (seen: string | undefined) => seen !== WHATS_NEW.version && __APP_VERSION__.startsWith(`${WHATS_NEW.version}.`);
+export const whatsNewDue = (seen: string | undefined) =>
+  seen !== WHATS_NEW.version && (__APP_VERSION__ === WHATS_NEW.version || __APP_VERSION__.startsWith(`${WHATS_NEW.version}.`));
 
 /** Opens the guide's full list. If the browser doesn't open, say so and offer the link instead of doing nothing. */
 function seeEverything(close: () => void) {

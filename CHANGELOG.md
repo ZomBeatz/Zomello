@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.0
+## 0.6.1
 
 **People in your home**
 - **Give a phone to someone:** in **Settings > Phones & tablets**, each linked phone or tablet has **Whose is it?** Yours sees every board, as before. Someone else's (Sam's phone) sees only the boards shared with Sam.
@@ -39,7 +39,7 @@
 
 **Desktop**
 - **A Mac version:** one app for Apple silicon and Intel Macs, on GitHub as a `.dmg`, and in the Mac App Store once Apple approves it. The App Store copy leaves start at login and the firewall to macOS's own settings, like the Microsoft Store copy does on Windows.
-- **A portable Windows copy** (`Zomello_0.7.0_x64-portable.zip`): unzip and run, nothing to install. With the **Zomello Data** folder next to the app, everything Zomello keeps stays in that folder, so it runs from a USB stick and leaves nothing behind. The same folder next to the Linux AppImage or the Mac app makes those portable too.
+- **A portable Windows copy** (`Zomello_0.6.1_x64-portable.zip`): unzip and run, nothing to install. With the **Zomello Data** folder next to the app, everything Zomello keeps stays in that folder, so it runs from a USB stick and leaves nothing behind. The same folder next to the Linux AppImage or the Mac app makes those portable too.
 
 **Reporting problems**
 - **A problem log on each device:** errors and crashes are noted in a small file that never leaves the device. **Settings > About** shows how many lines it has and can **Copy**, **Save** or **Clear** it.
