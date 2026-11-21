@@ -4,7 +4,7 @@ import { CheckSquare, Plus, Timer, UserCheck } from "lucide-react";
 import type { Card, ID } from "../types";
 import { useStore } from "../store";
 import {
-  byOrder, checklistStats, dueStatus, formatDuration, isLate, prettyDate, PRIORITIES, PROGRESS, toISO, todayISO, trackedMs,
+  byOrder, checklistStats, dueStatus, formatDuration, isLate, prettyDate, priorityList, priorityMeta, priorityRank, PROGRESS, toISO, todayISO, trackedMs,
 } from "../utils";
 import { Empty, PriorityBadge, ProgressIcon, useIntro } from "./ui";
 import { openCardMenu } from "./ContextMenu";
@@ -51,7 +51,19 @@ export function MyTasksPage() {
     if (group === "progress")
       return PROGRESS.map((p) => ({ key: p.id, title: p.name, color: p.color, cards: mine.filter((c) => c.progress === p.id).sort(byDue) }));
     if (group === "priority")
-      return PRIORITIES.map((p) => ({ key: p.id, title: p.name, color: p.color, cards: mine.filter((c) => c.priority === p.id).sort(byDue) }));
+    {
+      // Boards can have their own priorities: one group per name, in the order they rank on their boards.
+      const groups = new Map<string, { key: string; title: string; color: string; rank: number; cards: Card[] }>();
+      for (const c of mine) {
+        const b = data.boards[c.boardId];
+        const m = priorityMeta(c.priority, b);
+        const key = m.name.toLowerCase();
+        const g = groups.get(key) ?? { key, title: m.name, color: m.color, rank: priorityRank(c.priority, b) / priorityList(b).length, cards: [] };
+        g.cards.push(c);
+        groups.set(key, g);
+      }
+      return [...groups.values()].sort((a, b) => a.rank - b.rank).map((g) => ({ ...g, cards: g.cards.sort(byDue) }));
+    }
     const t = todayISO();
     const tomorrow = toISO(addDays(new Date(), 1));
     const week = toISO(addDays(new Date(), 7));
@@ -188,7 +200,7 @@ export function TaskRow({ card: c, time, extra }: { card: Card; time?: string; e
       </button>
       {time && <span className="task-time">{time}</span>}
       <span className={`grow ellipsis ${c.progress === "completed" ? "strike" : ""}`}>{c.title}</span>
-      <PriorityBadge priority={c.priority} />
+      <PriorityBadge priority={c.priority} board={b} />
       {cl.total > 0 && (
         <span className="badge">
           <CheckSquare size={12} /> {cl.done}/{cl.total}

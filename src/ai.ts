@@ -5,7 +5,7 @@
 import type { Board, Card, FieldDef, ID, List, Priority, Progress } from "./types";
 import { useStore } from "./store";
 import {
-  byOrder, describeRecurrence, formatDuration, formatFieldValue, parseDuration, PALETTE, PRIORITIES, PROGRESS, subtaskIds,
+  byOrder, describeRecurrence, formatDuration, formatFieldValue, parseDuration, PALETTE, priorityMeta, priorityRank, PROGRESS, subtaskIds,
   trackedMs, uid,
 } from "./utils";
 import type { ImportedBoard } from "./importers";
@@ -220,14 +220,13 @@ export function exportMarkdown(
   const shown = cards.filter((c) => opts.done !== false || c.progress !== "completed");
   const out: string[] = [`# ${opts.heading ?? board.title}`, ""];
   const listIndex = new Map(lists.map((l, i) => [l.id, i]));
-  const RANK = { urgent: 0, important: 1, medium: 2, low: 3 } as const;
   // Work orders: one numbered list, most important first. Otherwise: grouped by bucket.
   const groups: { title: string | null; cards: Card[] }[] = opts.numbered
     ? [
         {
           title: null,
           cards: [...shown].sort(
-            (a, b) => RANK[a.priority] - RANK[b.priority] || (listIndex.get(a.listId) ?? 0) - (listIndex.get(b.listId) ?? 0) || byOrder(a, b),
+            (a, b) => priorityRank(a.priority, board) - priorityRank(b.priority, board) || (listIndex.get(a.listId) ?? 0) - (listIndex.get(b.listId) ?? 0) || byOrder(a, b),
           ),
         },
       ]
@@ -243,7 +242,7 @@ export function exportMarkdown(
         `id: ${shortId(c.id)}`,
         opts.numbered && `bucket: ${data.lists[c.listId]?.title}`,
         PROGRESS.find((p) => p.id === c.progress)!.name,
-        `priority: ${PRIORITIES.find((p) => p.id === c.priority)!.name}`,
+        `priority: ${priorityMeta(c.priority, board).name}`,
         c.startDate && `start ${c.startDate}`,
         c.dueDate && `due ${c.dueDate}`,
         c.labelIds.length && `labels: ${c.labelIds.map(label).filter(Boolean).join(", ")}`,

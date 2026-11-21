@@ -39,7 +39,7 @@ import { attachToCard, isLocalPath, storeLinkedFile } from "../attachments";
 import { useStore } from "../store";
 import {
   blockLoopReason, byOrder, subtaskLoopReason, describeRecurrence, fileSize, formatDuration, isImage, LINK_TYPES, parseDuration,
-  prettyDate, priorityMeta, PRIORITIES, PROGRESS, progressMeta, timeAgo, todayISO, trackedMs, uid, WEEKDAYS,
+  prettyDate, priorityList, priorityMeta, PROGRESS, progressMeta, timeAgo, todayISO, trackedMs, uid, WEEKDAYS,
 } from "../utils";
 import { format } from "date-fns";
 import { fileUrlToPath, inTauri, isPhoneOrTablet, openExternal, openStored, storedSrc } from "../storage";
@@ -452,9 +452,9 @@ function CardDetail({ card, onClose }: { card: Card; onClose: () => void }) {
           </Field>
           <Field label="Priority" hidden={!show("priority")}>
             <select value={card.priority} onChange={(e) => set({ priority: e.target.value as Priority })}>
-              {PRIORITIES.map((p) => (
+              {priorityList(board).map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name}
+                  {p.icon ? `${p.icon} ` : ""}{p.name}
                 </option>
               ))}
             </select>
@@ -904,7 +904,7 @@ function ActivitySection({ card }: { card: Card }) {
       case "board": return <>Moved from board <b>{boardName(a.from)}</b> to <b>{boardName(a.to)}</b></>;
       case "progress":
         return a.to === "completed" ? <>Marked <b>complete</b></> : <>Progress set to <b>{progressMeta(a.to as Progress).name}</b></>;
-      case "priority": return <>Priority changed to <b>{priorityMeta(a.to as Priority).name}</b></>;
+      case "priority": return <>Priority changed to <b>{priorityMeta(a.to as Priority, boards[card.boardId]).name}</b></>;
       case "due": return a.to ? <>Due date set to <b>{date(a.to)}</b>{a.from ? <> (was {date(a.from)})</> : null}</> : "Removed the due date";
       case "archived": return "Archived";
       case "restored": return "Restored from the archive";

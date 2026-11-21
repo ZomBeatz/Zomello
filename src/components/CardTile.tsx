@@ -91,6 +91,7 @@ export const CardTile = memo(function CardTile({
   const mode: Record<BadgeKey, BadgeMode> = { ...PICTURES_OFF, ...board.display.badges, ...listBadges, ...card.badges };
   const pictures = mode.images === "off" ? [] : card.attachments.filter((a) => a.stored && isImage(a.name, a.mime) && a.id !== card.coverImage);
   const labels = board.labels.filter((l) => card.labelIds.includes(l.id));
+  const pri = priorityMeta(card.priority, board);
   const cl = checklistStats(card);
   // The bucket can override the board's "hide ticked items on cards".
   const listHide = useStore((s) => s.data.lists[card.listId]?.hideChecked);
@@ -132,10 +133,11 @@ export const CardTile = memo(function CardTile({
         isLinkSource && "link-source",
         selected && "selected",
         blocked && "is-blocked",
+        pri.stripe && "pri-stripe",
       ]
         .filter(Boolean)
         .join(" ")}
-      style={full && !coverImg ? { background: card.cover! } : undefined}
+      style={{ ...(full && !coverImg ? { background: card.cover! } : {}), ...(pri.stripe ? { "--pri": pri.color } : {}) } as React.CSSProperties}
       data-card-id={card.id}
       data-rel-label={linkRole ? REL_LABEL[linkRole] : undefined}
       onClick={(e) => {
@@ -277,10 +279,10 @@ export const CardTile = memo(function CardTile({
             <span className="rel-text">{blockers.includes("\n") ? `Blocked by ${blockers.split("\n").length}` : `Blocked by ${blockers}`}</span>
           </button>
         )}
-        {mode.priority === "full" && <PriorityBadge priority={card.priority} showLow />}
-        {mode.priority === "icon" && card.priority !== "medium" && (
-          <span className="badge icon-only" title={`${priorityMeta(card.priority).name} priority`} style={{ color: priorityMeta(card.priority).color }}>
-            <Flag size={12} fill="currentColor" />
+        {mode.priority === "full" && <PriorityBadge priority={card.priority} board={board} showLow />}
+        {mode.priority === "icon" && (board.priorities?.length || card.priority !== "medium") && (
+          <span className="badge icon-only" title={`${pri.name} priority`} style={{ color: pri.color }}>
+            {pri.icon && board.priorities?.length ? pri.icon : <Flag size={12} fill="currentColor" />}
           </span>
         )}
         {bucketName && <span className="badge subtle">{bucketName}</span>}

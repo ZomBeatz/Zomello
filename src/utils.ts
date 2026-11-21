@@ -1,5 +1,5 @@
 import { addDays, addMonths, addYears, differenceInCalendarDays, format, parseISO, startOfWeek } from "date-fns";
-import type { Board, Card, DueFilter, FieldValue, Filter, GroupBy, LinkType, List, Priority, Progress, Recurrence } from "./types";
+import type { Board, Card, DueFilter, FieldValue, Filter, GroupBy, LinkType, List, Priority, PriorityDef, Progress, Recurrence } from "./types";
 
 /** Random v4 UUID. `crypto.randomUUID` only exists on secure origins, and phones reach the PC over plain http. */
 export const uid = (): string => {
@@ -61,12 +61,27 @@ export function cardSpan(c: Card): { start: Date; end: Date; allDay: boolean } |
   return { start, end, allDay: false };
 }
 
-export const PRIORITIES: { id: Priority; name: string; color: string }[] = [
-  { id: "urgent", name: "Urgent", color: "#ef4444" },
-  { id: "important", name: "Important", color: "#f97316" },
+/** The standard priorities, for boards without their own list (Customize > Priorities). */
+export const PRIORITIES: PriorityDef[] = [
+  { id: "urgent", name: "Urgent", color: "#ef4444", icon: "!!" },
+  { id: "important", name: "Important", color: "#f97316", icon: "!" },
   { id: "medium", name: "Medium", color: "#3b82f6" },
-  { id: "low", name: "Low", color: "#94a3b8" },
+  { id: "low", name: "Low", color: "#94a3b8", icon: "↓" },
 ];
+/** A board's priorities, most important first. */
+export const priorityList = (board?: Pick<Board, "priorities"> | null): PriorityDef[] =>
+  board?.priorities?.length ? board.priorities : PRIORITIES;
+/** Where a priority ranks on its board (0 = most important); unknown ones go last. */
+export const priorityRank = (p: Priority, board?: Pick<Board, "priorities"> | null): number => {
+  const list = priorityList(board);
+  const i = list.findIndex((x) => x.id === p);
+  return i < 0 ? list.length : i;
+};
+/** The usual priority for a new card: "medium", or the middle of a board's own list. */
+export const defaultPriority = (board?: Pick<Board, "priorities"> | null): Priority => {
+  const list = priorityList(board);
+  return list.some((p) => p.id === "medium") ? "medium" : list[Math.floor((list.length - 1) / 2)].id;
+};
 export const PROGRESS: { id: Progress; name: string; color: string }[] = [
   { id: "notStarted", name: "Not started", color: "#94a3b8" },
   { id: "inProgress", name: "In progress", color: "#3b82f6" },
@@ -74,7 +89,8 @@ export const PROGRESS: { id: Progress; name: string; color: string }[] = [
   { id: "onHold", name: "On hold", color: "#a855f7" },
   { id: "completed", name: "Completed", color: "#22c55e" },
 ];
-export const priorityMeta = (p: Priority) => PRIORITIES.find((x) => x.id === p)!;
+export const priorityMeta = (p: Priority, board?: Pick<Board, "priorities"> | null): PriorityDef =>
+  priorityList(board).find((x) => x.id === p) ?? PRIORITIES.find((x) => x.id === p) ?? { id: p, name: p, color: "#94a3b8" };
 export const progressMeta = (p: Progress) => PROGRESS.find((x) => x.id === p)!;
 
 export const PALETTE = [
@@ -210,7 +226,7 @@ export function buildGroups(
         patch: () => ({ progress: p.id }),
       }));
     case "priority":
-      return PRIORITIES.map((p) => ({
+      return priorityList(board).map((p) => ({
         id: `priority:${p.id}`,
         title: p.name,
         color: p.color,
@@ -433,15 +449,14 @@ export const SORT_MODES: { id: import("./types").SortMode; name: string; hint: s
   { id: "created", name: "Newest", hint: "Most recently created first" },
   { id: "updated", name: "Recently updated", hint: "Last changed first" },
 ];
-const PRI_RANK = { urgent: 0, important: 1, medium: 2, low: 3 } as const;
 const PROG_RANK = { inProgress: 0, waiting: 1, notStarted: 2, onHold: 3, completed: 4 } as const;
 
-export function sortCards(cards: Card[], mode: import("./types").SortMode, desc = false): Card[] {
+export function sortCards(cards: Card[], mode: import("./types").SortMode, desc = false, board?: Pick<Board, "priorities">): Card[] {
   if (mode === "custom") return cards;
   const key = (c: Card): string | number => {
     switch (mode) {
       case "due": return c.dueDate ?? "9999-99-99";
-      case "priority": return PRI_RANK[c.priority];
+      case "priority": return priorityRank(c.priority, board);
       case "alpha": return c.title.toLocaleLowerCase();
       case "progress": return PROG_RANK[c.progress];
       case "created": return -c.createdAt;

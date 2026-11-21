@@ -35,7 +35,7 @@ import {
 import type { Board, Card, DueFilter, FieldDef, FieldValue, Filter, GroupBy, ID, ViewMode } from "../types";
 import { useBoardUi, useStore } from "../store";
 import { addDays, format, nextMonday, parseISO } from "date-fns";
-import { byOrder, emptyFilter, filterChoiceCount, filterIsActive, isLate, matchesFilter, todayISO, PALETTE, PRIORITIES, PROGRESS, relatedSet, toISO, uid } from "../utils";
+import { byOrder, emptyFilter, filterChoiceCount, filterIsActive, isLate, matchesFilter, todayISO, PALETTE, priorityList, PROGRESS, relatedSet, toISO, uid } from "../utils";
 import { ask, Avatar, ColorPicker, InlineEdit, MenuItem, Popover } from "./ui";
 import { KanbanView } from "./views/KanbanView";
 import { cardsOnScreen } from "./CardTile";
@@ -151,7 +151,7 @@ export function BoardPage({ boardId }: { boardId: ID }) {
         {view === "list" && <ListView board={board} lists={lists} cards={cards} />}
         {view === "calendar" && <CalendarView board={board} lists={lists} cards={cards} />}
         {view === "timeline" && <TimelineView lists={lists} cards={cards} />}
-        {view === "charts" && <ChartsView lists={lists} cards={cards} people={people} />}
+        {view === "charts" && <ChartsView board={board} lists={lists} cards={cards} people={people} />}
       </div>
       </div>
       <SelectingHead />
@@ -539,7 +539,7 @@ function Toolbar({
               </label>
             ))}
             <span className="menu-heading">Priority</span>
-            {PRIORITIES.map((p) => (
+            {priorityList(board).map((p) => (
               <label key={p.id} className="menu-item">
                 <input type="checkbox" checked={f.priorities.includes(p.id)} onChange={() => toggle("priorities", p.id)} />
                 <span className="dot" style={{ background: p.color }} />
@@ -846,7 +846,7 @@ function SelectionBar({ boardId }: { boardId: ID }) {
       <Popover trigger={(_, t) => <button className="btn sm" onClick={t}><Flag size={14} /> Priority</button>}>
         {(close) => (
           <div className="menu">
-            {PRIORITIES.map((p) => (
+            {priorityList(board).map((p) => (
               <MenuItem key={p.id} icon={<span className="dot" style={{ background: p.color }} />} onClick={() => (each(() => ({ priority: p.id }), `Set to ${p.name}:`), close())}>
                 {p.name}
               </MenuItem>

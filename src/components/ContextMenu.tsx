@@ -41,7 +41,7 @@ import { copyCards } from "../cardClipboard";
 import { useStore } from "../store";
 import { featureOn, type Feature } from "../features";
 import { openLinked } from "./LinkedSheet";
-import { byOrder, describeRecurrence, PRIORITIES, PROGRESS, RECURRENCE_PRESETS, relatedSet, toISO, safeArea } from "../utils";
+import { byOrder, describeRecurrence, priorityList, PROGRESS, RECURRENCE_PRESETS, relatedSet, toISO, safeArea } from "../utils";
 import { Avatar } from "./ui";
 import { CardPicker, LabelPicker } from "./pickers";
 import { setProgress, toggleDone } from "../blocked";
@@ -248,7 +248,7 @@ function cardMenu(cardId: ID): MenuEntry[] {
     {
       label: "Priority",
       icon: <Flag size={14} />,
-      submenu: PRIORITIES.map((p) => ({
+      submenu: priorityList(data.boards[card.boardId]).map((p) => ({
         label: (
           <span className="row gap-sm">
             <span className="dot" style={{ background: p.color }} />

@@ -13,7 +13,7 @@ import { sendDeviceChanges, setDeviceBase } from "./deviceWindow";
 import { isRemote } from "./remote";
 import { isServer, mergeOps, pushChanges, rebaseSnapshot, setBase, type Ops } from "./server";
 import {
-  blockLoopReason, byOrder, emptyFilter, fromISO, inverseLink, isBlocked, isLate, nextRecurrenceDate, PALETTE, subtaskLoopReason, toISO, todayISO, uid,
+  blockLoopReason, byOrder, defaultPriority, emptyFilter, fromISO, inverseLink, isBlocked, isLate, nextRecurrenceDate, PALETTE, subtaskLoopReason, toISO, todayISO, uid,
 } from "./utils";
 
 const DEFAULT_LABELS = [
@@ -1120,6 +1120,8 @@ export const useStore = create<State>((set, get) => {
       d = get().data;
       const card = newCard(list.boardId, listId, title.trim() || template?.title || title, Math.max(-1, ...siblings.map((c) => c.order)) + 1, {
         activity: [{ at: Date.now(), kind: "created" }],
+        // A board with its own priorities starts cards at its usual one.
+        ...(d.boards[list.boardId]?.priorities?.length ? { priority: defaultPriority(d.boards[list.boardId]) } : {}),
         ...fromT,
         ...(list.autoProgress ? { progress: list.autoProgress } : {}),
         ...(list.newPriority ? { priority: list.newPriority } : {}),

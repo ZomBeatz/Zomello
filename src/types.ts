@@ -1,6 +1,20 @@
 export type ID = string;
 
-export type Priority = "urgent" | "important" | "medium" | "low";
+/** A priority's id: one of the standard four ("urgent", "important", "medium", "low") or a board's own. */
+export type Priority = string;
+
+/** One of a board's priorities (Customize > Priorities). Listed most important first. */
+export interface PriorityDef {
+  id: Priority;
+  name: string;
+  color: string;
+  /** Emoji or short mark shown on the card's badge. */
+  icon?: string;
+  /** Color the card's left edge. */
+  stripe?: boolean;
+  /** Auto-assign may give it to someone even when they're already full (an emergency). */
+  overCapacity?: boolean;
+}
 /** Card status. "waiting" = blocked on someone else; "onHold" = paused on purpose. */
 export type Progress = "notStarted" | "inProgress" | "waiting" | "onHold" | "completed";
 
@@ -257,6 +271,8 @@ export interface Board {
   starred: boolean;
   /** Only on this device: never shown on your other devices (or your computer, from a phone). */
   private?: boolean;
+  /** The board's own priorities, most important first. None: the standard four. */
+  priorities?: PriorityDef[];
   /**
    * This computer's board on other people's phones (Settings > Phones & tablets > Whose is it?): who sees it and
    * what they may do. "check" = comment on any card, and set the status and tick checklist items on their own. See src-tauri/src/people.rs.

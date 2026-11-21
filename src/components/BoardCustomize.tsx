@@ -7,6 +7,7 @@ import { boardCategories, plural, BOARD_EMOJIS, GRADIENTS, isImage, PALETTE, uid
 import { storedSrc, storeFile, storeFromPath } from "../storage";
 import { registerDropZone } from "../fileDrop";
 import { useFeature } from "../features";
+import { PrioritiesEditor } from "./PrioritiesEditor";
 import { ask, ColorPicker, Modal, Popover, useSaveOnUnmount } from "./ui";
 
 export const BADGES: { key: BadgeKey; name: string; icon: string; full: string }[] = [
@@ -333,6 +334,8 @@ export function BoardCustomize({ board }: { board: Board }) {
         </section>
 
         {(fields || board.fields.length > 0) && <FieldsEditor board={board} />}
+
+        <PrioritiesEditor board={board} />
 
         <section>
           <h4>Card details window</h4>

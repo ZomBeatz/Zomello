@@ -50,7 +50,7 @@ import {
 import type { BadgeKey, BadgeMode, Board, Card, GroupBy, ID, List, Priority, Progress } from "../../types";
 import { useStore } from "../../store";
 import { useWhen, withWhen } from "../WhenChip";
-import { buildGroups, byOrder, PRIORITIES, PROGRESS, SORT_MODES, sortCards, type Group } from "../../utils";
+import { buildGroups, byOrder, priorityList, priorityMeta, PROGRESS, SORT_MODES, sortCards, type Group } from "../../utils";
 import { CardTile } from "../CardTile";
 import { Avatar, InlineEdit, MenuItem, Modal, Popover } from "../ui";
 import { BADGES } from "../BoardCustomize";
@@ -149,7 +149,7 @@ export function KanbanView({
   const groups = useMemo(
     () =>
       buildGroups(groupBy, board, lists, cards, people).map((g) =>
-        g.list && g.list.sort !== "custom" ? { ...g, cards: sortCards(g.cards, g.list.sort, g.list.sortDesc) } : g,
+        g.list && g.list.sort !== "custom" ? { ...g, cards: sortCards(g.cards, g.list.sort, g.list.sortDesc, board) } : g,
       ),
     [groupBy, board, lists, cards, people],
   );
@@ -444,7 +444,7 @@ function Column({
           <button
             className="rules-chip"
             aria-label="Bucket rules"
-            title={rulesSummary(list, allLists, templates)}
+            title={rulesSummary(list, allLists, templates, board)}
             onClick={() => setRulesOpen(true)}
             onPointerDown={(e) => e.stopPropagation()}
           >
@@ -889,13 +889,13 @@ const appliesToCardsHere = (l: List) =>
     l.checkedComplete || l.checkedMoveTo || l.lateMoveTo || l.latePriority);
 
 /** What a bucket's rules do, one line each, for the tooltip on its header. */
-function rulesSummary(l: List, lists: Record<ID, List>, templates: { id: ID; name: string }[]): string {
+function rulesSummary(l: List, lists: Record<ID, List>, templates: { id: ID; name: string }[], board?: Board): string {
   const to = (id?: ID | null) => (id && lists[id]?.title) || "another bucket";
   const n = (x?: unknown[]) => x?.length ?? 0;
   const lines = [
     l.newTemplateId && `New cards start from "${templates.find((t) => t.id === l.newTemplateId)?.name ?? "a template"}"`,
     n(l.newLabelIds) && "New cards get labels",
-    l.newPriority && `New cards get ${PRIORITIES.find((p) => p.id === l.newPriority)?.name ?? ""} priority`,
+    l.newPriority && `New cards get ${priorityMeta(l.newPriority, board).name} priority`,
     l.autoProgress && `Cards here are set to ${PROGRESS.find((p) => p.id === l.autoProgress)?.name ?? ""}`,
     n(l.arriveLabelIds) && "Cards here get labels",
     l.arriveDueDays != null && "Cards here get a due date",
@@ -904,7 +904,7 @@ function rulesSummary(l: List, lists: Record<ID, List>, templates: { id: ID; nam
     (l.checkedComplete || l.checkedMoveTo) &&
       `A finished checklist ${[l.checkedComplete && "completes the card", l.checkedMoveTo && `moves it to ${to(l.checkedMoveTo)}`].filter(Boolean).join(" and ")}`,
     (l.lateMoveTo || l.latePriority) &&
-      `Late cards ${[l.lateMoveTo && `move to ${to(l.lateMoveTo)}`, l.latePriority && `get ${PRIORITIES.find((p) => p.id === l.latePriority)?.name ?? ""} priority`].filter(Boolean).join(" and ")}`,
+      `Late cards ${[l.lateMoveTo && `move to ${to(l.lateMoveTo)}`, l.latePriority && `get ${priorityMeta(l.latePriority, board).name} priority`].filter(Boolean).join(" and ")}`,
     l.archiveAfterDays != null && `Completed cards are archived after ${l.archiveAfterDays === 1 ? "a day" : `${l.archiveAfterDays} days`}`,
   ].filter(Boolean);
   return `Bucket rules (click to change):\n${lines.map((x) => `• ${x}`).join("\n")}`;
@@ -987,7 +987,7 @@ function BucketRulesDialog({ list, board, onClose }: { list: List; board: Board;
             <span>Set priority</span>
             <select value={list.newPriority ?? ""} onChange={(e) => updateList(list.id, { newPriority: (e.target.value || null) as Priority | null })}>
               <option value="">(unchanged)</option>
-              {PRIORITIES.map((p) => (
+              {priorityList(board).map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
@@ -1100,7 +1100,7 @@ function BucketRulesDialog({ list, board, onClose }: { list: List; board: Board;
             <span>Set priority</span>
             <select value={list.latePriority ?? ""} onChange={(e) => updateList(list.id, { latePriority: (e.target.value || null) as Priority | null })}>
               <option value="">(unchanged)</option>
-              {PRIORITIES.map((p) => (
+              {priorityList(board).map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>

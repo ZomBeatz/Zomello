@@ -2,14 +2,13 @@ import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Plus } from "lucide-react";
 import type { Board, Card, List, Priority } from "../../types";
 import { useStore } from "../../store";
-import { checklistStats, dueStatus, prettyDateTime, PRIORITIES, PROGRESS } from "../../utils";
+import { checklistStats, dueStatus, prettyDateTime, priorityList, priorityRank, PROGRESS } from "../../utils";
 import { Avatar, ProgressIcon } from "../ui";
 import { openCardMenu } from "../ContextMenu";
 import { useWhen, withWhen } from "../WhenChip";
 import { setProgress, toggleDone } from "../../blocked";
 
 type SortKey = "title" | "bucket" | "progress" | "priority" | "start" | "due" | "updated";
-const PRI_RANK: Record<Priority, number> = { urgent: 0, important: 1, medium: 2, low: 3 };
 const PROG_RANK = { notStarted: 0, inProgress: 1, waiting: 2, onHold: 3, completed: 4 };
 
 export function ListView({ board, lists, cards }: { board: Board; lists: List[]; cards: Card[] }) {
@@ -28,7 +27,7 @@ export function ListView({ board, lists, cards }: { board: Board; lists: List[];
         case "title": return c.title.toLowerCase();
         case "bucket": return (listIdx[c.listId] ?? 999) * 1e6 + c.order;
         case "progress": return PROG_RANK[c.progress];
-        case "priority": return PRI_RANK[c.priority];
+        case "priority": return priorityRank(c.priority, board);
         case "start": return c.startDate ?? "9999";
         case "due": return c.dueDate ?? "9999";
         case "updated": return -c.updatedAt;
@@ -128,7 +127,7 @@ export function ListView({ board, lists, cards }: { board: Board; lists: List[];
                     onClick={(e) => e.stopPropagation()}
                     onChange={(e) => updateCard(c.id, { priority: e.target.value as Priority })}
                   >
-                    {PRIORITIES.map((p) => (
+                    {priorityList(board).map((p) => (
                       <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </select>

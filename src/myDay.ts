@@ -1,8 +1,6 @@
 import { addDays, isSameDay, startOfDay } from "date-fns";
 import type { AppData, Card } from "./types";
-import { cardSpan, PRIORITIES, toISO } from "./utils";
-
-const rank = (c: Card) => PRIORITIES.findIndex((p) => p.id === c.priority);
+import { cardSpan, priorityRank, toISO } from "./utils";
 
 /**
  * What My Day shows for a day, from every board: what's late, what's due or scheduled that day (timed
@@ -15,6 +13,8 @@ const rank = (c: Card) => PRIORITIES.findIndex((p) => p.id === c.priority);
 export function myDayLists(data: AppData, day: Date) {
   const iso = toISO(day);
   const me = data.settings.me;
+  // Each board has its own priorities: rank by place in that board's list (the top two count as important).
+  const rank = (c: Card) => priorityRank(c.priority, data.boards[c.boardId]);
   const cards = Object.values(data.cards).filter(
     (c) => !c.archived && data.boards[c.boardId] && !data.boards[c.boardId].archived && data.lists[c.listId] && !data.lists[c.listId].archived,
   );
@@ -48,7 +48,7 @@ export function myDayLists(data: AppData, day: Date) {
   const next = toISO(addDays(day, 1));
   const ideas = open
     .filter((c) => mine(c) && !shown.has(c.id))
-    .filter((c) => c.dueDate === next || c.startDate === next || c.progress === "inProgress" || (!c.dueDate && (c.priority === "urgent" || c.priority === "important")))
+    .filter((c) => c.dueDate === next || c.startDate === next || c.progress === "inProgress" || (!c.dueDate && rank(c) < 2))
     .sort((a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999") || rank(a) - rank(b))
     .slice(0, 10);
   return { late, scheduled, added, leftovers, done, ideas };

@@ -1,5 +1,5 @@
-import type { Card, List } from "../../types";
-import { formatDuration, isLate, PRIORITIES, PROGRESS, trackedMs } from "../../utils";
+import type { Board, Card, List } from "../../types";
+import { formatDuration, isLate, priorityList, PROGRESS, trackedMs } from "../../utils";
 
 /** Stacked segments: not started / in progress / completed, with late split out. */
 const SEGMENTS = [
@@ -44,7 +44,7 @@ function Panel({ title, rows }: { title: string; rows: { label: string; cards: C
   );
 }
 
-export function ChartsView({ lists, cards, people }: { lists: List[]; cards: Card[]; people: string[] }) {
+export function ChartsView({ board, lists, cards, people }: { board: Board; lists: List[]; cards: Card[]; people: string[] }) {
   const count = (t: (c: Card) => boolean) => cards.filter(t).length;
   const done = count((c) => c.progress === "completed");
   const pct = cards.length ? Math.round((done / cards.length) * 100) : 0;
@@ -94,7 +94,7 @@ export function ChartsView({ lists, cards, people }: { lists: List[]; cards: Car
 
       <div className="panel-grid">
         <Panel title="By bucket" rows={lists.map((l) => ({ label: l.title, cards: cards.filter((c) => c.listId === l.id) }))} />
-        <Panel title="By priority" rows={PRIORITIES.map((p) => ({ label: p.name, cards: cards.filter((c) => c.priority === p.id) }))} />
+        <Panel title="By priority" rows={priorityList(board).map((p) => ({ label: p.name, cards: cards.filter((c) => c.priority === p.id) }))} />
         <Panel
           title="By assignee"
           rows={[

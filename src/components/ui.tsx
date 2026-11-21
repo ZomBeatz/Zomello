@@ -1,8 +1,8 @@
 import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, CheckCircle2, CircleDashed, CircleDot, CirclePause, Hourglass, X } from "lucide-react";
-import type { Priority, Progress } from "../types";
-import { colorFor, initials, PALETTE, priorityMeta, safeArea } from "../utils";
+import type { Board, Priority, Progress } from "../types";
+import { colorFor, initials, PALETTE, PRIORITIES, priorityList, priorityMeta, safeArea } from "../utils";
 import { useStore } from "../store";
 
 export function Modal({
@@ -154,12 +154,16 @@ function Tombstone({ size }: { size: number }) {
   );
 }
 
-export function PriorityBadge({ priority, showLow = false }: { priority: Priority; showLow?: boolean }) {
-  if (priority === "medium" || (priority === "low" && !showLow)) return null;
-  const m = priorityMeta(priority);
+export function PriorityBadge({ priority, board, showLow = false }: { priority: Priority; board?: Pick<Board, "priorities"> | null; showLow?: boolean }) {
+  const list = priorityList(board);
+  const custom = list !== PRIORITIES;
+  // The standard four hide Medium (and Low unless asked); a board's own priorities always show.
+  if (!custom && (priority === "medium" || (priority === "low" && !showLow))) return null;
+  const m = priorityMeta(priority, board);
   return (
     <span className="badge" style={{ color: m.color, borderColor: m.color }}>
-      {priority === "urgent" ? "!!" : priority === "important" ? "!" : "↓"} {m.name}
+      {m.icon && <>{m.icon} </>}
+      {m.name}
     </span>
   );
 }

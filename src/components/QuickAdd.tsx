@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Zap } from "lucide-react";
 import type { ID, Priority } from "../types";
 import { useStore } from "../store";
-import { byOrder, PRIORITIES } from "../utils";
+import { byOrder, priorityList } from "../utils";
 import { Modal } from "./ui";
 import { useWhen, whenFields } from "./WhenChip";
 
@@ -97,7 +97,7 @@ export function QuickAdd() {
           <label>
             Priority
             <select value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
-              {PRIORITIES.map((p) => (
+              {priorityList(data.boards[boardId]).map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
