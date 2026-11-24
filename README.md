@@ -6,8 +6,9 @@
 </p>
 
 <p align="center">
-  <b>A planner for any occasion.</b><br>
-  A free kanban board and task planner, similar to Trello and Microsoft Planner.<br>
+  <b>Your planner, on your own computer.</b><br>
+  Free kanban boards like Trello and Microsoft Planner, with much more built in: calendar, timeline, charts, auto-assign and sharing with the people at home.<br>
+  No account, no cloud, works offline.<br>
   Use it on Windows, Linux, Android, iPhone and iPad, or self-host it on your own server with Docker.
 </p>
 
