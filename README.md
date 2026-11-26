@@ -215,6 +215,6 @@ More in [docs/apps.md](docs/apps.md#building-it-yourself).
 
 ## Contact
 
-Made by **ZomBeatz Media** · [info@zombeatzmedia.com](mailto:info@zombeatzmedia.com) · Reddit: [u/ZomBeatzMedia_Dev](https://www.reddit.com/user/ZomBeatzMedia_Dev/)
+Made by **ZomBeatz Media**, with help from [Claude Code](https://claude.com/claude-code) · [info@zombeatzmedia.com](mailto:info@zombeatzmedia.com) · Reddit: [u/ZomBeatzMedia_Dev](https://www.reddit.com/user/ZomBeatzMedia_Dev/)
 
 [![I did my own Planner and Trello](https://idmo.app/badge/zomello)](https://idmo.app/p/zomello) [![Listed on Remade](https://remade.wiki/badges/listed-on-remade.svg)](https://remade.wiki/projects/zomello/)
